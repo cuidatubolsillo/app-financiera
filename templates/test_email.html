@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Probar Parser de Emails - Mi App Financiera</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ecf0f1;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group textarea {
+            height: 200px;
+            resize: vertical;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #45a049;
+        }
+        
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 6px;
+            display: none;
+        }
+        
+        .result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .result-data {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        
+        .example-emails {
+            margin-top: 30px;
+        }
+        
+        .example-email {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: border-color 0.3s;
+        }
+        
+        .example-email:hover {
+            border-color: #4CAF50;
+        }
+        
+        .example-email h4 {
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+        }
+        
+        .example-email p {
+            margin: 0;
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="{{ url_for('home') }}" class="back-link">← Volver al Dashboard</a>
+        
+        <div class="test-container">
+            <h1>🧪 Probar Parser de Emails</h1>
+            <p>Pega aquí el contenido de un email bancario para ver cómo se extrae la información</p>
+            
+            <form id="testForm">
+                <div class="form-group">
+                    <label for="subject">Asunto del email:</label>
+                    <input type="text" id="subject" name="subject" 
+                           placeholder="Ej: Notificación de compra">
+                </div>
+                
+                <div class="form-group">
+                    <label for="content">Contenido del email:</label>
+                    <textarea id="content" name="content" 
+                              placeholder="Pega aquí el contenido completo del email..."></textarea>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">🔍 Probar Parser</button>
+                <a href="{{ url_for('home') }}" class="btn btn-secondary">❌ Cancelar</a>
+            </form>
+            
+            <div id="result" class="result"></div>
+            
+            <div class="example-emails">
+                <h3>📧 Emails de ejemplo para probar:</h3>
+                
+                <div class="example-email" onclick="loadExample(1)">
+                    <h4>🏪 Compra en Supermercado</h4>
+                    <p>Email típico de compra en supermercado con tarjeta Visa</p>
+                </div>
+                
+                <div class="example-email" onclick="loadExample(2)">
+                    <h4>⛽ Compra de Gasolina</h4>
+                    <p>Email de compra de combustible en estación de servicio</p>
+                </div>
+                
+                <div class="example-email" onclick="loadExample(3)">
+                    <h4>🎬 Suscripción Netflix</h4>
+                    <p>Email de cargo automático por suscripción</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Ejemplos de emails
+        const examples = {
+            1: {
+                subject: "Notificación de compra - Visa",
+                content: `Estimado cliente,
+
+Se ha realizado una compra con su tarjeta Visa terminada en 1234
+por un monto de $45.50 en SUPERMERCADO WALMART
+el día 10/09/2025.
+
+Detalles de la transacción:
+- Fecha: 10/09/2025
+- Hora: 14:30
+- Monto: $45.50
+- Comercio: SUPERMERCADO WALMART
+- Ubicación: Santiago, Chile
+
+Banco Santander`
+            },
+            2: {
+                subject: "Cargo en tarjeta - Mastercard",
+                content: `Hola,
+
+Tu tarjeta Mastercard terminada en 5678 fue utilizada para:
+- Compra: $32.00
+- Lugar: SHELL GASOLINERA
+- Fecha: 09/09/2025
+- Hora: 08:15
+
+BBVA Chile`
+            },
+            3: {
+                subject: "Cargo automático Netflix",
+                content: `Estimado usuario,
+
+Se ha procesado el cargo automático de tu suscripción Netflix:
+- Monto: $15.99
+- Fecha: 08/09/2025
+- Tarjeta: Visa terminada en 9012
+
+Gracias por tu suscripción.
+
+Banco de Chile`
+            }
+        };
+        
+        function loadExample(num) {
+            const example = examples[num];
+            document.getElementById('subject').value = example.subject;
+            document.getElementById('content').value = example.content;
+        }
+        
+        document.getElementById('testForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const subject = document.getElementById('subject').value;
+            const content = document.getElementById('content').value;
+            const resultDiv = document.getElementById('result');
+            
+            if (!content.trim()) {
+                showResult('error', 'Por favor ingresa el contenido del email');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/test-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        subject: subject,
+                        content: content
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    showResult('success', '✅ Email procesado exitosamente', data.parsed_data);
+                } else {
+                    showResult('error', '❌ ' + data.message);
+                }
+            } catch (error) {
+                showResult('error', '❌ Error: ' + error.message);
+            }
+        });
+        
+        function showResult(type, message, data = null) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = `result ${type}`;
+            resultDiv.innerHTML = message;
+            
+            if (data) {
+                resultDiv.innerHTML += '<div class="result-data">' + JSON.stringify(data, null, 2) + '</div>';
+            }
+            
+            resultDiv.style.display = 'block';
+            resultDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>

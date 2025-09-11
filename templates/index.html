@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi App Financiera</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💰 Mi App Financiera</h1>
+            <p>Controla tus gastos y transacciones de manera inteligente</p>
+        </div>
+
+        <!-- Mensajes flash -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}" style="padding: 15px; margin-bottom: 20px; border-radius: 6px; background: {% if category == 'success' %}#d4edda; color: #155724; border: 1px solid #c3e6cb{% else %}#f8d7da; color: #721c24; border: 1px solid #f5c6cb{% endif %};">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Estadísticas -->
+        <div class="stats">
+            <div class="stat-card">
+                <h3>{{ total_transacciones }}</h3>
+                <p>Total Transacciones</p>
+            </div>
+            <div class="stat-card">
+                <h3>${{ total_gastos }}</h3>
+                <p>Total Gastos</p>
+            </div>
+            <div class="stat-card">
+                <h3>{{ bancos_unicos }}</h3>
+                <p>Bancos Diferentes</p>
+            </div>
+            <div class="stat-card">
+                <h3>{{ duenos_unicos }}</h3>
+                <p>Usuarios</p>
+            </div>
+        </div>
+
+        <!-- Botones de acción -->
+        <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+            <a href="{{ url_for('add_transaction') }}" class="add-transaction">
+                ➕ Agregar Nueva Transacción
+            </a>
+            <a href="{{ url_for('test_email_page') }}" class="add-transaction" style="background: #3498db;">
+                🧪 Probar Parser de Emails
+            </a>
+        </div>
+
+        <!-- Tabla de transacciones -->
+        {% if transacciones %}
+        <table class="transactions-table">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Descripción</th>
+                    <th>Monto</th>
+                    <th>Categoría</th>
+                    <th>Tarjeta</th>
+                    <th>Banco</th>
+                    <th>Dueño</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for trans in transacciones %}
+                <tr>
+                    <td>{{ trans.fecha.strftime("%d/%m/%Y") }}</td>
+                    <td>{{ trans.descripcion }}</td>
+                    <td class="amount">${{ "%.2f"|format(trans.monto) }}</td>
+                    <td><span class="category {{ trans.categoria.lower() }}">{{ trans.categoria }}</span></td>
+                    <td>{{ trans.tarjeta }}</td>
+                    <td class="bank">{{ trans.banco }}</td>
+                    <td class="owner">{{ trans.dueno }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="no-data">
+            <p>📊 No hay transacciones registradas.</p>
+            <p>¡Agrega tu primera transacción para comenzar!</p>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

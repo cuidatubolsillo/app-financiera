@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agregar Transacción - Mi App Financiera</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .form-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ecf0f1;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #45a049;
+        }
+        
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #4CAF50;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="{{ url_for('home') }}" class="back-link">← Volver al Dashboard</a>
+        
+        <div class="form-container">
+            <h1>➕ Agregar Nueva Transacción</h1>
+            
+            <form method="POST" action="{{ url_for('add_transaction') }}">
+                <div class="form-group">
+                    <label for="fecha">Fecha:</label>
+                    <input type="date" id="fecha" name="fecha" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="descripcion">Descripción:</label>
+                    <input type="text" id="descripcion" name="descripcion" 
+                           placeholder="Ej: Supermercado Walmart" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="monto">Monto:</label>
+                    <input type="number" id="monto" name="monto" 
+                           step="0.01" min="0" placeholder="0.00" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="categoria">Categoría:</label>
+                    <select id="categoria" name="categoria" required>
+                        <option value="">Seleccionar categoría</option>
+                        <option value="Alimentación">Alimentación</option>
+                        <option value="Transporte">Transporte</option>
+                        <option value="Entretenimiento">Entretenimiento</option>
+                        <option value="Salud">Salud</option>
+                        <option value="Educación">Educación</option>
+                        <option value="Vivienda">Vivienda</option>
+                        <option value="Otros">Otros</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="tarjeta">Tarjeta:</label>
+                    <input type="text" id="tarjeta" name="tarjeta" 
+                           placeholder="Ej: Visa, Mastercard" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="banco">Banco:</label>
+                    <input type="text" id="banco" name="banco" 
+                           placeholder="Ej: Banco Santander" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="dueno">Dueño:</label>
+                    <input type="text" id="dueno" name="dueno" 
+                           placeholder="Ej: Juan, María" required>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">💾 Guardar Transacción</button>
+                    <a href="{{ url_for('home') }}" class="btn btn-secondary">❌ Cancelar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        // Establecer fecha actual por defecto
+        document.getElementById('fecha').valueAsDate = new Date();
+    </script>
+</body>
+</html>
