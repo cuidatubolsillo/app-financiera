@@ -1,8 +1,15 @@
 import os
+import sys
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from email_parser import EmailParser
+
+# Forzar Python 3.11 en Render
+if sys.version_info >= (3, 13):
+    print("❌ ERROR: Python 3.13 no es compatible. Se requiere Python 3.11")
+    print("🔧 Solución: Render debe usar Python 3.11.10")
+    sys.exit(1)
 
 app = Flask(__name__)
 
