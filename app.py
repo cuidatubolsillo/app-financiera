@@ -51,8 +51,19 @@ class Transaccion(db.Model):
 
 @app.route('/')
 def home():
-    # Obtener todas las transacciones
-    transacciones = Transaccion.query.all()
+    try:
+        # Obtener todas las transacciones
+        transacciones = Transaccion.query.all()
+    except Exception as e:
+        print(f"❌ Error consultando transacciones: {e}")
+        # Si hay error, intentar crear las tablas
+        try:
+            db.create_all()
+            print("✅ Tablas creadas después del error")
+            transacciones = Transaccion.query.all()
+        except Exception as e2:
+            print(f"❌ Error crítico: {e2}")
+            transacciones = []
     
     # Calcular estadísticas
     total_transacciones = len(transacciones)
@@ -227,7 +238,33 @@ def init_db():
             db.session.commit()
             print("✅ Datos de ejemplo agregados a la base de datos")
 
+# Inicializar la base de datos automáticamente
+with app.app_context():
+    try:
+        db.create_all()
+        print("✅ Base de datos inicializada correctamente")
+        
+        # Verificar que la tabla existe
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        print(f"📊 Tablas existentes: {tables}")
+        
+        if 'transaccion' not in tables:
+            print("⚠️ Tabla 'transaccion' no encontrada, creando...")
+            db.create_all()
+            print("✅ Tabla 'transaccion' creada")
+        
+    except Exception as e:
+        print(f"❌ Error inicializando base de datos: {e}")
+        # Intentar crear las tablas de nuevo
+        try:
+            db.create_all()
+            print("✅ Base de datos creada en segundo intento")
+        except Exception as e2:
+            print(f"❌ Error crítico: {e2}")
+
 if __name__ == '__main__':
-    # Inicializar la base de datos
+    # Solo para desarrollo local
     init_db()
     app.run(debug=True)
