@@ -120,3 +120,4 @@ app_financiera/
 
 ### 🆘 **En caso de pérdida de contexto:**
 Este archivo contiene toda la información necesaria para retomar el proyecto desde donde se quedó.
+
