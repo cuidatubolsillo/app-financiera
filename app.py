@@ -215,6 +215,40 @@ def test_email_page():
     """Página para probar el parser de emails"""
     return render_template('test_email.html')
 
+@app.route('/debug')
+def debug():
+    """Ruta para verificar el estado de la base de datos"""
+    try:
+        # Verificar conexión a la base de datos
+        transacciones = Transaccion.query.all()
+        
+        # Verificar tablas existentes
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        
+        return jsonify({
+            'status': 'success',
+            'database_connected': True,
+            'tables': tables,
+            'total_transacciones': len(transacciones),
+            'transacciones': [
+                {
+                    'id': t.id,
+                    'descripcion': t.descripcion,
+                    'monto': t.monto,
+                    'fecha': t.fecha.strftime('%Y-%m-%d'),
+                    'banco': t.banco
+                } for t in transacciones
+            ]
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'database_connected': False
+        })
+
 # Función para crear la base de datos y agregar datos de ejemplo
 def init_db():
     with app.app_context():
