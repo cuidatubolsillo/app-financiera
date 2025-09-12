@@ -222,15 +222,9 @@ def debug():
         # Verificar conexión a la base de datos
         transacciones = Transaccion.query.all()
         
-        # Verificar tablas existentes
-        from sqlalchemy import inspect
-        inspector = inspect(db.engine)
-        tables = inspector.get_table_names()
-        
         return jsonify({
             'status': 'success',
             'database_connected': True,
-            'tables': tables,
             'total_transacciones': len(transacciones),
             'transacciones': [
                 {
