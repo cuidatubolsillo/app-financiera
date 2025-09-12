@@ -1,3 +1,4 @@
+import os
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
@@ -6,7 +7,13 @@ from email_parser import EmailParser
 app = Flask(__name__)
 
 # Configuración de la base de datos
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///finanzas.db'
+if os.environ.get('DATABASE_URL'):
+    # Producción (Render) - PostgreSQL
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+else:
+    # Desarrollo local - SQLite
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///finanzas.db'
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'tu-clave-secreta-aqui'  # Para mensajes flash
 
