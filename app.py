@@ -8,15 +8,19 @@ app = Flask(__name__)
 
 # Configuración de la base de datos
 database_url = os.environ.get('DATABASE_URL')
+print(f"🔍 DATABASE_URL detectada: {database_url}")  # Debug
+
 if database_url:
     # Producción (Render) - PostgreSQL
     # Render usa postgres:// pero SQLAlchemy necesita postgresql://
     if database_url.startswith('postgres://'):
         database_url = database_url.replace('postgres://', 'postgresql://', 1)
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+    print(f"✅ Usando PostgreSQL: {database_url[:50]}...")  # Debug
 else:
     # Desarrollo local - SQLite
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///finanzas.db'
+    print("⚠️ Usando SQLite (desarrollo local)")  # Debug
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'tu-clave-secreta-aqui'  # Para mensajes flash
