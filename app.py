@@ -91,6 +91,13 @@ def control_gastos():
                          bancos_unicos=bancos_unicos,
                          duenos_unicos=duenos_unicos)
 
+@app.route('/amortizacion')
+def amortizacion():
+    """
+    Simulador de préstamos comparativo
+    """
+    return render_template('amortizacion.html')
+
 @app.route('/add', methods=['GET', 'POST'])
 def add_transaction():
     if request.method == 'POST':

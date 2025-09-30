@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Préstamos - CUIDA TU BOLSILLO</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1b2e34;
+            min-height: 100vh;
+        }
+        
+        /* Colores originales de Gemini */
+        .text-brand-yellow { color: #ffd700; }
+        .bg-brand-dark { background-color: #ffffff; }
+        .bg-brand-green-dark { background-color: #3a5f36; }
+        .bg-brand-green-light { background-color: #7ba74e; }
+        .bg-brand-cyan { background-color: #5cc9d9; }
+        .text-brand-gold { color: #1b2e34; }
+        .border-brand-gray { border-color: #d6d6d6; }
+        .ring-brand-cyan { ring-color: #5cc9d9; }
+        .text-brand-black { color: #06090f; }
+        .text-brand-cyan { color: #5cc9d9; }
+        
+        /* Styling for the details/summary accordion */
+        details > summary {
+            list-style: none;
+            cursor: pointer;
+            padding: 1rem;
+            background-color: #1b2e34;
+            color: #ffd700;
+            font-weight: 600;
+            border-radius: 0.5rem;
+            transition: background-color 0.3s;
+        }
+        details > summary:hover {
+            background-color: #2c4a55;
+        }
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+        details[open] > summary {
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+        .summary-arrow {
+            transition: transform 0.3s;
+            display: inline-block;
+        }
+        details[open] .summary-arrow {
+            transform: rotate(90deg);
+        }
+        .form-input {
+            background-color: #d6d6d6;
+            color: #1b2e34;
+            border: 2px solid transparent;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #5cc9d9;
+            box-shadow: 0 0 0 3px rgba(92, 201, 217, 0.5);
+        }
+        .btn-calculate {
+            background-color: #7ba74e;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .btn-calculate:hover {
+            background-color: #95c763;
+            transform: translateY(-2px);
+        }
+        .back-link {
+            color: #ffd700;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.1em;
+            transition: color 0.3s;
+        }
+        .back-link:hover {
+            color: #ffffff;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body class="bg-brand-dark text-white p-4 sm:p-6 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <!-- Header con logo y navegación -->
+        <div class="text-center mb-8">
+            <div class="flex justify-center items-center mb-4">
+                <img src="{{ url_for('static', filename='logoCB.png') }}" alt="CUIDA TU BOLSILLO" class="h-20 w-auto object-fit contain">
+            </div>
+            <h1 class="text-3xl md:text-4xl font-bold text-brand-gold">Simulador de Préstamos Comparativo</h1>
+            <p class="text-lg text-brand-black mt-2">Analiza y compara dos escenarios de crédito para tomar la mejor decisión.</p>
+            <a href="/" class="back-link inline-block mt-4">← Volver al menú principal</a>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Simulator 1 -->
+            <div id="simulator-1" class="bg-brand-green-dark p-6 rounded-xl shadow-2xl">
+                <h2 class="text-2xl font-bold text-center mb-6 text-brand-cyan">Escenario 1</h2>
+                <div class="space-y-4">
+                    <!-- Loan Inputs -->
+                    <div>
+                        <label for="capital-1" class="block text-sm font-medium text-gray-200 mb-1">Capital del Préstamo ($)</label>
+                        <input type="number" id="capital-1" class="form-input w-full p-3" value="10000">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="tasa-anual-1" class="block text-sm font-medium text-gray-200 mb-1">Tasa Anual (%)</label>
+                            <input type="number" id="tasa-anual-1" class="form-input w-full p-3" value="12">
+                        </div>
+                        <div>
+                            <label for="plazo-1" class="block text-sm font-medium text-gray-200 mb-1">Plazo (Meses)</label>
+                            <input type="number" id="plazo-1" class="form-input w-full p-3" value="24">
+                        </div>
+                    </div>
+                    <!-- Insurance Inputs -->
+                    <fieldset class="border border-gray-300 rounded-lg p-4">
+                        <legend class="px-2 text-brand-gold font-semibold">Pólizas de Seguro (% Anual sobre Capital)</legend>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
+                            <div>
+                                <label for="seguro-vida-1" class="block text-xs font-medium text-gray-600 mb-1">Vida</label>
+                                <input type="number" id="seguro-vida-1" class="form-input w-full p-2" value="0.5">
+                            </div>
+                            <div>
+                                <label for="seguro-incendio-1" class="block text-xs font-medium text-gray-600 mb-1">Incendio</label>
+                                <input type="number" id="seguro-incendio-1" class="form-input w-full p-2" value="0.1">
+                            </div>
+                            <div>
+                                <label for="seguro-desempleo-1" class="block text-xs font-medium text-gray-600 mb-1">Desempleo</label>
+                                <input type="number" id="seguro-desempleo-1" class="form-input w-full p-2" value="0.25">
+                            </div>
+                        </div>
+                    </fieldset>
+                    
+                    <!-- Abono Input -->
+                    <div class="mt-4">
+                        <label for="abono-1" class="block text-sm font-medium text-gray-200 mb-1">Abono Mensual Adicional ($)</label>
+                        <input type="number" id="abono-1" class="form-input w-full p-3" value="0" placeholder="0">
+                        <p class="text-xs text-gray-300 mt-1">Abono extra para reducir intereses</p>
+                    </div>
+                </div>
+                <button onclick="calculate('1')" class="btn-calculate w-full mt-6 text-white font-bold py-3 px-4 rounded-lg text-lg">
+                    Calcular Escenario 1
+                </button>
+                <div id="results-1" class="mt-6"></div>
+            </div>
+
+            <!-- Simulator 2 -->
+            <div id="simulator-2" class="bg-brand-green-dark p-6 rounded-xl shadow-2xl">
+                <h2 class="text-2xl font-bold text-center mb-6 text-brand-cyan">Escenario 2 (Comparativo)</h2>
+                <div class="space-y-4">
+                    <!-- Loan Inputs -->
+                    <div>
+                        <label for="capital-2" class="block text-sm font-medium text-gray-200 mb-1">Capital del Préstamo ($)</label>
+                        <input type="number" id="capital-2" class="form-input w-full p-3" value="10000">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="tasa-anual-2" class="block text-sm font-medium text-gray-200 mb-1">Tasa Anual (%)</label>
+                            <input type="number" id="tasa-anual-2" class="form-input w-full p-3" value="10">
+                        </div>
+                        <div>
+                            <label for="plazo-2" class="block text-sm font-medium text-gray-200 mb-1">Plazo (Meses)</label>
+                            <input type="number" id="plazo-2" class="form-input w-full p-3" value="36">
+                        </div>
+                    </div>
+                    <!-- Insurance Inputs -->
+                    <fieldset class="border border-gray-300 rounded-lg p-4">
+                        <legend class="px-2 text-brand-gold font-semibold">Pólizas de Seguro (% Anual sobre Capital)</legend>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
+                             <div>
+                                <label for="seguro-vida-2" class="block text-xs font-medium text-gray-600 mb-1">Vida</label>
+                                <input type="number" id="seguro-vida-2" class="form-input w-full p-2" value="0.5">
+                            </div>
+                            <div>
+                                <label for="seguro-incendio-2" class="block text-xs font-medium text-gray-600 mb-1">Incendio</label>
+                                <input type="number" id="seguro-incendio-2" class="form-input w-full p-2" value="0.1">
+                            </div>
+                            <div>
+                                <label for="seguro-desempleo-2" class="block text-xs font-medium text-gray-600 mb-1">Desempleo</label>
+                                <input type="number" id="seguro-desempleo-2" class="form-input w-full p-2" value="0.25">
+                            </div>
+                        </div>
+                    </fieldset>
+                    
+                    <!-- Abono Input -->
+                    <div class="mt-4">
+                        <label for="abono-2" class="block text-sm font-medium text-gray-200 mb-1">Abono Mensual Adicional ($)</label>
+                        <input type="number" id="abono-2" class="form-input w-full p-3" value="0" placeholder="0">
+                        <p class="text-xs text-gray-300 mt-1">Abono extra para reducir intereses</p>
+                    </div>
+                </div>
+                 <button onclick="calculate('2')" class="btn-calculate w-full mt-6 text-white font-bold py-3 px-4 rounded-lg text-lg">
+                    Calcular Escenario 2
+                </button>
+                <div id="results-2" class="mt-6"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Function to format numbers as currency
+        const formatCurrency = (value) => {
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+        };
+
+        // Main calculation function
+        function calculate(id) {
+            // Get values from inputs
+            const capital = parseFloat(document.getElementById(`capital-${id}`).value);
+            const tasaAnual = parseFloat(document.getElementById(`tasa-anual-${id}`).value);
+            const plazo = parseInt(document.getElementById(`plazo-${id}`).value);
+            const seguroVidaPorc = parseFloat(document.getElementById(`seguro-vida-${id}`).value);
+            const seguroIncendioPorc = parseFloat(document.getElementById(`seguro-incendio-${id}`).value);
+            const seguroDesempleoPorc = parseFloat(document.getElementById(`seguro-desempleo-${id}`).value);
+            const resultsDiv = document.getElementById(`results-${id}`);
+            
+            // Get abono values if they exist
+            const abonoInput = document.getElementById(`abono-${id}`);
+            const abono = abonoInput ? parseFloat(abonoInput.value) || 0 : 0;
+
+            // Input validation
+            if (isNaN(capital) || isNaN(tasaAnual) || isNaN(plazo) || capital <= 0 || tasaAnual < 0 || plazo <= 0) {
+                resultsDiv.innerHTML = `<div class="bg-red-500 text-white p-4 rounded-lg">Por favor, ingrese valores válidos en todos los campos.</div>`;
+                return;
+            }
+
+            // --- CALCULATIONS ---
+            const tasaMensual = tasaAnual / 12 / 100;
+            
+            // Calculate fixed monthly loan payment (principal + interest)
+            let cuotaFijaCredito;
+            if (tasaMensual > 0) {
+                 cuotaFijaCredito = capital * (tasaMensual * Math.pow(1 + tasaMensual, plazo)) / (Math.pow(1 + tasaMensual, plazo) - 1);
+            } else { // Handle zero interest case
+                 cuotaFijaCredito = capital / plazo;
+            }
+            
+            // Calculate original total interest (without abonos)
+            let saldoRestanteOriginal = capital;
+            let totalInteresesOriginal = 0;
+            for (let i = 1; i <= plazo; i++) {
+                const interesMes = saldoRestanteOriginal * tasaMensual;
+                const amortizacionCapital = cuotaFijaCredito - interesMes;
+                saldoRestanteOriginal -= amortizacionCapital;
+                totalInteresesOriginal += interesMes;
+            }
+
+            // Calculate monthly insurance costs based on original capital
+            const seguroVidaMensual = (capital * (seguroVidaPorc / 100)) / 12;
+            const seguroIncendioMensual = (capital * (seguroIncendioPorc / 100)) / 12;
+            const seguroDesempleoMensual = (capital * (seguroDesempleoPorc / 100)) / 12;
+            const totalSegurosMensual = seguroVidaMensual + seguroIncendioMensual + seguroDesempleoMensual;
+
+            const cuotaTotalMensual = cuotaFijaCredito + totalSegurosMensual;
+
+            // --- GENERATE AMORTIZATION TABLE WITH ABONOS ---
+            let saldoRestante = capital;
+            let totalInteresesPagados = 0;
+            let tableRows = '';
+            let ahorroIntereses = 0;
+
+            for (let i = 1; i <= plazo; i++) {
+                const interesMes = saldoRestante * tasaMensual;
+                let amortizacionCapital = cuotaFijaCredito - interesMes;
+                let abonoMes = 0;
+                
+                // Apply abono if specified
+                if (abono > 0 && i <= Math.ceil(plazo / 2)) { // Apply abono in first half of payments
+                    abonoMes = abono;
+                    amortizacionCapital += abonoMes;
+                }
+                
+                saldoRestante -= amortizacionCapital;
+                totalInteresesPagados += interesMes;
+                
+                // Calculate interest savings
+                if (abono > 0) {
+                    ahorroIntereses += interesMes * (abonoMes / (amortizacionCapital - abonoMes));
+                }
+
+                // To prevent negative balance on the last payment due to rounding
+                if (i === plazo) {
+                    saldoRestante = 0;
+                }
+
+                const cuotaTotalConAbono = cuotaFijaCredito + totalSegurosMensual + abonoMes;
+
+                tableRows += `
+                    <tr class="border-b border-gray-600 hover:bg-gray-700">
+                        <td class="p-2 text-center text-brand-black">${i}</td>
+                        <td class="p-2 text-right text-brand-black">${formatCurrency(interesMes)}</td>
+                        <td class="p-2 text-right text-brand-black">${formatCurrency(amortizacionCapital)}</td>
+                        <td class="p-2 text-right text-brand-black">${formatCurrency(totalSegurosMensual)}</td>
+                        <td class="p-2 text-right text-brand-black">${formatCurrency(abonoMes)}</td>
+                        <td class="p-2 text-right text-brand-cyan">${formatCurrency(cuotaTotalConAbono)}</td>
+                        <td class="p-2 text-right text-red-400">${formatCurrency(saldoRestante)}</td>
+                    </tr>
+                `;
+            }
+            
+            const totalSegurosPagados = totalSegurosMensual * plazo;
+            const pagoTotal = cuotaTotalMensual * plazo;
+
+            // --- DISPLAY RESULTS ---
+            const ahorroTotal = totalInteresesOriginal - totalInteresesPagados;
+            const ahorroPorcentaje = totalInteresesOriginal > 0 ? (ahorroTotal / totalInteresesOriginal) * 100 : 0;
+            
+            resultsDiv.innerHTML = `
+                <div class="bg-gray-800 bg-opacity-50 rounded-lg p-4 space-y-3">
+                    <h3 class="text-xl font-bold text-center text-brand-yellow">Resumen del Crédito</h3>
+                    <div class="flex justify-between items-center text-lg">
+                        <span class="font-semibold">Cuota Mensual Total:</span>
+                        <span class="font-bold text-2xl text-brand-cyan">${formatCurrency(cuotaTotalMensual)}</span>
+                    </div>
+                    <div class="text-sm space-y-1 text-gray-300">
+                        <div class="flex justify-between"><p>Pago a Capital e Interés:</p> <p>${formatCurrency(cuotaFijaCredito)}</p></div>
+                        <div class="flex justify-between"><p>Total Seguros Mensual:</p> <p>${formatCurrency(totalSegurosMensual)}</p></div>
+                    </div>
+                    <hr class="border-gray-600"/>
+                    <div class="text-sm space-y-1 text-gray-300">
+                        <div class="flex justify-between"><p>Total Intereses a Pagar:</p> <p>${formatCurrency(totalInteresesPagados)}</p></div>
+                        <div class="flex justify-between"><p>Total Seguros a Pagar:</p> <p>${formatCurrency(totalSegurosPagados)}</p></div>
+                        <div class="flex justify-between font-bold text-white"><p>Pago Total del Crédito:</p> <p>${formatCurrency(pagoTotal)}</p></div>
+                    </div>
+                    ${abono > 0 ? `
+                    <div class="bg-green-600 bg-opacity-30 rounded-lg p-3 mt-3 border border-green-400">
+                        <h4 class="font-bold text-green-300 text-center mb-2">💰 Ahorro por Abonos</h4>
+                        <div class="text-sm space-y-1 text-green-200">
+                            <div class="flex justify-between"><p>Abono Mensual:</p> <p>${formatCurrency(abono)}</p></div>
+                            <div class="flex justify-between"><p>Ahorro en Intereses:</p> <p class="font-bold text-green-300">${formatCurrency(ahorroTotal)}</p></div>
+                            <div class="flex justify-between"><p>Porcentaje de Ahorro:</p> <p class="font-bold text-green-300">${ahorroPorcentaje.toFixed(1)}%</p></div>
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+
+                <details class="mt-4">
+                    <summary>
+                        <span class="summary-arrow mr-2">▶</span>
+                        Ver Tabla de Amortización Completa
+                    </summary>
+                    <div class="overflow-x-auto bg-brand-dark p-2 rounded-b-lg">
+                        <table class="w-full text-sm text-left text-gray-300">
+                            <thead class="text-xs text-brand-gold uppercase bg-gray-700 bg-opacity-40">
+                                <tr>
+                                    <th scope="col" class="p-2 text-center">Cuota Nro.</th>
+                                    <th scope="col" class="p-2 text-right">Interés</th>
+                                    <th scope="col" class="p-2 text-right">Amortización</th>
+                                    <th scope="col" class="p-2 text-right">Seguros</th>
+                                    <th scope="col" class="p-2 text-right">Abono</th>
+                                    <th scope="col" class="p-2 text-right">Valor Cuota</th>
+                                    <th scope="col" class="p-2 text-right">Saldo Restante</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tableRows}
+                            </tbody>
+                        </table>
+                    </div>
+                </details>
+            `;
+        }
+        
+        // Initial calculation on page load for both simulators
+        window.onload = function() {
+            calculate('1');
+            calculate('2');
+        };
+    </script>
+</body>
+</html>
