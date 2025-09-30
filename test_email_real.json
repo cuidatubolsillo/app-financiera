@@ -1,0 +1,6 @@
+{
+  "sender": "notificaciones@produbanco.com",
+  "subject": "Consumo Tarjeta de Credito por USD 9.83",
+  "body-plain": "Estimado/a\n\nAROSEMENA ABEIGA ARCADIO JOSE\n\nFecha y Hora: 09/09/2025 19:04\n\nTransaccion: Consumo Tarjeta de Credito Produbanco\n\nTe informamos que se acaba de registrar un consumo con tu Tarjeta de Credito MasterCard Produbanco XXX6925 .\n\nDetalle\n\nValor: USD 9.83\nEstablecimiento: UBER EATS INT\n\nSi no realizaste esta transaccion por favor comunicate de manera urgente con nosotros a nuestro Call Center. Por favor no respondas a este mail.\n\nAtentamente Produbanco",
+  "body-html": "<p>Email de prueba de Produbanco</p>"
+}

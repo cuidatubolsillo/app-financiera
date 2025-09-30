@@ -456,6 +456,43 @@ with app.app_context():
         except Exception as e2:
             print(f"❌ Error crítico: {e2}")
 
+@app.route('/delete-transaction/<int:transaction_id>', methods=['DELETE'])
+def delete_transaction(transaction_id):
+    """
+    Endpoint para eliminar una transacción
+    """
+    try:
+        # Buscar la transacción
+        transaccion = Transaccion.query.get(transaction_id)
+        
+        if not transaccion:
+            return jsonify({
+                'status': 'error',
+                'message': 'Transacción no encontrada'
+            }), 404
+        
+        # Obtener información de la transacción para el log
+        descripcion = transaccion.descripcion
+        monto = transaccion.monto
+        
+        # Eliminar la transacción
+        db.session.delete(transaccion)
+        db.session.commit()
+        
+        print(f"🗑️ Transacción eliminada: {descripcion} - ${monto}")
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Transacción eliminada exitosamente: {descripcion} - ${monto}'
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Error eliminando transacción: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error eliminando transacción: {str(e)}'
+        }), 500
+
 if __name__ == '__main__':
     # Solo para desarrollo local
     init_db()

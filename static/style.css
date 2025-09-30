@@ -8,7 +8,7 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #06090f 0%, #2d4a3e 50%, #1a3d2e 100%);
     min-height: 100vh;
     padding: 20px;
 }
@@ -23,21 +23,39 @@ body {
 }
 
 .header {
-    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+    background: linear-gradient(135deg, #2d4a3e 0%, #1a3d2e 50%, #0f2a1f 100%);
     color: white;
     padding: 40px;
     text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, rgba(255, 255, 0, 0.1) 0%, rgba(0, 255, 127, 0.1) 100%);
+    pointer-events: none;
 }
 
 .header h1 {
     font-size: 2.5em;
     margin-bottom: 10px;
     font-weight: 300;
+    position: relative;
+    z-index: 1;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .header p {
     font-size: 1.2em;
     opacity: 0.9;
+    position: relative;
+    z-index: 1;
 }
 
 .stats {
@@ -63,9 +81,10 @@ body {
 
 .stat-card h3 {
     font-size: 2.5em;
-    color: #4CAF50;
+    color: #2d4a3e;
     margin-bottom: 10px;
     font-weight: 700;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .stat-card p {
@@ -76,7 +95,7 @@ body {
 
 .add-transaction {
     display: inline-block;
-    background: #4CAF50;
+    background: linear-gradient(135deg, #2d4a3e 0%, #1a3d2e 100%);
     color: white;
     padding: 15px 30px;
     text-decoration: none;
@@ -85,14 +104,16 @@ body {
     font-size: 1.1em;
     transition: all 0.3s;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: 2px solid transparent;
 }
 
 .add-transaction:hover {
-    background: #45a049;
+    background: linear-gradient(135deg, #1a3d2e 0%, #0f2a1f 100%);
     transform: translateY(-2px);
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
     color: white;
     text-decoration: none;
+    border-color: rgba(255, 255, 0, 0.3);
 }
 
 .transactions-table {
@@ -103,12 +124,13 @@ body {
 }
 
 .transactions-table th {
-    background: #2c3e50;
+    background: linear-gradient(135deg, #2d4a3e 0%, #1a3d2e 100%);
     color: white;
     padding: 15px;
     text-align: left;
     font-weight: 600;
     font-size: 1.1em;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .transactions-table td {
@@ -123,8 +145,9 @@ body {
 
 .amount {
     font-weight: 700;
-    color: #e74c3c;
+    color: #2d4a3e;
     font-size: 1.1em;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .category {
@@ -136,48 +159,57 @@ body {
 }
 
 .category.alimentación {
-    background: #e8f5e8;
-    color: #2e7d32;
+    background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%);
+    color: #2d4a3e;
+    border: 1px solid rgba(45, 74, 62, 0.2);
 }
 
 .category.transporte {
-    background: #e3f2fd;
-    color: #1565c0;
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    color: #1a3d2e;
+    border: 1px solid rgba(26, 61, 46, 0.2);
 }
 
 .category.entretenimiento {
-    background: #fce4ec;
-    color: #c2185b;
+    background: linear-gradient(135deg, #fce4ec 0%, #f8bbd9 100%);
+    color: #2d4a3e;
+    border: 1px solid rgba(45, 74, 62, 0.2);
 }
 
 .category.salud {
-    background: #fff3e0;
-    color: #ef6c00;
+    background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+    color: #1a3d2e;
+    border: 1px solid rgba(26, 61, 46, 0.2);
 }
 
 .category.vivienda {
-    background: #f3e5f5;
-    color: #7b1fa2;
+    background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+    color: #2d4a3e;
+    border: 1px solid rgba(45, 74, 62, 0.2);
 }
 
 .category.educación {
-    background: #e0f2f1;
-    color: #00695c;
+    background: linear-gradient(135deg, #e0f2f1 0%, #b2dfdb 100%);
+    color: #1a3d2e;
+    border: 1px solid rgba(26, 61, 46, 0.2);
 }
 
 .category.otros {
-    background: #f5f5f5;
-    color: #616161;
+    background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
+    color: #2d4a3e;
+    border: 1px solid rgba(45, 74, 62, 0.2);
 }
 
 .bank {
     font-weight: 600;
-    color: #2c3e50;
+    color: #2d4a3e;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .owner {
-    color: #7f8c8d;
+    color: #1a3d2e;
     font-style: italic;
+    font-weight: 500;
 }
 
 .no-data {
@@ -194,7 +226,7 @@ body {
 .back-link {
     display: inline-block;
     margin: 20px;
-    color: #4CAF50;
+    color: #2d4a3e;
     text-decoration: none;
     font-weight: 600;
     font-size: 1.1em;
@@ -202,7 +234,7 @@ body {
 }
 
 .back-link:hover {
-    color: #45a049;
+    color: #1a3d2e;
     text-decoration: none;
 }
 
@@ -244,8 +276,8 @@ body {
 .form-group select:focus,
 .form-group textarea:focus {
     outline: none;
-    border-color: #4CAF50;
-    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+    border-color: #2d4a3e;
+    box-shadow: 0 0 0 3px rgba(45, 74, 62, 0.1);
 }
 
 .form-group textarea {
@@ -268,14 +300,16 @@ body {
 }
 
 .btn-primary {
-    background: #4CAF50;
+    background: linear-gradient(135deg, #2d4a3e 0%, #1a3d2e 100%);
     color: white;
+    border: 2px solid transparent;
 }
 
 .btn-primary:hover {
-    background: #45a049;
+    background: linear-gradient(135deg, #1a3d2e 0%, #0f2a1f 100%);
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    border-color: rgba(255, 255, 0, 0.3);
 }
 
 .btn-secondary {
@@ -352,10 +386,104 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #4CAF50;
+    background: linear-gradient(135deg, #2d4a3e 0%, #1a3d2e 100%);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #45a049;
+    background: linear-gradient(135deg, #1a3d2e 0%, #0f2a1f 100%);
+}
+
+/* Botones de eliminar */
+.btn-delete {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 1.1em;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(231, 76, 60, 0.3);
+}
+
+.btn-delete:hover {
+    background: #c0392b;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(231, 76, 60, 0.4);
+}
+
+.btn-delete:disabled {
+    background: #95a5a6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Mejoras en la tabla */
+.transactions-table th:last-child,
+.transactions-table td:last-child {
+    text-align: center;
+    width: 80px;
+}
+
+/* Animación para filas eliminadas */
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-100%);
+    }
+}
+
+.transaction-deleting {
+    animation: fadeOut 0.5s ease-out forwards;
+}
+
+/* Mejoras adicionales con la paleta de colores */
+.stats {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 15px;
+    margin: 20px;
+    padding: 30px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border: 1px solid rgba(45, 74, 62, 0.1);
+    box-shadow: 0 4px 6px rgba(45, 74, 62, 0.1);
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(45, 74, 62, 0.2);
+    border-color: rgba(45, 74, 62, 0.3);
+}
+
+/* Efectos de resaltado con amarillo */
+.highlight {
+    background: linear-gradient(135deg, rgba(255, 255, 0, 0.1) 0%, rgba(255, 255, 0, 0.05) 100%);
+    border-left: 4px solid #ffd700;
+    padding-left: 10px;
+}
+
+/* Mejoras en la tabla */
+.transactions-table tr:hover {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    transform: scale(1.01);
+    transition: all 0.3s ease;
+}
+
+/* Botones de acción mejorados */
+.add-transaction:nth-child(2) {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+}
+
+.add-transaction:nth-child(2):hover {
+    background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+    border-color: rgba(0, 123, 255, 0.3);
 }

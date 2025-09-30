@@ -66,6 +66,7 @@
                     <th>Tarjeta</th>
                     <th>Banco</th>
                     <th>Dueño</th>
+                    <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
@@ -78,6 +79,11 @@
                     <td>{{ trans.tarjeta }}</td>
                     <td class="bank">{{ trans.banco }}</td>
                     <td class="owner">{{ trans.dueno }}</td>
+                    <td>
+                        <button class="btn-delete" onclick="deleteTransaction({{ trans.id }}, '{{ trans.descripcion }}', {{ trans.monto }})" title="Eliminar transacción">
+                            🗑️
+                        </button>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -89,5 +95,51 @@
         </div>
         {% endif %}
     </div>
+
+    <!-- JavaScript para eliminar transacciones -->
+    <script>
+        function deleteTransaction(transactionId, description, amount) {
+            // Mostrar confirmación
+            const confirmMessage = `¿Estás seguro de que deseas eliminar la transacción "${description}" por $${amount.toFixed(2)}?`;
+            
+            if (confirm(confirmMessage)) {
+                // Mostrar loading
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '⏳';
+                button.disabled = true;
+                
+                // Hacer la petición DELETE
+                fetch(`/delete-transaction/${transactionId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Mostrar mensaje de éxito
+                        alert(`✅ ${data.message}`);
+                        // Recargar la página para mostrar los cambios
+                        window.location.reload();
+                    } else {
+                        // Mostrar error
+                        alert(`❌ Error: ${data.message}`);
+                        // Restaurar botón
+                        button.innerHTML = originalText;
+                        button.disabled = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('❌ Error al eliminar la transacción');
+                    // Restaurar botón
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                });
+            }
+        }
+    </script>
 </body>
 </html>

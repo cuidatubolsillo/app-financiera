@@ -47,42 +47,48 @@ class EmailParser:
                 'fecha': [r'fecha\s+y\s+hora[:\s]*(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})'],
                 'descripcion': [r'establecimiento[:\s]*(.+?)(?:\n|$)'],
                 'tarjeta': [r'tarjeta\s+de\s+crédito\s+(\w+)\s+produbanco\s+xxx(\d{4})'],
-                'banco': [r'(produbanco)']
+                'banco': [r'(produbanco)'],
+                'dueno': [r'estimado/a\s+(.+?)(?:\n|$)', r'^(.+?)(?:\n|$)', r'([A-Z][A-Z\s]+[A-Z])(?:\n|$)']
             },
             'santander': {
                 'monto': [r'\$(\d+\.?\d*)', r'monto[:\s]*\$?(\d+\.?\d*)'],
                 'fecha': [r'(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})'],
                 'descripcion': [r'compra[:\s]*(.+?)(?:\n|$)', r'comercio[:\s]*(.+?)(?:\n|$)'],
                 'tarjeta': [r'(\w+)\s*terminada\s*en\s*(\d{4})'],
-                'banco': [r'(banco\s+santander)']
+                'banco': [r'(banco\s+santander)'],
+                'dueno': [r'estimado/a\s+(.+?)(?:\n|$)', r'^(.+?)(?:\n|$)', r'([A-Z][A-Z\s]+[A-Z])(?:\n|$)']
             },
             'bbva': {
                 'monto': [r'\$(\d+\.?\d*)', r'monto[:\s]*\$?(\d+\.?\d*)'],
                 'fecha': [r'(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})'],
                 'descripcion': [r'compra[:\s]*(.+?)(?:\n|$)', r'comercio[:\s]*(.+?)(?:\n|$)'],
                 'tarjeta': [r'(\w+)\s*terminada\s*en\s*(\d{4})'],
-                'banco': [r'(bbva\s+chile)']
+                'banco': [r'(bbva\s+chile)'],
+                'dueno': [r'estimado/a\s+(.+?)(?:\n|$)', r'^(.+?)(?:\n|$)', r'([A-Z][A-Z\s]+[A-Z])(?:\n|$)']
             },
             'banco_chile': {
                 'monto': [r'\$(\d+\.?\d*)', r'monto[:\s]*\$?(\d+\.?\d*)'],
                 'fecha': [r'(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})'],
                 'descripcion': [r'compra[:\s]*(.+?)(?:\n|$)', r'comercio[:\s]*(.+?)(?:\n|$)'],
                 'tarjeta': [r'(\w+)\s*terminada\s*en\s*(\d{4})'],
-                'banco': [r'(banco\s+de\s+chile)']
+                'banco': [r'(banco\s+de\s+chile)'],
+                'dueno': [r'estimado/a\s+(.+?)(?:\n|$)', r'^(.+?)(?:\n|$)', r'([A-Z][A-Z\s]+[A-Z])(?:\n|$)']
             },
             'pichincha': {
                 'monto': [r'valor\s*\$\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)'],  # $ 240,00
                 'fecha': [r'fecha\s*(\d{4}-\d{1,2}-\d{1,2}\s+\d{1,2}:\d{1,2})'],  # 2025-09-10 10:18
                 'descripcion': [r'establecimiento\s*(.+?)(?:\n|$)'],  # GUAYAQUIL COUNTRY CL
                 'tarjeta': [r'tarjeta\s+usada\s*(\d{3})'],  # 825
-                'banco': [r'(banco\s+pichincha)']
+                'banco': [r'(banco\s+pichincha)'],
+                'dueno': [r'^([A-Z][A-Z\s]+[A-Z])(?:\n|$)', r'([A-Z][A-Z\s]+[A-Z])(?:\n|$)']
             },
             'pacifico': {
                 'monto': [r'monto\s*\$?\s*(\d+\.?\d*)\.?', r'monto\s*(\d+\.?\d*)\.?'],  # $ 10.00.
                 'fecha': [r'fecha\s+de\s+la\s+transacción\s*(\d{4}-\d{1,2}-\d{1,2}\s+a\s+las\s+\d{1,2}:\d{1,2})'],  # 2025-08-29 a las 16:11
                 'descripcion': [r'establecimiento:\s*(.+?)(?:\s|$)', r'establecimiento:\s*(.+?)(?:\n|$)'],  # WHOP*CUIDA TU BOLSILLO NEWARK
                 'tarjeta': [r'tarjeta\s+pacificard\s+titular\s*(\w+)\s*mastercard\s*\d{6}xxxxxxx(\d{3})'],  # MASTERCARD 542258XXXXXXX761
-                'banco': [r'(banco\s+del\s+pacífico|banco\s+pacífico)']
+                'banco': [r'(banco\s+del\s+pacífico|banco\s+pacífico)'],
+                'dueno': [r'titular\s+([A-Z][A-Z\s]+[A-Z])', r'^([A-Z][A-Z\s]+[A-Z])(?:\n|$)', r'([A-Z][A-Z\s]+[A-Z])(?:\n|$)']
             }
         }
         
@@ -120,6 +126,13 @@ class EmailParser:
                 r'(\w+)\s+terminada\s+en\s*(\d{4})',
                 r'(\w+)\s*\*\*\*\*\*\*\*\*\*\*\*\*\*(\d{4})',
                 r'tarjeta[:\s]*(\w+)'
+            ],
+            'dueno': [
+                r'estimado/a\s+(.+?)(?:\n|$)',  # Estimado/a AROSEMENA ABEIGA ARCADIO JOSE
+                r'^(.+?)(?:\n|$)',  # Primera línea del email
+                r'([A-Z][A-Z\s]+[A-Z])(?:\n|$)',  # Nombres en mayúsculas
+                r'titular\s+(.+?)(?:\n|$)',  # Titular: NOMBRE
+                r'cliente\s+(.+?)(?:\n|$)'  # Cliente: NOMBRE
             ]
         }
         
@@ -163,6 +176,7 @@ class EmailParser:
             descripcion = self._extract_with_patterns(full_text, patterns.get('descripcion', []))
             banco = self._extract_with_patterns(full_text, patterns.get('banco', []))
             tarjeta = self._extract_tarjeta_with_patterns(full_text, patterns.get('tarjeta', []))
+            dueno = self._extract_dueno_with_patterns(full_text, patterns.get('dueno', []))
             categoria = self._categorizar_automatico(full_text, descripcion)
             
             # Si no se pudo extraer información suficiente, retornar None
@@ -179,7 +193,7 @@ class EmailParser:
                 'categoria': categoria,
                 'tarjeta': tarjeta or 'Desconocida',
                 'banco': banco or detected_bank.title() or 'Desconocido',
-                'dueno': 'Usuario'  # Por defecto, se puede personalizar después
+                'dueno': dueno or 'Usuario'  # Extraer nombre del usuario o usar por defecto
             }
             
         except Exception as e:
@@ -316,6 +330,22 @@ class EmailParser:
                     return f"{tipo} terminada en {ultimos}"
                 else:
                     return match.group(1).upper()
+        return None
+
+    def _extract_dueno_with_patterns(self, text, patterns):
+        """Extrae el nombre del propietario de la tarjeta usando patrones específicos"""
+        for pattern in patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                nombre = match.group(1).strip()
+                # Limpiar el nombre (remover espacios extra, caracteres especiales)
+                nombre_limpio = re.sub(r'\s+', ' ', nombre)  # Múltiples espacios a uno solo
+                nombre_limpio = re.sub(r'[^\w\s]', '', nombre_limpio)  # Remover caracteres especiales
+                nombre_limpio = nombre_limpio.strip()
+                
+                # Validar que sea un nombre válido (más de 3 caracteres, no solo números)
+                if len(nombre_limpio) > 3 and not nombre_limpio.isdigit():
+                    return nombre_limpio.title()  # Capitalizar primera letra de cada palabra
         return None
 
 # Función de prueba
