@@ -5,11 +5,14 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from email_parser import EmailParser
 
-# Forzar Python 3.11 en Render
-if sys.version_info >= (3, 13):
+# Forzar Python 3.11 en Render (solo en producción)
+if sys.version_info >= (3, 13) and os.environ.get('RENDER'):
     print("❌ ERROR: Python 3.13 no es compatible. Se requiere Python 3.11")
     print("🔧 Solución: Render debe usar Python 3.11.10")
     sys.exit(1)
+elif sys.version_info >= (3, 13):
+    print("⚠️ ADVERTENCIA: Usando Python 3.13 en desarrollo local")
+    print("🔧 Esto puede causar problemas en producción")
 
 app = Flask(__name__)
 
@@ -124,8 +127,25 @@ def receive_email():
     Endpoint para recibir emails de Mailgun (o simular recepción)
     """
     try:
-        # Obtener datos del email
-        email_data = request.get_json() or request.form.to_dict()
+        # Log completo de la petición
+        print("="*50)
+        print("📧 WEBHOOK EMAIL RECIBIDO")
+        print(f"📧 Método: {request.method}")
+        print(f"📧 Headers: {dict(request.headers)}")
+        print(f"📧 Content-Type: {request.content_type}")
+        print(f"📧 Raw data: {request.get_data()}")
+        
+        # Obtener datos del email - MANEJAR AMBOS FORMATOS
+        if request.content_type == 'application/json':
+            # Si es JSON (pruebas manuales)
+            email_data = request.get_json() or {}
+            print("📧 Procesando como JSON")
+        else:
+            # Si es form-urlencoded (Mailgun real)
+            email_data = request.form.to_dict()
+            print("📧 Procesando como form-urlencoded")
+        
+        print(f"📧 Email data: {email_data}")
         
         # Extraer contenido del email
         email_content = email_data.get('body-html', email_data.get('body-plain', ''))
@@ -134,12 +154,15 @@ def receive_email():
         
         print(f"📧 Email recibido de: {sender}")
         print(f"📧 Asunto: {email_subject}")
+        print(f"📧 Contenido (primeros 200 chars): {email_content[:200]}...")
         
         # Parsear el email
         parser = EmailParser()
         transaccion_data = parser.parse_email(email_content, email_subject)
         
         if transaccion_data:
+            print(f"✅ Datos extraídos: {transaccion_data}")
+            
             # Crear nueva transacción
             nueva_transaccion = Transaccion(
                 fecha=transaccion_data['fecha'],
@@ -175,6 +198,8 @@ def receive_email():
             
     except Exception as e:
         print(f"❌ Error procesando email: {str(e)}")
+        import traceback
+        print(f"❌ Traceback: {traceback.format_exc()}")
         return jsonify({
             'status': 'error',
             'message': f'Error interno: {str(e)}'
@@ -194,10 +219,41 @@ def test_email():
         resultado = parser.parse_email(email_content, email_subject)
         
         if resultado:
-            return jsonify({
-                'status': 'success',
-                'parsed_data': resultado
-            })
+            # GUARDAR AUTOMÁTICAMENTE EN LA BASE DE DATOS
+            try:
+                # Convertir fecha string a datetime
+                from datetime import datetime
+                fecha = datetime.strptime(resultado['fecha'], '%a, %d %b %Y %H:%M:%S %Z')
+                
+                # Crear nueva transacción
+                nueva_transaccion = Transaccion(
+                    fecha=fecha,
+                    descripcion=resultado['descripcion'],
+                    monto=resultado['monto'],
+                    categoria=resultado['categoria'],
+                    tarjeta=resultado['tarjeta'],
+                    banco=resultado['banco'],
+                    dueno=resultado['dueno']
+                )
+                
+                # Guardar en la base de datos
+                db.session.add(nueva_transaccion)
+                db.session.commit()
+                
+                return jsonify({
+                    'status': 'success',
+                    'parsed_data': resultado,
+                    'saved': True,
+                    'message': '✅ Transacción guardada exitosamente en la base de datos'
+                })
+                
+            except Exception as save_error:
+                return jsonify({
+                    'status': 'success',
+                    'parsed_data': resultado,
+                    'saved': False,
+                    'message': f'⚠️ Parser funcionó pero error al guardar: {str(save_error)}'
+                })
         else:
             return jsonify({
                 'status': 'error',
@@ -242,6 +298,104 @@ def debug():
             'error': str(e),
             'database_connected': False
         })
+
+@app.route('/test-webhook', methods=['GET', 'POST'])
+def test_webhook():
+    """
+    Endpoint para probar el webhook con datos simulados
+    """
+    try:
+        if request.method == 'GET':
+            return jsonify({
+                'status': 'success',
+                'message': 'Endpoint de prueba del webhook funcionando',
+                'instructions': 'Envía un POST con datos de email para probar'
+            })
+        
+        # Obtener datos del request o usar datos de prueba
+        if request.get_json():
+            email_data = request.get_json()
+        else:
+            # Datos de prueba por defecto
+            email_data = {
+                'sender': 'notificaciones@produbanco.com',
+                'subject': 'Consumo Tarjeta de Crédito por USD 15.50',
+                'body-plain': '''
+                Estimado/a
+
+                AROSEMENA ABEIGA ARCADIO JOSE
+
+                Fecha y Hora: 12/01/2025 14:30
+
+                Transacción: Consumo Tarjeta de Crédito Produbanco
+
+                Te informamos que se acaba de registrar un consumo con tu Tarjeta de Crédito MasterCard Produbanco XXX6925 .
+
+                Detalle
+
+                Valor: USD 15.50
+                Establecimiento: SUPERMERCADO WALMART
+
+                Si no realizaste esta transacción por favor comunícate de manera urgente con nosotros a nuestro Call Center. Por favor no respondas a este mail.
+
+                Atentamente Produbanco
+                ''',
+                'body-html': '<p>Email de prueba de Produbanco</p>'
+            }
+        
+        print("🧪 PROBANDO WEBHOOK CON DATOS SIMULADOS")
+        print(f"🧪 Datos recibidos: {email_data}")
+        
+        # Procesar el email usando el parser
+        parser = EmailParser()
+        email_content = email_data.get('body-html', email_data.get('body-plain', ''))
+        email_subject = email_data.get('subject', '')
+        
+        transaccion_data = parser.parse_email(email_content, email_subject)
+        
+        if transaccion_data:
+            print(f"✅ Datos extraídos: {transaccion_data}")
+            
+            # Crear nueva transacción
+            nueva_transaccion = Transaccion(
+                fecha=transaccion_data['fecha'],
+                descripcion=transaccion_data['descripcion'],
+                monto=transaccion_data['monto'],
+                categoria=transaccion_data['categoria'],
+                tarjeta=transaccion_data['tarjeta'],
+                banco=transaccion_data['banco'],
+                dueno=transaccion_data['dueno']
+            )
+            
+            # Guardar en la base de datos
+            db.session.add(nueva_transaccion)
+            db.session.commit()
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Transacción procesada exitosamente',
+                'transaction': {
+                    'descripcion': transaccion_data['descripcion'],
+                    'monto': transaccion_data['monto'],
+                    'categoria': transaccion_data['categoria'],
+                    'banco': transaccion_data['banco']
+                }
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'No se pudo extraer información del email de prueba'
+            })
+        
+    except Exception as e:
+        print(f"❌ Error en test-webhook: {str(e)}")
+        import traceback
+        print(f"❌ Traceback: {traceback.format_exc()}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error probando webhook: {str(e)}',
+            'traceback': str(e)
+        }), 500
 
 # Función para crear la base de datos y agregar datos de ejemplo
 def init_db():
