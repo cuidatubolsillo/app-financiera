@@ -1,67 +1,67 @@
 # 🎨 Paleta de Colores - CUIDA TU BOLSILLO
 
-## **Colores Principales**
+## **Colores Principales (Oficiales)**
 
-### **Verde Oscuro (Primario)**
-- **Código:** `#2d4a3e`
-- **Uso:** Headers, botones principales, acentos
-- **RGB:** `rgb(45, 74, 62)`
+### **Fondo Oscuro (Primario)**
+- **Código:** `#0a2e22`
+- **Uso:** Headers principales, fondos oscuros
+- **RGB:** `rgb(10, 46, 34)`
 
-### **Verde Medio (Secundario)**
-- **Código:** `#1a3d2e`
-- **Uso:** Gradientes, bordes, hover states
-- **RGB:** `rgb(26, 61, 46)`
+### **Fondo Intermedio (Secundario)**
+- **Código:** `#1e543b`
+- **Uso:** Fondos intermedios, gradientes
+- **RGB:** `rgb(30, 84, 59)`
 
-### **Verde Claro (Terciario)**
-- **Código:** `#0f2a1f`
-- **Uso:** Gradientes oscuros, sombras
-- **RGB:** `rgb(15, 42, 31)`
+### **Verde Vital (Marca)**
+- **Código:** `#7ba74e`
+- **Uso:** Iconos de marca, acentos vitales
+- **RGB:** `rgb(123, 167, 78)`
 
-## **Colores de Fondo**
+## **Colores de Fondo y Texto**
 
-### **Gris Claro (Fondo Principal)**
-- **Código:** `#f8f9fa`
-- **Uso:** Fondo general de la aplicación
-- **RGB:** `rgb(248, 249, 250)`
+### **Gris Oscuro (Fondo Principal)**
+- **Código:** `#ababab`
+- **Uso:** Fondos principales, contenedores
+- **RGB:** `rgb(171, 171, 171)`
 
-### **Gris Medio (Fondo Secundario)**
-- **Código:** `#e9ecef`
-- **Uso:** Cards, contenedores
-- **RGB:** `rgb(233, 236, 239)`
+### **Gris Claro (Fondo Secundario)**
+- **Código:** `#d6d6d6`
+- **Uso:** Iconos, elementos secundarios
+- **RGB:** `rgb(214, 214, 214)`
 
-### **Gris Claro (Fondo Terciario)**
-- **Código:** `#dee2e6`
-- **Uso:** Bordes sutiles, separadores
-- **RGB:** `rgb(222, 226, 230)`
+### **Blanco (Texto Principal)**
+- **Código:** `#ffffff`
+- **Uso:** Texto principal, elementos claros
+- **RGB:** `rgb(255, 255, 255)`
 
-## **Colores de Acento**
+## **Colores de Acento y Resaltado**
 
-### **Verde Claro (Hover)**
-- **Código:** `#e8f5e8`
-- **Uso:** Hover states, fondos suaves
-- **RGB:** `rgb(232, 245, 232)`
+### **Dorado (Resaltado)**
+- **Código:** `#ffd700`
+- **Uso:** Texto resaltado, elementos importantes
+- **RGB:** `rgb(255, 215, 0)`
 
-### **Verde Medio (Hover)**
-- **Código:** `#d4edda`
-- **Uso:** Hover states, fondos activos
-- **RGB:** `rgb(212, 237, 218)`
+### **Azul Util (Resaltado)**
+- **Código:** `#4ca5b3`
+- **Uso:** Elementos utilitarios, botones secundarios
+- **RGB:** `rgb(76, 165, 179)`
 
 ## **Colores de Texto**
 
-### **Texto Principal**
-- **Código:** `#2d4a3e`
-- **Uso:** Títulos, texto principal
-- **RGB:** `rgb(45, 74, 62)`
-
-### **Texto Secundario**
-- **Código:** `#1a3d2e`
-- **Uso:** Subtítulos, texto secundario
-- **RGB:** `rgb(26, 61, 46)`
-
-### **Texto Claro (Sobre Verde)**
+### **Texto Principal (Blanco)**
 - **Código:** `#ffffff`
-- **Uso:** Texto sobre fondos verdes
+- **Uso:** Títulos, texto principal
 - **RGB:** `rgb(255, 255, 255)`
+
+### **Texto Resaltado (Dorado)**
+- **Código:** `#ffd700`
+- **Uso:** Texto resaltado, elementos importantes
+- **RGB:** `rgb(255, 215, 0)`
+
+### **Texto Secundario (Gris)**
+- **Código:** `#d6d6d6`
+- **Uso:** Texto secundario, subtítulos
+- **RGB:** `rgb(214, 214, 214)`
 
 ## **Colores de Categorías**
 
@@ -90,26 +90,26 @@
 - **Uso:** Badges de categoría otros
 - **RGB:** `rgb(108, 117, 125)`
 
-## **Gradientes**
+## **Gradientes Oficiales**
 
 ### **Header Principal**
 ```css
-background: linear-gradient(135deg, #2d4a3e 0%, #1a3d2e 50%, #0f2a1f 100%);
+background: linear-gradient(135deg, #0a2e22 0%, #1e543b 50%, #7ba74e 100%);
 ```
 
 ### **Fondo General**
 ```css
-background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 50%, #dee2e6 100%);
+background: linear-gradient(135deg, #ababab 0%, #d6d6d6 50%, #ffffff 100%);
 ```
 
 ### **Cards y Contenedores**
 ```css
-background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+background: linear-gradient(135deg, #ffffff 0%, #d6d6d6 100%);
 ```
 
 ### **Hover States**
 ```css
-background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%);
+background: linear-gradient(135deg, #7ba74e 0%, #4ca5b3 100%);
 ```
 
 ## **Sombras**
@@ -131,20 +131,20 @@ box-shadow: 0 4px 6px rgba(45, 74, 62, 0.1);
 
 ## **Uso en CSS**
 
-### **Variables CSS (Recomendado)**
+### **Variables CSS Oficiales**
 ```css
 :root {
-  --verde-oscuro: #2d4a3e;
-  --verde-medio: #1a3d2e;
-  --verde-claro: #0f2a1f;
-  --gris-claro: #f8f9fa;
-  --gris-medio: #e9ecef;
-  --gris-claro-2: #dee2e6;
-  --verde-hover: #e8f5e8;
-  --verde-hover-2: #d4edda;
-  --texto-principal: #2d4a3e;
-  --texto-secundario: #1a3d2e;
-  --texto-claro: #ffffff;
+  --fondo-oscuro: #0a2e22;
+  --fondo-intermedio: #1e543b;
+  --verde-vital: #7ba74e;
+  --gris-oscuro: #ababab;
+  --gris-claro: #d6d6d6;
+  --blanco: #ffffff;
+  --dorado: #ffd700;
+  --azul-util: #4ca5b3;
+  --texto-principal: #ffffff;
+  --texto-resaltado: #ffd700;
+  --texto-secundario: #d6d6d6;
 }
 ```
 

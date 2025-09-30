@@ -54,6 +54,16 @@ class Transaccion(db.Model):
 
 @app.route('/')
 def home():
+    """
+    Página principal - Menú de la aplicación
+    """
+    return render_template('home.html')
+
+@app.route('/control-gastos')
+def control_gastos():
+    """
+    Dashboard de control de gastos
+    """
     try:
         # Obtener todas las transacciones
         transacciones = Transaccion.query.all()

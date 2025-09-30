@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CUIDA TU BOLSILLO - App Financiera</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header de la app -->
+        <div class="app-header">
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='logoCB.png') }}" alt="CUIDA TU BOLSILLO" class="app-logo">
+            </div>
+            <h1 class="app-title">CUIDA TU BOLSILLO</h1>
+            <p class="app-subtitle">Tu tranquilidad financiera, nuestra misión</p>
+        </div>
+
+        <!-- Menú principal -->
+        <div class="main-menu">
+            <div class="menu-grid">
+                <!-- Opción 1: Control de gastos -->
+                <a href="/control-gastos" class="menu-card control-gastos">
+                    <div class="menu-icon">💳</div>
+                    <h3>Control de Gastos</h3>
+                    <p>Gestiona tus transacciones automáticamente</p>
+                    <div class="menu-badge">Disponible</div>
+                </a>
+
+                <!-- Opción 2: Elaboración de presupuesto -->
+                <a href="/presupuesto" class="menu-card presupuesto">
+                    <div class="menu-icon">📊</div>
+                    <h3>Elaboración de Presupuesto</h3>
+                    <p>Crea y gestiona tu presupuesto mensual</p>
+                    <div class="menu-badge coming-soon">Próximamente</div>
+                </a>
+
+                <!-- Opción 3: Aplicación del 50-30-20 -->
+                <a href="/regla-50-30-20" class="menu-card regla-50-30-20">
+                    <div class="menu-icon">⚖️</div>
+                    <h3>Regla 50-30-20</h3>
+                    <p>Distribuye tus ingresos de manera inteligente</p>
+                    <div class="menu-badge coming-soon">Próximamente</div>
+                </a>
+
+                <!-- Opción 4: Tablas de amortización -->
+                <a href="/amortizacion" class="menu-card amortizacion">
+                    <div class="menu-icon">📈</div>
+                    <h3>Tablas de Amortización</h3>
+                    <p>Calcula préstamos y abonos</p>
+                    <div class="menu-badge coming-soon">Próximamente</div>
+                </a>
+            </div>
+        </div>
+
+        <!-- Footer de la app -->
+        <div class="app-footer">
+            <p>&copy; 2025 CUIDA TU BOLSILLO. Todos los derechos reservados.</p>
+        </div>
+    </div>
+</body>
+</html>

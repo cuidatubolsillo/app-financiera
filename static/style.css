@@ -8,7 +8,7 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 50%, #dee2e6 100%);
+    background: linear-gradient(135deg, #ababab 0%, #d6d6d6 50%, #ffffff 100%);
     min-height: 100vh;
     padding: 20px;
 }
@@ -23,7 +23,7 @@ body {
 }
 
 .header {
-    background: linear-gradient(135deg, #2d4a3e 0%, #1a3d2e 50%, #0f2a1f 100%);
+    background: linear-gradient(135deg, #0a2e22 0%, #1e543b 50%, #7ba74e 100%);
     color: white;
     padding: 40px;
     text-align: center;
@@ -48,18 +48,23 @@ body {
     margin-bottom: 20px;
     position: relative;
     z-index: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
 }
 
 .logo {
-    height: 80px;
+    height: 100px;
     width: auto;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+    object-fit: contain;
     transition: transform 0.3s ease;
 }
 
 .logo:hover {
     transform: scale(1.05);
 }
+
 
 .header h1 {
     font-size: 2.5em;
@@ -149,13 +154,12 @@ body {
 }
 
 .transactions-table th {
-    background: linear-gradient(135deg, #2d4a3e 0%, #1a3d2e 50%, #0f2a1f 100%);
+    background: #2d4a3e;
     color: white;
     padding: 15px;
     text-align: left;
     font-weight: 600;
     font-size: 1.1em;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     border-bottom: 2px solid #1a3d2e;
 }
 
@@ -252,15 +256,20 @@ body {
 .back-link {
     display: inline-block;
     margin: 20px;
-    color: #2d4a3e;
+    color: #ffd700;
     text-decoration: none;
     font-weight: 600;
     font-size: 1.1em;
     transition: color 0.3s;
+    background: rgba(255, 215, 0, 0.1);
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 2px solid rgba(255, 215, 0, 0.3);
 }
 
 .back-link:hover {
-    color: #1a3d2e;
+    color: #ffffff;
+    background: rgba(255, 215, 0, 0.2);
     text-decoration: none;
 }
 
