@@ -1,0 +1,19 @@
+<svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fondo transparente -->
+  <rect width="80" height="80" fill="transparent"/>
+  
+  <!-- Cartera principal -->
+  <rect x="15" y="25" width="50" height="30" rx="5" fill="#2d4a3e"/>
+  
+  <!-- Billetes dentro de la cartera -->
+  <rect x="20" y="30" width="40" height="20" rx="2" fill="#1a3d2e"/>
+  <rect x="22" y="32" width="36" height="16" rx="1" fill="#ffffff"/>
+  
+  <!-- Símbolo de dólar -->
+  <text x="40" y="42" text-anchor="middle" fill="#2d4a3e" font-family="Arial, sans-serif" font-size="12" font-weight="bold">$</text>
+  
+  <!-- Efectos de brillo -->
+  <circle cx="25" cy="35" r="1" fill="#ffffff" opacity="0.8"/>
+  <circle cx="55" cy="45" r="1" fill="#ffffff" opacity="0.6"/>
+  <circle cx="30" cy="50" r="0.5" fill="#ffffff" opacity="0.7"/>
+</svg>

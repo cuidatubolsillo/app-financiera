@@ -3,14 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi App Financiera</title>
+    <title>Control automático de tarjetas - CUIDA TU BOLSILLO</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>💰 Mi App Financiera</h1>
-            <p>Controla tus gastos y transacciones de manera inteligente</p>
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='logo.svg') }}" alt="CUIDA TU BOLSILLO" class="logo">
+            </div>
+            <h1>Control automático de tarjetas</h1>
+            <p>La única aplicación que controla tus consumos mientras los vas realizando</p>
         </div>
 
         <!-- Mensajes flash -->
