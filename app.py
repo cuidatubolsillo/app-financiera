@@ -135,15 +135,25 @@ def receive_email():
         print(f"📧 Content-Type: {request.content_type}")
         print(f"📧 Raw data: {request.get_data()}")
         
-        # Obtener datos del email - MANEJAR AMBOS FORMATOS
-        if request.content_type == 'application/json':
-            # Si es JSON (pruebas manuales)
-            email_data = request.get_json() or {}
-            print("📧 Procesando como JSON")
-        else:
-            # Si es form-urlencoded (Mailgun real)
-            email_data = request.form.to_dict()
-            print("📧 Procesando como form-urlencoded")
+        # Obtener datos del email - MANEJAR TODOS LOS FORMATOS
+        email_data = {}
+        
+        # Intentar JSON primero
+        try:
+            if request.is_json:
+                email_data = request.get_json() or {}
+                print("📧 Procesando como JSON")
+            else:
+                raise Exception("No es JSON")
+        except:
+            # Si no es JSON, intentar form data
+            try:
+                email_data = request.form.to_dict()
+                print("📧 Procesando como form-urlencoded")
+            except:
+                # Si tampoco es form, intentar valores directos
+                email_data = request.values.to_dict()
+                print("📧 Procesando como values")
         
         print(f"📧 Email data: {email_data}")
         
