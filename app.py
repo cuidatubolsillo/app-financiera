@@ -41,6 +41,17 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'tu-clave-secreta-aqui')
 # Inicializar la base de datos
 db = SQLAlchemy(app)
 
+# Función para manejar errores de base de datos
+def handle_db_error():
+    """Maneja errores de conexión a la base de datos"""
+    try:
+        # Intentar conectar a la base de datos
+        db.session.execute('SELECT 1')
+        return True
+    except Exception as e:
+        print(f"Error de conexión a la base de datos: {e}")
+        return False
+
 # Configurar OAuth
 oauth = OAuth(app)
 
@@ -306,39 +317,40 @@ def authorize_google():
             
             print(f"=== DEBUG: Email: {email}, Nombre: {nombre} ===")
             
-            # Buscar usuario existente
-            usuario = Usuario.query.filter_by(email=email, oauth_provider='google').first()
-            
-            if not usuario:
-                # Crear nuevo usuario
-                usuario = Usuario(
-                    email=email,
-                    nombre=nombre,
-                    oauth_provider='google',
-                    oauth_id=oauth_id,
-                    avatar_url=avatar_url
-                )
-                db.session.add(usuario)
-                db.session.commit()
-                print(f"=== DEBUG: Usuario creado: {usuario.id} ===")
-                flash(f'¡Bienvenido, {nombre}! Tu cuenta ha sido creada.', 'success')
-            else:
-                # Actualizar información si es necesario
-                usuario.nombre = nombre
-                usuario.avatar_url = avatar_url
-                db.session.commit()
-                print(f"=== DEBUG: Usuario actualizado: {usuario.id} ===")
-                flash(f'¡Bienvenido de nuevo, {nombre}!', 'success')
-            
-            # Iniciar sesión
-            session['user_id'] = usuario.id
-            session['username'] = usuario.nombre
-            print(f"=== DEBUG: Sesión iniciada para usuario: {usuario.id} ===")
-            return redirect(url_for('home'))
-        else:
-            print(f"=== DEBUG: Error en respuesta de Google: {resp.status_code} ===")
-            flash('Error al obtener información de Google.', 'error')
+        # Verificar conexión a la base de datos
+        if not handle_db_error():
+            flash('Error de conexión a la base de datos. Por favor, intenta más tarde.', 'error')
             return redirect(url_for('login'))
+        
+        # Buscar usuario existente
+        usuario = Usuario.query.filter_by(email=email, oauth_provider='google').first()
+        
+        if not usuario:
+            # Crear nuevo usuario
+            usuario = Usuario(
+                email=email,
+                nombre=nombre,
+                oauth_provider='google',
+                oauth_id=oauth_id,
+                avatar_url=avatar_url
+            )
+            db.session.add(usuario)
+            db.session.commit()
+            print(f"=== DEBUG: Usuario creado: {usuario.id} ===")
+            flash(f'¡Bienvenido, {nombre}! Tu cuenta ha sido creada.', 'success')
+        else:
+            # Actualizar información si es necesario
+            usuario.nombre = nombre
+            usuario.avatar_url = avatar_url
+            db.session.commit()
+            print(f"=== DEBUG: Usuario actualizado: {usuario.id} ===")
+            flash(f'¡Bienvenido de nuevo, {nombre}!', 'success')
+        
+        # Iniciar sesión
+        session['user_id'] = usuario.id
+        session['username'] = usuario.nombre
+        print(f"=== DEBUG: Sesión iniciada para usuario: {usuario.id} ===")
+        return redirect(url_for('home'))
             
     except Exception as e:
         print(f"=== DEBUG: Error en Google OAuth: {e} ===")
