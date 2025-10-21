@@ -6,6 +6,7 @@
     <title>CUIDA TU BOLSILLO - App Financiera</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
     <div class="app-container">
@@ -16,33 +17,56 @@
             </div>
             <h1 class="app-title">CUIDA TU BOLSILLO</h1>
             <p class="app-subtitle">Tu tranquilidad financiera, nuestra misión</p>
+            
+            <!-- Información del usuario -->
+            <div class="user-info">
+                <div class="user-welcome">
+                    <i class="fas fa-user-circle"></i>
+                    <span>¡Hola, {{ usuario.nombre }}!</span>
+                </div>
+                <div class="user-actions">
+                    <a href="{{ url_for('logout') }}" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Cerrar Sesión
+                    </a>
+                </div>
+            </div>
         </div>
 
         <!-- Menú principal -->
         <div class="main-menu">
             <div class="menu-grid">
-                <!-- Opción 1: Control de gastos -->
+                <!-- Opción 1: Control de gastos (Solo Admin) -->
+                {% if usuario.rol == 'admin' %}
                 <a href="/control-gastos" class="menu-card control-gastos">
                     <div class="menu-icon">💳</div>
                     <h3>Control de Gastos</h3>
                     <p>Gestiona tus transacciones automáticamente</p>
-                    <div class="menu-badge">Disponible</div>
+                    <div class="menu-badge admin-only">Próximamente (En desarrollo)</div>
                 </a>
+                {% else %}
+                <div class="menu-card control-gastos disabled">
+                    <div class="menu-icon">💳</div>
+                    <h3>Control de Gastos</h3>
+                    <p>Gestiona tus transacciones automáticamente</p>
+                    <div class="menu-badge in-development">En Desarrollo</div>
+                </div>
+                {% endif %}
 
                 <!-- Opción 2: Elaboración de presupuesto -->
-                <a href="/presupuesto" class="menu-card presupuesto">
+                <div class="menu-card presupuesto disabled">
                     <div class="menu-icon">📊</div>
                     <h3>Elaboración de Presupuesto</h3>
                     <p>Crea y gestiona tu presupuesto mensual</p>
                     <div class="menu-badge coming-soon">Próximamente</div>
-                </a>
+                </div>
 
                 <!-- Opción 3: Aplicación del 50-30-20 -->
                 <a href="/regla-50-30-20" class="menu-card regla-50-30-20">
                     <div class="menu-icon">⚖️</div>
                     <h3>Regla 50-30-20</h3>
                     <p>Distribuye tus ingresos de manera inteligente</p>
-                    <div class="menu-badge coming-soon">Próximamente</div>
+                    <div class="menu-badge active">¡Activo!</div>
                 </a>
 
                 <!-- Opción 4: Tablas de amortización -->
@@ -50,7 +74,7 @@
                     <div class="menu-icon">📈</div>
                     <h3>Tablas de Amortización</h3>
                     <p>Calcula préstamos y abonos</p>
-                    <div class="menu-badge coming-soon">Próximamente</div>
+                    <div class="menu-badge active">¡Activo!</div>
                 </a>
             </div>
         </div>

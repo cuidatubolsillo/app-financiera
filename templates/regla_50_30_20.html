@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Regla 50-30-20 - CUIDA TU BOLSILLO</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Paleta de colores de la marca */
+        :root {
+            --brand-dark-green: #1f3d2a;
+            --brand-medium-green: #355b37;
+            --brand-light-green: #7ba753;
+            --brand-bright-green: #4caf50;
+            --brand-accent-yellow: #fdd835;
+            --brand-dark-slate: #2f4f4f;
+            --brand-light-gray: #f0f0f0;
+            --brand-medium-gray: #ababab;
+            --brand-dark-text: #06090f;
+            --brand-white: #ffffff;
+            --brand-negative-red: #b91c1c;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1b2e34;
+            min-height: 100vh;
+        }
+        
+        /* Colores originales de Gemini */
+        .text-brand-yellow { color: #ffd700; }
+        .bg-brand-dark { background-color: #ffffff; }
+        .bg-brand-green-dark { background-color: #3a5f36; }
+        .bg-brand-green-light { background-color: #7ba74e; }
+        .bg-brand-cyan { background-color: #5cc9d9; }
+        .text-brand-gold { color: #1b2e34; }
+        .border-brand-gray { border-color: #d6d6d6; }
+        .ring-brand-cyan { ring-color: #5cc9d9; }
+        .text-brand-black { color: #06090f; }
+        .text-brand-cyan { color: #5cc9d9; }
+        
+        .back-link {
+            color: #ffd700;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.1em;
+            transition: color 0.3s;
+        }
+        .back-link:hover {
+            color: #ffffff;
+            text-decoration: none;
+        }
+        
+        /* ===== RESPONSIVE DESIGN PARA MÓVIL ===== */
+        
+        /* Móviles pequeños */
+        @media (max-width: 480px) {
+            .main-container {
+                padding: 10px !important;
+                margin: 0 !important;
+                border-radius: 0 !important;
+            }
+            
+            .header-title {
+                font-size: 1.5rem !important;
+                line-height: 1.2 !important;
+            }
+            
+            .header-subtitle {
+                font-size: 0.9rem !important;
+            }
+            
+            .controls-background {
+                padding: 15px !important;
+                margin: 10px 0 !important;
+            }
+            
+            .table-container {
+                margin: 10px 0 !important;
+                border-radius: 8px !important;
+            }
+            
+            table {
+                font-size: 0.8rem !important;
+            }
+            
+            th, td {
+                padding: 8px 4px !important;
+                font-size: 0.75rem !important;
+            }
+            
+            .btn {
+                padding: 8px 12px !important;
+                font-size: 0.8rem !important;
+                margin: 2px !important;
+            }
+            
+            .input-group {
+                flex-direction: column !important;
+                gap: 10px !important;
+            }
+            
+            .input-group input {
+                width: 100% !important;
+                padding: 10px !important;
+                font-size: 0.9rem !important;
+            }
+            
+            /* Teclado numérico para campos de números */
+            input[type="number"] {
+                -webkit-appearance: none;
+                -moz-appearance: textfield;
+            }
+            
+            input[type="number"]::-webkit-outer-spin-button,
+            input[type="number"]::-webkit-inner-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
+            
+            /* Forzar teclado numérico en móvil */
+            .numeric-input {
+                inputmode: numeric;
+                pattern: "[0-9]*";
+            }
+            
+            /* Mejorar la experiencia de input en móvil */
+            .value-cell {
+                -webkit-user-select: text;
+                -moz-user-select: text;
+                -ms-user-select: text;
+                user-select: text;
+                -webkit-touch-callout: text;
+                -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+            }
+            
+            /* Prevenir zoom en inputs (iOS) */
+            input[type="number"] {
+                font-size: 16px !important;
+            }
+            
+            /* Mejorar el scroll en móvil */
+            .table-container {
+                -webkit-overflow-scrolling: touch;
+                scroll-behavior: smooth;
+            }
+            
+            /* Ajustar el viewport para evitar zoom */
+            @media screen and (max-width: 768px) {
+                .value-cell:focus {
+                    transform: scale(1.02);
+                    transition: transform 0.2s ease;
+                }
+            }
+            
+            .chart-container {
+                height: 250px !important;
+                margin: 10px 0 !important;
+            }
+            
+            .modal-content {
+                width: 95% !important;
+                margin: 10px !important;
+                padding: 15px !important;
+            }
+            
+            .modal-header h2 {
+                font-size: 1.2rem !important;
+            }
+            
+            .modal-body {
+                padding: 10px !important;
+            }
+            
+            .modal-footer {
+                padding: 10px !important;
+                flex-direction: column !important;
+                gap: 10px !important;
+            }
+        }
+        
+        /* Móviles grandes */
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 15px !important;
+                margin: 5px !important;
+            }
+            
+            .header-title {
+                font-size: 1.8rem !important;
+            }
+            
+            .header-subtitle {
+                font-size: 1rem !important;
+            }
+            
+            .controls-background {
+                padding: 20px !important;
+            }
+            
+            .table-container {
+                margin: 15px 0 !important;
+            }
+            
+            table {
+                font-size: 0.85rem !important;
+            }
+            
+            th, td {
+                padding: 10px 6px !important;
+                font-size: 0.8rem !important;
+            }
+            
+            .btn {
+                padding: 10px 16px !important;
+                font-size: 0.85rem !important;
+            }
+            
+            .input-group {
+                flex-direction: column !important;
+                gap: 15px !important;
+            }
+            
+            .input-group input {
+                width: 100% !important;
+                padding: 12px !important;
+            }
+            
+            .chart-container {
+                height: 300px !important;
+            }
+            
+            .modal-content {
+                width: 90% !important;
+                margin: 20px !important;
+            }
+        }
+        
+        /* Tablets */
+        @media (max-width: 1024px) {
+            .main-container {
+                padding: 20px !important;
+            }
+            
+            .input-group {
+                flex-wrap: wrap !important;
+                gap: 10px !important;
+            }
+            
+            .input-group input {
+                flex: 1 !important;
+                min-width: 200px !important;
+            }
+            
+            .chart-container {
+                height: 350px !important;
+            }
+        }
+        
+        /* ===== MEJORAS ESPECÍFICAS PARA MÓVIL ===== */
+        
+        /* Touch targets más grandes */
+        @media (max-width: 768px) {
+            .btn {
+                min-height: 44px !important;
+                min-width: 44px !important;
+                touch-action: manipulation !important;
+            }
+            
+            /* Mejorar la experiencia táctil */
+            .btn:active {
+                transform: scale(0.95) !important;
+                transition: transform 0.1s ease !important;
+            }
+            
+            /* Animaciones más suaves en móvil */
+            .btn, .table-container, .chart-container {
+                transition: all 0.2s ease !important;
+            }
+        }
+        
+        
+        /* ===== ORIENTACIÓN LANDSCAPE ===== */
+        @media (max-width: 768px) and (orientation: landscape) {
+            .main-container {
+                padding: 10px !important;
+            }
+            
+            .header-title {
+                font-size: 1.4rem !important;
+            }
+            
+            .header-subtitle {
+                font-size: 0.9rem !important;
+            }
+            
+            .controls-background {
+                padding: 15px !important;
+            }
+            
+            .table-container {
+                margin: 10px 0 !important;
+            }
+            
+            .chart-container {
+                height: 200px !important;
+            }
+            
+            /* Mejorar el desplazamiento cuando aparece el teclado */
+            body {
+                height: 100vh;
+                overflow-y: auto;
+            }
+            
+            .main-container {
+                min-height: 100vh;
+                padding-bottom: 50vh; /* Espacio extra para el teclado */
+            }
+            
+            /* Asegurar que el contenido sea scrolleable */
+            .table-container {
+                max-height: 60vh;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+        
+        /* ===== MEJORAS DE ACCESIBILIDAD MÓVIL ===== */
+        @media (max-width: 768px) {
+            /* Mejorar contraste */
+            .table-container {
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+                border: 1px solid rgba(45, 74, 62, 0.1) !important;
+            }
+            
+            /* Texto más legible */
+            th, td {
+                font-weight: 500 !important;
+                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+            }
+            
+            /* Mejorar botones */
+            .btn {
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+                font-weight: 600 !important;
+            }
+            
+            .btn:hover {
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+            }
+        }
+        
+        /* ===== EFECTOS ESPECIALES MÓVIL ===== */
+        @media (max-width: 768px) {
+            /* Animación de entrada más suave */
+            .table-container, .chart-container, .controls-background {
+                animation: slideInUp 0.6s ease-out !important;
+            }
+            
+            @keyframes slideInUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            
+            /* Efecto de ripple en touch */
+            .btn::after {
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                width: 0;
+                height: 0;
+                border-radius: 50%;
+                background: rgba(255, 255, 255, 0.3);
+                transform: translate(-50%, -50%);
+                transition: width 0.3s, height 0.3s;
+            }
+            
+            .btn:active::after {
+                width: 200px;
+                height: 200px;
+            }
+        }
+        .main-container {
+             background-color: var(--brand-white);
+        }
+        .header-title {
+            color: var(--brand-dark-green);
+        }
+        .header-subtitle {
+            color: #475569;
+        }
+        .controls-background {
+            background-color: #f1f5f9;
+        }
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            table-layout: fixed;
+        }
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        th {
+            background-color: var(--brand-medium-green);
+            font-weight: 600;
+            color: var(--brand-white);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .category-col {
+            position: sticky;
+            left: 0;
+            background-color: var(--brand-white);
+            z-index: 20;
+            font-weight: 500;
+            width: 250px;
+        }
+        .category-col > div {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .editable-category-name {
+            background-color: rgba(253, 216, 53, 0.2); 
+            font-style: italic;
+            outline: 1px dashed var(--brand-accent-yellow);
+            cursor: text;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+
+        th.category-col {
+            z-index: 30;
+        }
+        .income-row { background-color: rgba(123, 167, 83, 0.15); color: var(--brand-dark-green); }
+        .expense-row { background-color: rgba(171, 171, 171, 0.15); color: var(--brand-dark-text); }
+        .income-row .category-col { background-color: rgba(123, 167, 83, 0.3); }
+        .expense-row .category-col { background-color: rgba(171, 171, 171, 0.3); }
+        
+        .total-income-row, .total-expense-row, .net-row { font-weight: 700; }
+        .total-income-row { background-color: var(--brand-light-green); color: var(--brand-white); }
+        .total-expense-row { background-color: var(--brand-medium-gray); color: var(--brand-dark-text); }
+        .net-row { background-color: var(--brand-dark-slate); color: var(--brand-white); }
+        
+        .net-positive { color: var(--brand-bright-green) !important; font-weight: bold; }
+        .net-negative { color: var(--brand-negative-red) !important; font-weight: bold; }
+
+        .value-cell:hover,
+        .value-cell:focus {
+            background-color: rgba(253, 216, 53, 0.3);
+            outline: 2px solid var(--brand-accent-yellow);
+            outline-offset: -2px;
+        }
+        .fill-btn {
+            background-color: var(--brand-accent-yellow);
+            color: var(--brand-dark-text);
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0;
+            visibility: hidden;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s, visibility 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            line-height: 1;
+        }
+        .editable-cell-container:hover .fill-btn {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .rule-selector {
+            border-radius: 6px;
+            font-size: 12px;
+            padding: 4px;
+            border: 1px solid #cbd5e1;
+            background-color: #f1f5f9;
+            color: #475569;
+            font-weight: 500;
+            cursor: pointer;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2rem;
+            min-width: 100px;
+        }
+        
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex; align-items: center; justify-content: center; z-index: 50;
+        }
+        .progress-bar-container {
+            background-color: #e5e7eb; border-radius: 9999px; height: 12px; width: 100%;
+        }
+        .progress-bar {
+            background-color: var(--brand-medium-gray); height: 100%; border-radius: 9999px;
+        }
+        .main-button {
+            background-color: var(--brand-dark-green);
+            color: var(--brand-white);
+            transition: background-color 0.3s;
+        }
+        .main-button:hover {
+            background-color: var(--brand-medium-green);
+        }
+
+        .editable-cell-container { position: relative; padding: 0 !important; }
+        .value-cell { 
+            padding: 12px 28px 12px 16px; 
+            min-height: 2.75em; 
+            cursor: pointer; 
+            outline: none; 
+            border-radius: 4px; 
+            transition: background-color 0.2s; 
+            width: 100%; 
+            display: block; 
+            border: none;
+            background: transparent;
+            font-size: inherit;
+            font-family: inherit;
+            color: inherit;
+        }
+        
+    </style>
+</head>
+<body class="bg-brand-dark text-white p-4 sm:p-6 md:p-8">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header con logo y navegación -->
+        <div class="text-center mb-8">
+            <div class="flex justify-center items-center mb-4">
+                <img src="{{ url_for('static', filename='logoCB.png') }}" alt="CUIDA TU BOLSILLO" class="h-20 w-auto object-fit contain">
+            </div>
+            <h1 class="text-3xl md:text-4xl font-bold text-brand-gold">Regla 50-30-20</h1>
+            <p class="text-lg text-brand-black mt-2">Distribuye tus ingresos de manera inteligente: 50% necesidades, 30% deseos, 20% ahorros.</p>
+            <a href="/" class="back-link inline-block mt-4">← Volver al menú principal</a>
+        </div>
+
+        <div class="max-w-7xl mx-auto rounded-2xl shadow-lg p-6 md:p-8 main-container">
+            <header class="mb-6">
+                <h2 class="text-2xl font-bold header-title">Planificador de Flujo de Caja Futuro</h2>
+                <p class="mt-2 header-subtitle">Ordena tus finanzas y coloca los valores lo más cercano a la realidad posible. Haz clic en cualquier celda de valor para editarla.</p>
+            </header>
+
+        <!-- Controles de Simulación -->
+        <div class="p-4 rounded-lg mb-6 controls-background">
+            <div class="flex items-center justify-center gap-6 mb-4">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="simulation_mode" value="period" checked class="form-radio" style="color: var(--brand-dark-green);">
+                    <span class="font-medium text-slate-700">Flujo por Período</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="simulation_mode" value="single" class="form-radio" style="color: var(--brand-dark-green);">
+                    <span class="font-medium text-slate-700">Simular Mes Único</span>
+                </label>
+            </div>
+            <div id="period-controls" class="flex items-center justify-center gap-4">
+                 <label class="font-medium text-slate-600">Mes de Inicio: <select id="start-month-select" class="rule-selector"></select></label>
+                 <label class="font-medium text-slate-600">Mes de Fin: <select id="end-month-select" class="rule-selector"></select></label>
+            </div>
+             <div id="single-month-controls" class="hidden flex items-center justify-center gap-4">
+                 <label class="font-medium text-slate-600">Seleccionar Mes: <select id="single-month-select" class="rule-selector"></select></label>
+            </div>
+        </div>
+
+        <div class="table-container rounded-lg border border-slate-200">
+            <table id="cashflow-table">
+                <!-- El contenido de la tabla se generará con JavaScript -->
+            </table>
+        </div>
+        
+        <div class="mt-6 text-center">
+            <button id="generate-report-btn" class="font-semibold py-3 px-6 rounded-lg shadow-md main-button">
+                Elaborar Informe del Período
+            </button>
+        </div>
+        
+        <footer class="mt-6 text-center text-sm text-slate-400">
+            <p>Una herramienta para visualizar tu salud financiera y planificar tus ahorros o inversiones.</p>
+        </footer>
+        </div>
+    </div>
+
+    <!-- Modal para el Informe -->
+    <div id="report-modal" class="modal-overlay hidden">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold header-title">Informe Financiero</h2>
+                <button id="close-modal-btn" class="text-slate-500 hover:text-slate-800 text-2xl">&times;</button>
+            </div>
+            <div id="report-content">
+                <!-- El contenido del informe se generará aquí -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            
+            // ===== MEJORAS PARA MÓVIL =====
+            
+            // Forzar teclado numérico en campos de números
+            function setupNumericInputs() {
+                const numericInputs = document.querySelectorAll('input[type="number"]');
+                numericInputs.forEach(input => {
+                    input.setAttribute('inputmode', 'numeric');
+                    input.setAttribute('pattern', '[0-9]*');
+                    input.classList.add('numeric-input');
+                });
+            }
+            
+            // Manejar el teclado en móvil
+            let activeInput = null;
+            let originalViewportHeight = window.innerHeight;
+            
+            // Detectar cuando se abre el teclado
+            function handleKeyboardOpen() {
+                if (activeInput) {
+                    // Scroll al input activo
+                    setTimeout(() => {
+                        activeInput.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'center' 
+                        });
+                    }, 300);
+                }
+            }
+            
+            // Detectar cuando se cierra el teclado
+            function handleKeyboardClose() {
+                if (activeInput) {
+                    // Restaurar scroll si es necesario
+                    setTimeout(() => {
+                        window.scrollTo(0, 0);
+                    }, 100);
+                }
+            }
+            
+            // Event listeners para inputs
+            function setupKeyboardHandling() {
+                const numericInputs = document.querySelectorAll('input[type="number"]');
+                
+                numericInputs.forEach(input => {
+                    input.addEventListener('focus', function() {
+                        activeInput = this;
+                        handleKeyboardOpen();
+                    });
+                    
+                    input.addEventListener('blur', function() {
+                        activeInput = null;
+                        handleKeyboardClose();
+                    });
+                });
+            }
+            
+            // Detectar cambios en el viewport (teclado)
+            function setupViewportHandling() {
+                let timeout;
+                window.addEventListener('resize', function() {
+                    clearTimeout(timeout);
+                    timeout = setTimeout(function() {
+                        const currentHeight = window.innerHeight;
+                        if (currentHeight < originalViewportHeight * 0.75) {
+                            // Teclado abierto
+                            handleKeyboardOpen();
+                        } else {
+                            // Teclado cerrado
+                            handleKeyboardClose();
+                        }
+                    }, 100);
+                });
+            }
+            
+            // Prevenir zoom en inputs (iOS)
+            function setupZoomPrevention() {
+                const numericInputs = document.querySelectorAll('input[type="number"]');
+                numericInputs.forEach(input => {
+                    input.addEventListener('touchstart', function() {
+                        if (window.innerWidth < 768) {
+                            const viewport = document.querySelector('meta[name="viewport"]');
+                            if (viewport) {
+                                viewport.setAttribute('content', 
+                                    'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'
+                                );
+                            }
+                        }
+                    });
+                });
+            }
+            
+            // Inicializar mejoras móviles
+            setupNumericInputs();
+            setupKeyboardHandling();
+            setupViewportHandling();
+            setupZoomPrevention();
+            
+            // --- CONFIGURACIÓN Y ESTADO ---
+            const incomeCategories = ['Sueldo', 'Ingreso Adicional 1', 'Ingreso Adicional 2'];
+            const expenseCategories = ['Vivienda', 'Servicios Básicos', 'Transporte', 'Alimentación', 'Medicina', 'Seguros', 'Educación', 'Deudas', 'Salidas', 'Viajes', 'Regalos', 'Compras', 'Hobbies', 'Mejoras Hogar', 'Cuidado Personal', 'Inversión', 'Gasto Personalizado'];
+            const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+            const formatter = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+            
+            let state = {
+                mode: 'period', // 'period' or 'single'
+                startMonth: new Date().getMonth(),
+                endMonth: (new Date().getMonth() + 11) % 12,
+                singleMonth: new Date().getMonth()
+            };
+
+            // --- ELEMENTOS DEL DOM ---
+            const table = document.getElementById('cashflow-table');
+            const generateReportBtn = document.getElementById('generate-report-btn');
+            const reportModal = document.getElementById('report-modal');
+            const closeModalBtn = document.getElementById('close-modal-btn');
+            const reportContent = document.getElementById('report-content');
+            const modeRadios = document.querySelectorAll('input[name="simulation_mode"]');
+            const periodControls = document.getElementById('period-controls');
+            const singleMonthControls = document.getElementById('single-month-controls');
+            const startMonthSelect = document.getElementById('start-month-select');
+            const endMonthSelect = document.getElementById('end-month-select');
+            const singleMonthSelect = document.getElementById('single-month-select');
+            
+            let ndaChart = null;
+
+            // --- FUNCIONES DE LA TABLA ---
+            function generateTable(startIdx, endIdx, isSingleMode = false) {
+                let html = '<thead><tr><th class="category-col">Concepto</th>';
+                let monthsToDisplay = [];
+                if (isSingleMode) {
+                    monthsToDisplay.push(startIdx);
+                } else {
+                    let current = startIdx;
+                    while (true) {
+                        monthsToDisplay.push(current);
+                        if (current === endIdx) break;
+                        current = (current + 1) % 12;
+                    }
+                }
+                
+                const numMonths = monthsToDisplay.length;
+                if (!isSingleMode && numMonths > 6) {
+                    const monthColMinWidth = 140; 
+                    table.style.width = `calc(250px + ${numMonths * monthColMinWidth}px)`;
+                } else {
+                    table.style.width = '100%'; 
+                }
+
+                monthsToDisplay.forEach(monthIndex => {
+                    html += `<th class="text-center">${monthNames[monthIndex].substring(0,3)}</th>`;
+                });
+                html += '</tr></thead><tbody>';
+
+                html += `<tr><td colspan="${monthsToDisplay.length + 1}" style="background-color: var(--brand-medium-green); color: var(--brand-white);" class="font-semibold">INGRESOS</td></tr>`;
+                incomeCategories.forEach(cat => {
+                    html += `<tr class="income-row"><td class="category-col"><div><span>${cat}</span></div></td>`;
+                    monthsToDisplay.forEach(monthIndex => {
+                        html += `<td class="editable-cell-container"><input type="number" class="value-cell" data-type="income" data-col="${monthIndex}" data-row-cat="${cat}" value="0" inputmode="numeric" pattern="[0-9]*"><button class="fill-btn" title="Rellenar hacia la derecha">➔</button></td>`;
+                    });
+                    html += '</tr>';
+                });
+                html += `<tr class="total-income-row"><td class="category-col">Total Ingresos</td>`;
+                monthsToDisplay.forEach(monthIndex => html += `<td data-total="income" data-col="${monthIndex}">${formatter.format(0)}</td>`);
+                html += '</tr>';
+
+                html += `<tr><td colspan="${monthsToDisplay.length + 1}" style="background-color: var(--brand-medium-gray); color: var(--brand-dark-text);" class="font-semibold">EGRESOS</td></tr>`;
+                
+                const needsDefaults = ['Vivienda', 'Servicios Básicos', 'Transporte', 'Alimentación', 'Medicina', 'Seguros', 'Educación', 'Deudas'];
+                const wantsDefaults = ['Salidas', 'Viajes', 'Regalos', 'Compras', 'Hobbies', 'Mejoras Hogar', 'Cuidado Personal'];
+                const savingsDefaults = ['Inversión'];
+
+                expenseCategories.forEach(cat => {
+                    let defaultRule = '';
+                    if (needsDefaults.includes(cat)) defaultRule = 'N';
+                    else if (wantsDefaults.includes(cat)) defaultRule = 'D';
+                    else if (savingsDefaults.includes(cat)) defaultRule = 'A';
+
+                    const ruleSelectorHtml = `
+                        <select class="rule-selector">
+                            <option value="" ${defaultRule === '' ? 'selected' : ''}>--</option>
+                            <option value="N" ${defaultRule === 'N' ? 'selected' : ''}>Necesidad</option>
+                            <option value="D" ${defaultRule === 'D' ? 'selected' : ''}>Deseo</option>
+                            <option value="A" ${defaultRule === 'A' ? 'selected' : ''}>Ahorro</option>
+                        </select>`;
+
+                    html += `<tr class="expense-row">`;
+                    if (cat === 'Gasto Personalizado') {
+                        html += `<td class="category-col"><div><span class="editable-category-name" contenteditable="true">${cat}</span>${ruleSelectorHtml}</div></td>`;
+                    } else {
+                        html += `<td class="category-col"><div><span>${cat}</span>${ruleSelectorHtml}</div></td>`;
+                    }
+                    monthsToDisplay.forEach(monthIndex => {
+                         html += `<td class="editable-cell-container"><input type="number" class="value-cell" data-type="expense" data-col="${monthIndex}" data-row-cat="${cat}" value="0" inputmode="numeric" pattern="[0-9]*"><button class="fill-btn" title="Rellenar hacia la derecha">➔</button></td>`;
+                    });
+                    html += '</tr>';
+                });
+                html += `<tr class="total-expense-row"><td class="category-col">Total Egresos</td>`;
+                monthsToDisplay.forEach(monthIndex => html += `<td data-total="expense" data-col="${monthIndex}">${formatter.format(0)}</td>`);
+                html += '</tr>';
+
+                html += `<tr class="net-row"><td class="category-col">NETO</td>`;
+                monthsToDisplay.forEach(monthIndex => html += `<td data-total="net" data-col="${monthIndex}">${formatter.format(0)}</td>`);
+                html += '</tr>';
+
+                html += '</tbody>';
+                table.innerHTML = html;
+                 
+                monthsToDisplay.forEach(monthIndex => calculateTotals(monthIndex));
+                
+                // Reconfigurar inputs numéricos después de regenerar la tabla
+                setupNumericInputs();
+                setupKeyboardHandling();
+            }
+
+            function parseCurrency(value) {
+                if (typeof value === 'string') {
+                    return parseFloat(value.replace(/[^0-9,-]/g, '').replace(',', '.')) || 0;
+                }
+                return value || 0;
+            }
+
+            function calculateTotals(columnIndex) {
+                let incomeTotal = 0;
+                table.querySelectorAll(`.value-cell[data-type="income"][data-col="${columnIndex}"]`).forEach(cell => {
+                    incomeTotal += parseFloat(cell.value) || 0;
+                });
+
+                let expenseTotal = 0;
+                table.querySelectorAll(`.value-cell[data-type="expense"][data-col="${columnIndex}"]`).forEach(cell => {
+                    expenseTotal += parseFloat(cell.value) || 0;
+                });
+                
+                const netTotal = incomeTotal - expenseTotal;
+
+                table.querySelector(`td[data-total="income"][data-col="${columnIndex}"]`).textContent = formatter.format(incomeTotal);
+                table.querySelector(`td[data-total="expense"][data-col="${columnIndex}"]`).textContent = formatter.format(expenseTotal);
+                
+                const netTotalCell = table.querySelector(`td[data-total="net"][data-col="${columnIndex}"]`);
+                netTotalCell.textContent = formatter.format(netTotal);
+                netTotalCell.classList.toggle('net-positive', netTotal >= 0);
+                netTotalCell.classList.toggle('net-negative', netTotal < 0);
+            }
+            
+            function generateReport() {
+                let totalIncome = 0;
+                let totalExpenses = 0;
+                const ruleTotals = { N: 0, D: 0, A: 0 };
+                const expenseData = [];
+
+                 table.querySelectorAll('.value-cell[data-type="income"]').forEach(cell => {
+                    totalIncome += parseFloat(cell.value) || 0;
+                });
+
+                table.querySelectorAll('tr.expense-row').forEach(row => {
+                    const categoryName = row.querySelector('.category-col span').textContent;
+                    const rule = row.querySelector('.rule-selector').value;
+                    let categoryTotal = 0;
+                    row.querySelectorAll('.value-cell').forEach(cell => {
+                        categoryTotal += parseFloat(cell.value) || 0;
+                    });
+                    
+                    totalExpenses += categoryTotal;
+
+                    if (rule && ruleTotals.hasOwnProperty(rule)) {
+                        ruleTotals[rule] += categoryTotal;
+                    }
+
+                    if(categoryTotal > 0) {
+                        expenseData.push({
+                            name: categoryName,
+                            amount: categoryTotal,
+                            percentage: totalIncome > 0 ? (categoryTotal / totalIncome) * 100 : 0
+                        });
+                    }
+                });
+
+                const sortedExpenses = expenseData.sort((a, b) => b.amount - a.amount);
+                const netResult = totalIncome - totalExpenses;
+
+                if (netResult > 0) {
+                    ruleTotals.A += netResult;
+                }
+                
+                let reportHTML = `
+                    <div class="space-y-8">
+                        <div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
+                                <div style="background-color: rgba(123, 167, 83, 0.3);" class="p-4 rounded-lg">
+                                    <p class="text-sm font-semibold" style="color: var(--brand-dark-green);">Ingresos Totales</p>
+                                    <p class="text-2xl font-bold" style="color: var(--brand-dark-green);">${formatter.format(totalIncome)}</p>
+                                </div>
+                                <div style="background-color: rgba(171, 171, 171, 0.3);" class="p-4 rounded-lg">
+                                    <p class="text-sm font-semibold" style="color: var(--brand-dark-text);">Egresos Totales</p>
+                                    <p class="text-2xl font-bold" style="color: var(--brand-dark-text);">${formatter.format(totalExpenses)}</p>
+                                </div>
+                            </div>
+                            <div style="background-color: rgba(47, 79, 79, 0.2);" class="p-6 rounded-lg text-center mt-4">
+                                <p class="text-base font-semibold" style="color: var(--brand-dark-slate);">Resultado Neto</p>
+                                <p class="text-4xl font-bold my-2 ${netResult >= 0 ? 'net-positive' : 'net-negative'}">${formatter.format(netResult)}</p>
+                            </div>
+                        </div>
+                        <div class="border-t pt-6">
+                            <h3 class="text-xl font-bold text-slate-700 mb-4 text-center">Análisis N / D / A</h3>
+                            <div class="flex flex-col md:flex-row items-center gap-6">
+                                <div class="w-full md:w-1/2 relative">
+                                    <canvas id="nda-chart"></canvas>
+                                </div>
+                                <div class="w-full md:w-1/2 space-y-3">
+                                     <div class="p-3 rounded-lg" style="background-color: rgba(38,166,154,0.2)">
+                                        <p class="font-semibold" style="color: #0a4831">Necesidades</p>
+                                        <p class="text-xl font-bold" style="color: #0a2e21">${formatter.format(ruleTotals.N)} (${totalIncome > 0 ? (ruleTotals.N / totalIncome * 100).toFixed(1) : 0}%)</p>
+                                    </div>
+                                    <div class="p-3 rounded-lg" style="background-color: rgba(253,216,53,0.3)">
+                                        <p class="font-semibold" style="color: #c7a10a">Deseos</p>
+                                        <p class="text-xl font-bold" style="color: #947100">${formatter.format(ruleTotals.D)} (${totalIncome > 0 ? (ruleTotals.D / totalIncome * 100).toFixed(1) : 0}%)</p>
+                                    </div>
+                                    <div class="p-3 rounded-lg" style="background-color: rgba(123, 167, 83,0.3)">
+                                        <p class="font-semibold" style="color: var(--brand-dark-green)">Ahorro + Excedente</p>
+                                        <p class="text-xl font-bold" style="color: var(--brand-dark-green)">${formatter.format(ruleTotals.A)} (${totalIncome > 0 ? (ruleTotals.A / totalIncome * 100).toFixed(1) : 0}%)</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="border-t pt-6">
+                            <h3 class="text-xl font-bold text-slate-700 mb-4">Desglose de Gastos</h3>
+                            <div class="space-y-4">
+                `;
+                sortedExpenses.forEach(expense => {
+                    reportHTML += `<div class="bg-slate-50 p-3 rounded-md"><div class="flex justify-between items-center mb-1"><span class="font-semibold text-slate-600">${expense.name}</span><span class="font-bold text-slate-800">${formatter.format(expense.amount)}</span></div><div class="progress-bar-container"><div class="progress-bar" style="width: ${expense.percentage.toFixed(2)}%;"></div></div><p class="text-right text-sm text-slate-500 mt-1">${expense.percentage.toFixed(2)}% de los ingresos</p></div>`;
+                });
+                reportHTML += `</div></div></div>`;
+                reportContent.innerHTML = reportHTML;
+                
+                if (ndaChart) ndaChart.destroy();
+                const ctx = document.getElementById('nda-chart').getContext('2d');
+                ndaChart = new Chart(ctx, { type: 'doughnut', data: { labels: ['Necesidades', 'Deseos', 'Ahorro + Excedente'], datasets: [{ data: [ruleTotals.N, ruleTotals.D, ruleTotals.A], backgroundColor: ['#26a69a', 'var(--brand-accent-yellow)', 'var(--brand-light-green)'], borderColor: ['var(--brand-white)'], borderWidth: 4 }] }, options: { responsive: true, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `${c.label}: ${formatter.format(c.raw)}` } } } } });
+
+                reportModal.classList.remove('hidden');
+            }
+            
+            function setupControls() {
+                monthNames.forEach((name, index) => {
+                    startMonthSelect.innerHTML += `<option value="${index}">${name}</option>`;
+                    endMonthSelect.innerHTML += `<option value="${index}">${name}</option>`;
+                    singleMonthSelect.innerHTML += `<option value="${index}">${name}</option>`;
+                });
+                startMonthSelect.value = state.startMonth;
+                endMonthSelect.value = state.endMonth;
+                singleMonthSelect.value = state.singleMonth;
+            }
+
+            function render() {
+                if (state.mode === 'period') {
+                    generateTable(state.startMonth, state.endMonth);
+                } else {
+                    generateTable(state.singleMonth, state.singleMonth, true);
+                }
+            }
+
+            modeRadios.forEach(radio => radio.addEventListener('change', (e) => {
+                state.mode = e.target.value;
+                periodControls.classList.toggle('hidden', state.mode !== 'period');
+                singleMonthControls.classList.toggle('hidden', state.mode !== 'single');
+                render();
+            }));
+
+            startMonthSelect.addEventListener('change', (e) => { state.startMonth = parseInt(e.target.value); render(); });
+            endMonthSelect.addEventListener('change', (e) => { state.endMonth = parseInt(e.target.value); render(); });
+            singleMonthSelect.addEventListener('change', (e) => { state.singleMonth = parseInt(e.target.value); render(); });
+            
+            table.addEventListener('input', e => { if (e.target.matches('.value-cell')) calculateTotals(e.target.getAttribute('data-col')); });
+            table.addEventListener('blur', e => { if (e.target.matches('.value-cell')) { const value = parseFloat(e.target.value) || 0; e.target.value = value; calculateTotals(e.target.getAttribute('data-col')); } }, true);
+            table.addEventListener('click', e => {
+                if (e.target.matches('.fill-btn')) {
+                    const valueCell = e.target.previousElementSibling;
+                    const valueToFill = parseFloat(valueCell.value) || 0;
+                    valueCell.value = valueToFill;
+                    
+                    const visibleCells = Array.from(table.querySelectorAll(`.value-cell[data-row-cat="${valueCell.getAttribute('data-row-cat')}"]`));
+                    const startIndexInVisible = visibleCells.findIndex(cell => parseInt(cell.getAttribute('data-col')) === parseInt(valueCell.getAttribute('data-col')));
+                    
+                    if (startIndexInVisible !== -1) {
+                        for(let i = startIndexInVisible; i < visibleCells.length; i++) {
+                             visibleCells[i].value = valueToFill;
+                             calculateTotals(visibleCells[i].getAttribute('data-col'));
+                        }
+                    }
+                }
+            });
+            
+            generateReportBtn.addEventListener('click', generateReport);
+            closeModalBtn.addEventListener('click', () => reportModal.classList.add('hidden'));
+            reportModal.addEventListener('click', e => { if (e.target === reportModal) reportModal.classList.add('hidden'); });
+
+            setupControls();
+            render();
+        });
+    </script>
+</body>
+</html>

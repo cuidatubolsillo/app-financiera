@@ -358,38 +358,500 @@ body {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
-/* Responsive */
-@media (max-width: 768px) {
+/* ===== RESPONSIVE DESIGN MEJORADO ===== */
+
+/* Tablet y pantallas medianas */
+@media (max-width: 1024px) {
     .container {
-        margin: 10px;
-        border-radius: 10px;
+        margin: 15px;
+        border-radius: 12px;
     }
     
     .header {
-        padding: 30px 20px;
+        padding: 35px 25px;
     }
     
     .header h1 {
-        font-size: 2em;
+        font-size: 2.2em;
+    }
+    
+    .stats {
+        grid-template-columns: repeat(2, 1fr);
+        padding: 25px;
+    }
+    
+    .transactions-table {
+        font-size: 0.95em;
+    }
+    
+    .form-container {
+        margin: 15px;
+        padding: 25px;
+    }
+}
+
+/* Móviles grandes */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    
+    .container {
+        margin: 5px;
+        border-radius: 8px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+    
+    .header {
+        padding: 25px 20px;
+        border-radius: 0;
+    }
+    
+    .header h1 {
+        font-size: 1.8em;
+        line-height: 1.2;
+    }
+    
+    .header p {
+        font-size: 1em;
+    }
+    
+    .logo {
+        height: 80px;
     }
     
     .stats {
         grid-template-columns: 1fr;
+        padding: 20px 15px;
+        margin: 15px;
+        border-radius: 12px;
+    }
+    
+    .stat-card {
         padding: 20px;
+        border-radius: 8px;
+    }
+    
+    .stat-card h3 {
+        font-size: 2.2em;
+    }
+    
+    .stat-card p {
+        font-size: 1em;
     }
     
     .transactions-table {
-        font-size: 0.9em;
+        font-size: 0.85em;
+        margin: 15px 0;
+        border-radius: 8px;
+        overflow: hidden;
     }
     
     .transactions-table th,
     .transactions-table td {
-        padding: 10px 8px;
+        padding: 12px 8px;
+    }
+    
+    .transactions-table th {
+        font-size: 0.9em;
     }
     
     .form-container {
         margin: 10px;
         padding: 20px;
+        border-radius: 8px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        font-size: 1em;
+    }
+    
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 10px 12px;
+        font-size: 0.95em;
+    }
+    
+    .btn {
+        padding: 10px 20px;
+        font-size: 0.95em;
+        margin-right: 8px;
+        margin-bottom: 8px;
+    }
+    
+    .add-transaction {
+        padding: 12px 24px;
+        font-size: 1em;
+        border-radius: 6px;
+    }
+}
+
+/* Móviles pequeños */
+@media (max-width: 480px) {
+    body {
+        padding: 5px;
+    }
+    
+    .container {
+        margin: 0;
+        border-radius: 0;
+        box-shadow: none;
+    }
+    
+    .header {
+        padding: 20px 15px;
+    }
+    
+    .header h1 {
+        font-size: 1.6em;
+        line-height: 1.1;
+    }
+    
+    .header p {
+        font-size: 0.9em;
+    }
+    
+    .logo {
+        height: 70px;
+    }
+    
+    .stats {
+        margin: 10px;
+        padding: 15px 12px;
+        border-radius: 8px;
+    }
+    
+    .stat-card {
+        padding: 15px;
+        border-radius: 6px;
+    }
+    
+    .stat-card h3 {
+        font-size: 2em;
+    }
+    
+    .stat-card p {
+        font-size: 0.9em;
+    }
+    
+    .transactions-table {
+        font-size: 0.8em;
+        margin: 10px 0;
+    }
+    
+    .transactions-table th,
+    .transactions-table td {
+        padding: 8px 6px;
+    }
+    
+    .transactions-table th {
+        font-size: 0.85em;
+    }
+    
+    .form-container {
+        margin: 5px;
+        padding: 15px;
+        border-radius: 6px;
+    }
+    
+    .form-group {
+        margin-bottom: 15px;
+    }
+    
+    .form-group label {
+        font-size: 0.95em;
+    }
+    
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 8px 10px;
+        font-size: 0.9em;
+    }
+    
+    .btn {
+        padding: 8px 16px;
+        font-size: 0.9em;
+        margin-right: 6px;
+        margin-bottom: 6px;
+    }
+    
+    .add-transaction {
+        padding: 10px 20px;
+        font-size: 0.95em;
+    }
+    
+    .back-link {
+        padding: 6px 12px;
+        font-size: 0.9em;
+        margin: 15px;
+    }
+}
+
+/* Móviles muy pequeños */
+@media (max-width: 360px) {
+    .header {
+        padding: 15px 12px;
+    }
+    
+    .header h1 {
+        font-size: 1.4em;
+    }
+    
+    .header p {
+        font-size: 0.85em;
+    }
+    
+    .logo {
+        height: 60px;
+    }
+    
+    .stats {
+        margin: 8px;
+        padding: 12px 10px;
+    }
+    
+    .stat-card {
+        padding: 12px;
+    }
+    
+    .stat-card h3 {
+        font-size: 1.8em;
+    }
+    
+    .stat-card p {
+        font-size: 0.85em;
+    }
+    
+    .transactions-table {
+        font-size: 0.75em;
+    }
+    
+    .transactions-table th,
+    .transactions-table td {
+        padding: 6px 4px;
+    }
+    
+    .form-container {
+        margin: 3px;
+        padding: 12px;
+    }
+    
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 6px 8px;
+        font-size: 0.85em;
+    }
+    
+    .btn {
+        padding: 6px 12px;
+        font-size: 0.85em;
+    }
+}
+
+/* ===== MEJORAS ESPECÍFICAS PARA MÓVIL ===== */
+
+/* Touch targets más grandes */
+@media (max-width: 768px) {
+    .btn,
+    .add-transaction,
+    .back-link {
+        min-height: 44px;
+        min-width: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        touch-action: manipulation;
+    }
+    
+    .btn-delete {
+        min-height: 40px;
+        min-width: 40px;
+        padding: 8px 12px;
+    }
+    
+    /* Mejorar la experiencia táctil */
+    .btn:active,
+    .add-transaction:active {
+        transform: scale(0.95);
+        transition: transform 0.1s ease;
+    }
+    
+    /* Animaciones más suaves en móvil */
+    .stat-card,
+    .transactions-table,
+    .form-container {
+        transition: all 0.2s ease;
+    }
+}
+
+/* ===== ORIENTACIÓN LANDSCAPE ===== */
+@media (max-width: 768px) and (orientation: landscape) {
+    .header {
+        padding: 15px 20px;
+    }
+    
+    .header h1 {
+        font-size: 1.6em;
+    }
+    
+    .header p {
+        font-size: 0.9em;
+    }
+    
+    .logo {
+        height: 60px;
+    }
+    
+    .stats {
+        grid-template-columns: repeat(2, 1fr);
+        padding: 15px;
+    }
+    
+    .stat-card {
+        padding: 12px;
+    }
+    
+    .stat-card h3 {
+        font-size: 1.8em;
+    }
+    
+    .stat-card p {
+        font-size: 0.85em;
+    }
+}
+
+/* ===== MEJORAS DE ACCESIBILIDAD MÓVIL ===== */
+@media (max-width: 768px) {
+    /* Mejorar contraste */
+    .stat-card {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(45, 74, 62, 0.1);
+    }
+    
+    .stat-card:hover {
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+        border-color: rgba(45, 74, 62, 0.2);
+    }
+    
+    /* Texto más legible */
+    .stat-card h3 {
+        color: #2d4a3e;
+        font-weight: 700;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+    
+    .stat-card p {
+        color: #666;
+        font-weight: 500;
+    }
+    
+    /* Mejorar botones */
+    .btn,
+    .add-transaction {
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        font-weight: 600;
+    }
+    
+    .btn:hover,
+    .add-transaction:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+}
+
+/* ===== EFECTOS ESPECIALES MÓVIL ===== */
+@media (max-width: 768px) {
+    /* Animación de entrada más suave */
+    .stat-card,
+    .transactions-table,
+    .form-container {
+        animation: slideInUp 0.6s ease-out;
+    }
+    
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Efecto de ripple en touch */
+    .btn::after,
+    .add-transaction::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.3);
+        transform: translate(-50%, -50%);
+        transition: width 0.3s, height 0.3s;
+    }
+    
+    .btn:active::after,
+    .add-transaction:active::after {
+        width: 200px;
+        height: 200px;
+    }
+}
+
+/* ===== DARK MODE SUPPORT ===== */
+@media (prefers-color-scheme: dark) and (max-width: 768px) {
+    .stat-card {
+        background: #2d2d2d;
+        color: #ffffff;
+        border-color: #404040;
+    }
+    
+    .stat-card h3 {
+        color: #ffffff;
+    }
+    
+    .stat-card p {
+        color: #cccccc;
+    }
+    
+    .transactions-table {
+        background: #2d2d2d;
+        color: #ffffff;
+    }
+    
+    .transactions-table th {
+        background: #404040;
+        color: #ffffff;
+    }
+    
+    .transactions-table td {
+        color: #cccccc;
+    }
+    
+    .form-container {
+        background: #2d2d2d;
+        color: #ffffff;
+    }
+    
+    .form-group label {
+        color: #ffffff;
+    }
+    
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        background: #404040;
+        color: #ffffff;
+        border-color: #555555;
     }
 }
 

@@ -1,0 +1,16 @@
+# Configuración de OAuth
+# Copia este archivo como .env y configura tus credenciales
+
+# Google OAuth
+GOOGLE_CLIENT_ID=tu_google_client_id_aqui
+GOOGLE_CLIENT_SECRET=tu_google_client_secret_aqui
+
+# Microsoft OAuth
+MICROSOFT_CLIENT_ID=tu_microsoft_client_id_aqui
+MICROSOFT_CLIENT_SECRET=tu_microsoft_client_secret_aqui
+
+# Base de datos (para producción)
+DATABASE_URL=postgresql://usuario:password@host:puerto/database
+
+# Clave secreta de Flask
+SECRET_KEY=tu_clave_secreta_muy_segura_aqui
