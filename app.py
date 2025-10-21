@@ -36,7 +36,7 @@ else:
     print("Usando SQLite (desarrollo local)")  # Debug
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = 'tu-clave-secreta-aqui'  # Para mensajes flash
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'tu-clave-secreta-aqui')  # Para mensajes flash
 
 # Inicializar la base de datos
 db = SQLAlchemy(app)
@@ -48,9 +48,13 @@ oauth = OAuth(app)
 google = None
 microsoft = None
 
+# Detectar si estamos en Render (producción) o desarrollo local
+is_render = os.environ.get('RENDER') or os.environ.get('DATABASE_URL')
+
 # Intentar cargar desde variables de entorno primero
 google_client_id = os.environ.get('GOOGLE_CLIENT_ID')
 google_client_secret = os.environ.get('GOOGLE_CLIENT_SECRET')
+google_redirect_uri = os.environ.get('GOOGLE_REDIRECT_URI')
 
 # Si no están en variables de entorno, intentar cargar desde archivo de configuración
 if not google_client_id or not google_client_secret:
@@ -63,10 +67,29 @@ if not google_client_id or not google_client_secret:
     except Exception as e:
         print(f"Error cargando configuración de Google: {e}")
 
-# Google OAuth DESHABILITADO para desarrollo local
-# Solo habilitar en producción (Render) con URLs correctas
-google = None
-print("Google OAuth deshabilitado para desarrollo local - usar login tradicional")
+# Configurar Google OAuth según el entorno
+if is_render and google_client_id and google_client_secret:
+    # PRODUCCIÓN (Render) - Habilitar Google OAuth
+    print("Detectado entorno de PRODUCCIÓN (Render)")
+    print("Google OAuth habilitado para producción")
+    
+    # Configurar Google OAuth para producción
+    google = oauth.register(
+        name='google',
+        client_id=google_client_id,
+        client_secret=google_client_secret,
+        authorize_url='https://accounts.google.com/o/oauth2/v2/auth',
+        access_token_url='https://oauth2.googleapis.com/token',
+        jwks_uri='https://www.googleapis.com/oauth2/v3/certs',
+        client_kwargs={'scope': 'openid email profile'},
+        redirect_uri=google_redirect_uri or 'https://app-financiera.onrender.com/authorize/google'
+    )
+    print("Google OAuth configurado correctamente para producción")
+else:
+    # DESARROLLO LOCAL - Deshabilitar Google OAuth
+    print("Detectado entorno de DESARROLLO LOCAL")
+    print("Google OAuth deshabilitado para desarrollo local - usar login tradicional")
+    google = None
 
 # Microsoft OAuth removido - solo mantenemos Google OAuth
 
