@@ -274,6 +274,12 @@ def authorize_google():
     try:
         print("=== DEBUG: Iniciando callback de Google OAuth ===")
         
+        # Verificar que Google OAuth esté configurado
+        if google is None:
+            print("=== ERROR: Google OAuth no está configurado ===")
+            flash('Google OAuth no está configurado correctamente.', 'error')
+            return redirect(url_for('login'))
+        
         # Obtener el token de acceso
         token = google.authorize_access_token()
         print(f"=== DEBUG: Token obtenido: {token is not None} ===")
