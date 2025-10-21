@@ -68,7 +68,7 @@ if not google_client_id or not google_client_secret:
         print(f"Error cargando configuración de Google: {e}")
 
 # Configurar Google OAuth según el entorno
-if is_render and google_client_id and google_client_secret:
+if is_render:
     # PRODUCCIÓN (Render) - Habilitar Google OAuth
     print("Detectado entorno de PRODUCCIÓN (Render)")
     print("Google OAuth habilitado para producción")
