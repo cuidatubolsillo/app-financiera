@@ -73,18 +73,25 @@ if is_render:
     print("Detectado entorno de PRODUCCIÓN (Render)")
     print("Google OAuth habilitado para producción")
     
-    # Configurar Google OAuth para producción
-    google = oauth.register(
-        name='google',
-        client_id=google_client_id,
-        client_secret=google_client_secret,
-        authorize_url='https://accounts.google.com/o/oauth2/v2/auth',
-        access_token_url='https://oauth2.googleapis.com/token',
-        jwks_uri='https://www.googleapis.com/oauth2/v3/certs',
-        client_kwargs={'scope': 'openid email profile'},
-        redirect_uri=google_redirect_uri or 'https://app-financiera.onrender.com/authorize/google'
-    )
-    print("Google OAuth configurado correctamente para producción")
+    # Verificar que las credenciales estén disponibles
+    if not google_client_id or not google_client_secret:
+        print("ERROR: Google OAuth no configurado - faltan credenciales")
+        print(f"GOOGLE_CLIENT_ID: {'✓' if google_client_id else '✗'}")
+        print(f"GOOGLE_CLIENT_SECRET: {'✓' if google_client_secret else '✗'}")
+        google = None
+    else:
+        # Configurar Google OAuth para producción
+        google = oauth.register(
+            name='google',
+            client_id=google_client_id,
+            client_secret=google_client_secret,
+            authorize_url='https://accounts.google.com/o/oauth2/v2/auth',
+            access_token_url='https://oauth2.googleapis.com/token',
+            jwks_uri='https://www.googleapis.com/oauth2/v3/certs',
+            client_kwargs={'scope': 'openid email profile'},
+            redirect_uri=google_redirect_uri or 'https://app-financiera.onrender.com/authorize/google'
+        )
+        print("Google OAuth configurado correctamente para producción")
 else:
     # DESARROLLO LOCAL - Deshabilitar Google OAuth
     print("Detectado entorno de DESARROLLO LOCAL")
