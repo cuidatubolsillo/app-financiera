@@ -8,6 +8,7 @@ from pdf_analyzer import PDFAnalyzer
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 from authlib.integrations.flask_client import OAuth
+from sqlalchemy import text
 import tempfile
 import os
 
@@ -49,7 +50,7 @@ def handle_db_error():
     """Maneja errores de conexión a la base de datos"""
     try:
         # Intentar conectar a la base de datos
-        db.session.execute('SELECT 1')
+        db.session.execute(text('SELECT 1'))
         return True
     except Exception as e:
         print(f"Error de conexión a la base de datos: {e}")
