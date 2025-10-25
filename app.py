@@ -1224,7 +1224,8 @@ def init_db():
         db.create_all()
         
         # Crear usuario administrador por defecto si no existe
-        if Usuario.query.count() == 0:
+        admin_user = Usuario.query.filter_by(email='cuidatubolsillo20@gmail.com').first()
+        if not admin_user:
             admin_user = Usuario(
                 username='admin',
                 email='cuidatubolsillo20@gmail.com',
@@ -1237,6 +1238,14 @@ def init_db():
             db.session.add(admin_user)
             db.session.commit()
             print("Usuario administrador creado (admin/admin123) con email cuidatubolsillo20@gmail.com")
+        else:
+            # Asegurar que el admin existente tenga los permisos correctos
+            if not admin_user.is_admin:
+                admin_user.is_admin = True
+                admin_user.rol = 'admin'
+                admin_user.daily_ai_limit = 999999
+                db.session.commit()
+                print("Usuario administrador actualizado con permisos correctos")
         
         # Verificar si ya hay datos de transacciones
         if Transaccion.query.count() == 0:
