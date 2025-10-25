@@ -1223,9 +1223,20 @@ def init_db():
         # Crear todas las tablas - Forzar actualización de esquema en producción
         db.create_all()
         
-        # Crear usuario administrador por defecto si no existe
+        # FORZAR CONFIGURACIÓN DE ADMIN - SIEMPRE verificar y configurar
         admin_user = Usuario.query.filter_by(email='cuidatubolsillo20@gmail.com').first()
-        if not admin_user:
+        if admin_user:
+            # Usuario existe - verificar y actualizar permisos de admin
+            if not admin_user.is_admin or admin_user.rol != 'admin' or admin_user.daily_ai_limit != 999999:
+                admin_user.is_admin = True
+                admin_user.rol = 'admin'
+                admin_user.daily_ai_limit = 999999
+                db.session.commit()
+                print(f"Usuario administrador actualizado: {admin_user.email} - is_admin: {admin_user.is_admin}")
+            else:
+                print(f"Usuario administrador ya configurado correctamente: {admin_user.email}")
+        else:
+            # Usuario no existe - crear nuevo admin
             # Verificar si ya existe un usuario con username 'admin'
             existing_admin = Usuario.query.filter_by(username='admin').first()
             if existing_admin:
@@ -1250,14 +1261,6 @@ def init_db():
                 db.session.add(admin_user)
                 db.session.commit()
                 print("Usuario administrador creado (admin/admin123) con email cuidatubolsillo20@gmail.com")
-        else:
-            # Asegurar que el admin existente tenga los permisos correctos
-            if not admin_user.is_admin:
-                admin_user.is_admin = True
-                admin_user.rol = 'admin'
-                admin_user.daily_ai_limit = 999999
-                db.session.commit()
-                print("Usuario administrador actualizado con permisos correctos")
         
         # Verificar si ya hay datos de transacciones
         if Transaccion.query.count() == 0:
