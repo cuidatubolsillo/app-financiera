@@ -1227,7 +1227,7 @@ def init_db():
         if Usuario.query.count() == 0:
             admin_user = Usuario(
                 username='admin',
-                email='admin@appfinanciera.com',
+                email='cuidatubolsillo20@gmail.com',
                 nombre='Administrador',
                 rol='admin',
                 is_admin=True,  # Marcar como administrador
@@ -1236,7 +1236,7 @@ def init_db():
             admin_user.set_password('admin123')
             db.session.add(admin_user)
             db.session.commit()
-            print("Usuario administrador creado (admin/admin123)")
+            print("Usuario administrador creado (admin/admin123) con email cuidatubolsillo20@gmail.com")
         
         # Verificar si ya hay datos de transacciones
         if Transaccion.query.count() == 0:
