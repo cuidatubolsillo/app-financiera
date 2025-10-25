@@ -1224,17 +1224,15 @@ def init_db():
         db.create_all()
         
         # FORZAR CONFIGURACIÓN DE ADMIN - SIEMPRE verificar y configurar
+        # Buscar por email específico (Google OAuth)
         admin_user = Usuario.query.filter_by(email='cuidatubolsillo20@gmail.com').first()
         if admin_user:
-            # Usuario existe - verificar y actualizar permisos de admin
-            if not admin_user.is_admin or admin_user.rol != 'admin' or admin_user.daily_ai_limit != 999999:
-                admin_user.is_admin = True
-                admin_user.rol = 'admin'
-                admin_user.daily_ai_limit = 999999
-                db.session.commit()
-                print(f"Usuario administrador actualizado: {admin_user.email} - is_admin: {admin_user.is_admin}")
-            else:
-                print(f"Usuario administrador ya configurado correctamente: {admin_user.email}")
+            # Usuario existe - SIEMPRE forzar permisos de admin
+            admin_user.is_admin = True
+            admin_user.rol = 'admin'
+            admin_user.daily_ai_limit = 999999
+            db.session.commit()
+            print(f"✅ ADMIN FORZADO: {admin_user.email} - is_admin: {admin_user.is_admin}, rol: {admin_user.rol}")
         else:
             # Usuario no existe - crear nuevo admin
             # Verificar si ya existe un usuario con username 'admin'
@@ -1246,7 +1244,7 @@ def init_db():
                 existing_admin.rol = 'admin'
                 existing_admin.daily_ai_limit = 999999
                 db.session.commit()
-                print("Usuario administrador existente actualizado con email cuidatubolsillo20@gmail.com")
+                print("✅ Usuario administrador existente actualizado con email cuidatubolsillo20@gmail.com")
             else:
                 # Crear nuevo usuario admin
                 admin_user = Usuario(
@@ -1260,7 +1258,7 @@ def init_db():
                 admin_user.set_password('admin123')
                 db.session.add(admin_user)
                 db.session.commit()
-                print("Usuario administrador creado (admin/admin123) con email cuidatubolsillo20@gmail.com")
+                print("✅ Usuario administrador creado (admin/admin123) con email cuidatubolsillo20@gmail.com")
         
         # Verificar si ya hay datos de transacciones
         if Transaccion.query.count() == 0:
