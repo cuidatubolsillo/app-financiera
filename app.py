@@ -1226,18 +1226,30 @@ def init_db():
         # Crear usuario administrador por defecto si no existe
         admin_user = Usuario.query.filter_by(email='cuidatubolsillo20@gmail.com').first()
         if not admin_user:
-            admin_user = Usuario(
-                username='admin',
-                email='cuidatubolsillo20@gmail.com',
-                nombre='Administrador',
-                rol='admin',
-                is_admin=True,  # Marcar como administrador
-                daily_ai_limit=999999  # Límite muy alto para admin
-            )
-            admin_user.set_password('admin123')
-            db.session.add(admin_user)
-            db.session.commit()
-            print("Usuario administrador creado (admin/admin123) con email cuidatubolsillo20@gmail.com")
+            # Verificar si ya existe un usuario con username 'admin'
+            existing_admin = Usuario.query.filter_by(username='admin').first()
+            if existing_admin:
+                # Actualizar el usuario existente con el nuevo email
+                existing_admin.email = 'cuidatubolsillo20@gmail.com'
+                existing_admin.is_admin = True
+                existing_admin.rol = 'admin'
+                existing_admin.daily_ai_limit = 999999
+                db.session.commit()
+                print("Usuario administrador existente actualizado con email cuidatubolsillo20@gmail.com")
+            else:
+                # Crear nuevo usuario admin
+                admin_user = Usuario(
+                    username='admin',
+                    email='cuidatubolsillo20@gmail.com',
+                    nombre='Administrador',
+                    rol='admin',
+                    is_admin=True,  # Marcar como administrador
+                    daily_ai_limit=999999  # Límite muy alto para admin
+                )
+                admin_user.set_password('admin123')
+                db.session.add(admin_user)
+                db.session.commit()
+                print("Usuario administrador creado (admin/admin123) con email cuidatubolsillo20@gmail.com")
         else:
             # Asegurar que el admin existente tenga los permisos correctos
             if not admin_user.is_admin:
