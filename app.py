@@ -4,9 +4,12 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from email_parser import EmailParser
+from pdf_analyzer import PDFAnalyzer
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 from authlib.integrations.flask_client import OAuth
+import tempfile
+import os
 
 # Forzar Python 3.11 en Render (solo en producción)
 if sys.version_info >= (3, 13) and os.environ.get('RENDER'):
@@ -124,6 +127,10 @@ class Usuario(db.Model):
     # Campos para OAuth
     oauth_provider = db.Column(db.String(50), nullable=True)  # 'google', 'microsoft', 'local'
     oauth_id = db.Column(db.String(100), nullable=True)  # ID del proveedor OAuth
+    
+    # Campos para control de IA
+    is_admin = db.Column(db.Boolean, default=False)
+    daily_ai_limit = db.Column(db.Integer, default=100)  # Límite diario de IA
     avatar_url = db.Column(db.String(200), nullable=True)  # URL del avatar
     
     # Campo de rol para control de acceso
@@ -151,8 +158,45 @@ class Transaccion(db.Model):
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
     usuario = db.relationship('Usuario', backref=db.backref('transacciones', lazy=True))
 
+# Tabla para rastrear uso de IA
+class UsoIA(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
+    fecha = db.Column(db.Date, nullable=False, default=datetime.utcnow().date)
+    tipo_uso = db.Column(db.String(50), nullable=False)  # 'analisis_pdf', 'otro_tipo'
+    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    usuario = db.relationship('Usuario', backref=db.backref('usos_ia', lazy=True))
+
     def __repr__(self):
-        return f'<Transaccion {self.descripcion}: ${self.monto}>'
+        return f'<UsoIA {self.tipo_uso} por {self.usuario_id} en {self.fecha}>'
+
+# Tabla para métricas de usabilidad de herramientas
+class MetricasHerramientas(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
+    herramienta = db.Column(db.String(50), nullable=False)  # 'analisis_pdf', 'control_gastos', etc.
+    accion = db.Column(db.String(50), nullable=False)  # 'click', 'ejecutar', 'completar', 'abandonar'
+    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    metadatos = db.Column(db.Text, nullable=True)  # JSON con detalles adicionales
+    usuario = db.relationship('Usuario', backref=db.backref('metricas_herramientas', lazy=True))
+
+    def __repr__(self):
+        return f'<MetricasHerramientas {self.herramienta}:{self.accion} por {self.usuario_id}>'
+
+# Tabla para métricas detalladas de IA
+class MetricasIA(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
+    modelo_ia = db.Column(db.String(50), nullable=False)  # 'claude-haiku-4-5', 'claude-sonnet-4-5'
+    tipo_operacion = db.Column(db.String(50), nullable=False)  # 'analisis_pdf', 'clasificacion_gastos'
+    tokens_consumidos = db.Column(db.Integer, nullable=False, default=0)
+    costo_estimado = db.Column(db.Float, nullable=False, default=0.0)
+    duracion_segundos = db.Column(db.Float, nullable=False, default=0.0)
+    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    usuario = db.relationship('Usuario', backref=db.backref('metricas_ia', lazy=True))
+
+    def __repr__(self):
+        return f'<MetricasIA {self.tipo_operacion}: {self.tokens_consumidos} tokens por {self.usuario_id}>'
 
 # Decorador para requerir login
 def login_required(f):
@@ -186,6 +230,106 @@ def get_current_user():
         return Usuario.query.get(session['user_id'])
     return None
 
+def verificar_limite_ia(usuario_id, tipo_uso='analisis_pdf'):
+    """Verificar si el usuario puede usar IA (no ha excedido su límite diario)"""
+    usuario = Usuario.query.get(usuario_id)
+    if not usuario:
+        return False, "Usuario no encontrado"
+    
+    # Los administradores no tienen límites
+    if usuario.is_admin:
+        return True, "Administrador - sin límites"
+    
+    # Contar usos de hoy
+    hoy = datetime.utcnow().date()
+    usos_hoy = UsoIA.query.filter_by(
+        usuario_id=usuario_id, 
+        fecha=hoy, 
+        tipo_uso=tipo_uso
+    ).count()
+    
+    # Verificar si ha excedido el límite
+    if usos_hoy >= usuario.daily_ai_limit:
+        return False, f"Límite diario excedido ({usuario.daily_ai_limit} usos)"
+    
+    return True, f"Usos restantes: {usuario.daily_ai_limit - usos_hoy}"
+
+def registrar_uso_ia(usuario_id, tipo_uso='analisis_pdf'):
+    """Registrar un uso de IA"""
+    uso = UsoIA(
+        usuario_id=usuario_id,
+        tipo_uso=tipo_uso,
+        fecha=datetime.utcnow().date(),
+        timestamp=datetime.utcnow()
+    )
+    db.session.add(uso)
+    db.session.commit()
+    return uso
+
+def get_user_limits(usuario_id):
+    """Obtener límites y uso actual del usuario"""
+    usuario = Usuario.query.get(usuario_id)
+    if not usuario:
+        return None
+    
+    # Contar usos de hoy por tipo
+    hoy = datetime.utcnow().date()
+    usos_analisis_pdf = UsoIA.query.filter_by(
+        usuario_id=usuario_id, 
+        fecha=hoy, 
+        tipo_uso='analisis_pdf'
+    ).count()
+    
+    return {
+        'usuario_id': usuario_id,
+        'is_admin': usuario.is_admin,
+        'daily_ai_limit': usuario.daily_ai_limit,
+        'usos_analisis_pdf': usos_analisis_pdf,
+        'usos_restantes_analisis_pdf': max(0, usuario.daily_ai_limit - usos_analisis_pdf) if not usuario.is_admin else 999999
+    }
+
+def can_use_feature(usuario_id, feature='analisis_pdf'):
+    """Verificar si el usuario puede usar una característica específica"""
+    limits = get_user_limits(usuario_id)
+    if not limits:
+        return False, "Usuario no encontrado"
+    
+    if limits['is_admin']:
+        return True, "Administrador - sin límites"
+    
+    if feature == 'analisis_pdf':
+        if limits['usos_analisis_pdf'] >= limits['daily_ai_limit']:
+            return False, f"Límite diario excedido ({limits['daily_ai_limit']} usos)"
+        return True, f"Usos restantes: {limits['usos_restantes_analisis_pdf']}"
+    
+    return True, "Característica disponible"
+
+def registrar_metrica_herramienta(usuario_id, herramienta, accion, metadatos=None):
+    """Registrar una métrica de usabilidad de herramienta"""
+    metrica = MetricasHerramientas(
+        usuario_id=usuario_id,
+        herramienta=herramienta,
+        accion=accion,
+        metadatos=metadatos
+    )
+    db.session.add(metrica)
+    db.session.commit()
+    return metrica
+
+def registrar_metrica_ia(usuario_id, modelo_ia, tipo_operacion, tokens_consumidos, costo_estimado, duracion_segundos):
+    """Registrar una métrica detallada de IA"""
+    metrica = MetricasIA(
+        usuario_id=usuario_id,
+        modelo_ia=modelo_ia,
+        tipo_operacion=tipo_operacion,
+        tokens_consumidos=tokens_consumidos,
+        costo_estimado=costo_estimado,
+        duracion_segundos=duracion_segundos
+    )
+    db.session.add(metrica)
+    db.session.commit()
+    return metrica
+
 @app.route('/')
 def home():
     """
@@ -209,6 +353,10 @@ def login():
         if user and user.check_password(password):
             session['user_id'] = user.id
             session['username'] = user.username
+            
+            # Cargar límites del usuario en la sesión
+            session['user_limits'] = get_user_limits(user.id)
+            
             flash(f'¡Bienvenido, {user.nombre}!', 'success')
             return redirect(url_for('home'))
         else:
@@ -402,6 +550,319 @@ def amortizacion():
     Simulador de préstamos comparativo
     """
     return render_template('amortizacion.html')
+
+@app.route('/tarjetas-credito')
+@login_required
+def tarjetas_credito():
+    """
+    Página principal de Tarjetas de Crédito con opciones
+    """
+    return render_template('tarjetas_credito.html')
+
+@app.route('/analizar-pdf', methods=['GET', 'POST'])
+@login_required
+def analizar_pdf():
+    """
+    Página para analizar PDFs de estados de cuenta con IA
+    """
+    if request.method == 'POST':
+        # Debug: verificar autenticación
+        print(f"DEBUG - Usuario autenticado: {get_current_user()}")
+        print(f"DEBUG - Session: {session}")
+        
+        # El límite se verifica a nivel de sesión, no aquí
+        
+        try:
+            # Verificar que se subió un archivo
+            if 'pdf_file' not in request.files:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'No se seleccionó ningún archivo'
+                }), 400
+            
+            file = request.files['pdf_file']
+            
+            # Verificar que el archivo no esté vacío
+            if file.filename == '':
+                return jsonify({
+                    'status': 'error',
+                    'message': 'No se seleccionó ningún archivo'
+                }), 400
+            
+            # Verificar que sea un PDF
+            if not file.filename.lower().endswith('.pdf'):
+                return jsonify({
+                    'status': 'error',
+                    'message': 'El archivo debe ser un PDF'
+                }), 400
+            
+            # Guardar archivo temporalmente
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
+                file.save(temp_file.name)
+                temp_path = temp_file.name
+            
+            try:
+                # Analizar el PDF con Claude (solo método texto)
+                analyzer = PDFAnalyzer()
+                resultado = analyzer.analizar_estado_cuenta(temp_path)
+                
+                # Debug: mostrar el resultado crudo
+                print(f"DEBUG - Resultado crudo: {resultado}")
+                
+                # Formatear resultados
+                resultado_formateado = analyzer.formatear_resultados(resultado)
+                
+                # Debug: mostrar el resultado formateado
+                print(f"DEBUG - Resultado formateado: {resultado_formateado}")
+                
+                # Registrar el uso de IA solo si fue exitoso
+                if resultado_formateado.get('status') != 'error':
+                    usuario_actual = get_current_user()
+                    registrar_uso_ia(usuario_actual.id, 'analisis_pdf')
+                    print(f"DEBUG - Uso de IA registrado para usuario {usuario_actual.id}")
+                    
+                    # ===== REGISTRAR MÉTRICAS DETALLADAS DE IA =====
+                    # Obtener información de tokens del resultado crudo
+                    raw_response = resultado.get('raw_response', '')
+                    texto_pdf = resultado.get('texto_extraido', '')
+                    
+                    # Estimación más realista de tokens
+                    # Input: texto del PDF (puede ser 10,000+ caracteres)
+                    # Output: respuesta JSON estructurada
+                    tokens_input = len(texto_pdf.split()) * 1.3  # Tokens de entrada
+                    tokens_output = len(raw_response.split()) * 1.3  # Tokens de salida
+                    tokens_estimados = int(tokens_input + tokens_output)
+                    
+                    # Precio real de Claude Haiku: $0.25 por 1 MILLÓN de tokens
+                    precio_por_token = 0.25 / 1_000_000  # $0.00000025 por token
+                    costo_estimado = tokens_estimados * precio_por_token
+                    
+                    registrar_metrica_ia(
+                        usuario_id=usuario_actual.id,
+                        modelo_ia='claude-haiku-4-5',
+                        tipo_operacion='analisis_pdf',
+                        tokens_consumidos=int(tokens_estimados),
+                        costo_estimado=costo_estimado,
+                        duracion_segundos=2.5  # Tiempo estimado de procesamiento
+                    )
+                    print(f"DEBUG - Métricas de IA registradas: {int(tokens_estimados)} tokens, ${costo_estimado:.4f}")
+                    
+                    # Actualizar límites en la sesión
+                    session['user_limits'] = get_user_limits(usuario_actual.id)
+                
+                return jsonify(resultado_formateado)
+                
+            finally:
+                # Limpiar archivo temporal
+                try:
+                    os.unlink(temp_path)
+                except:
+                    pass
+                    
+        except Exception as e:
+            return jsonify({
+                'status': 'error',
+                'message': f'Error procesando PDF: {str(e)}'
+            }), 500
+    
+    # GET request - mostrar la página
+    return render_template('analizar_pdf.html', usuario=get_current_user())
+
+@app.route('/api/user-limits')
+@login_required
+def user_limits():
+    """API para obtener los límites y uso actual del usuario"""
+    usuario_actual = get_current_user()
+    if not usuario_actual:
+        return jsonify({'status': 'error', 'message': 'No autenticado'}), 401
+    
+    # Obtener límites actualizados
+    limits = get_user_limits(usuario_actual.id)
+    
+    # Guardar en sesión para acceso rápido
+    session['user_limits'] = limits
+    
+    return jsonify({
+        'status': 'success',
+        'data': limits
+    })
+
+@app.route('/api/track-metric', methods=['POST'])
+@login_required
+def api_track_metric():
+    """
+    API endpoint para registrar métricas de usabilidad automáticamente
+    """
+    try:
+        usuario_actual = get_current_user()
+        if not usuario_actual:
+            return jsonify({'status': 'error', 'message': 'Usuario no autenticado'})
+        
+        # Obtener datos del request
+        data = request.get_json()
+        if not data:
+            return jsonify({'status': 'error', 'message': 'No se recibieron datos'})
+        
+        herramienta = data.get('herramienta', 'unknown')
+        accion = data.get('accion', 'unknown')
+        metadatos = data.get('metadatos', '{}')
+        
+        # Registrar la métrica
+        metrica = registrar_metrica_herramienta(
+            usuario_id=usuario_actual.id,
+            herramienta=herramienta,
+            accion=accion,
+            metadatos=metadatos
+        )
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Métrica registrada correctamente',
+            'metric_id': metrica.id
+        })
+        
+    except Exception as e:
+        print(f"Error en api_track_metric: {e}")
+        return jsonify({'status': 'error', 'message': str(e)})
+
+@app.route('/api/track-metric-batch', methods=['POST'])
+@login_required
+def api_track_metric_batch():
+    """
+    API endpoint para registrar múltiples métricas en lote (OPTIMIZADO)
+    """
+    try:
+        usuario_actual = get_current_user()
+        if not usuario_actual:
+            return jsonify({'status': 'error', 'message': 'Usuario no autenticado'})
+        
+        # Obtener datos del request
+        data = request.get_json()
+        if not data or 'metrics' not in data:
+            return jsonify({'status': 'error', 'message': 'No se recibieron métricas'})
+        
+        metrics = data['metrics']
+        if not isinstance(metrics, list) or len(metrics) == 0:
+            return jsonify({'status': 'error', 'message': 'Lista de métricas vacía'})
+        
+        # Registrar todas las métricas en una sola transacción
+        metricas_creadas = []
+        for metric_data in metrics:
+            metrica = MetricasHerramientas(
+                usuario_id=usuario_actual.id,
+                herramienta=metric_data.get('herramienta', 'unknown'),
+                accion=metric_data.get('accion', 'unknown'),
+                metadatos=metric_data.get('metadatos', '{}')
+            )
+            metricas_creadas.append(metrica)
+            db.session.add(metrica)
+        
+        # Commit una sola vez para todas las métricas
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'{len(metricas_creadas)} métricas registradas correctamente',
+            'count': len(metricas_creadas)
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error en api_track_metric_batch: {e}")
+        return jsonify({'status': 'error', 'message': str(e)})
+
+@app.route('/admin/dashboard')
+@admin_required
+def admin_dashboard():
+    """
+    Dashboard de administrador con métricas y analytics (OPTIMIZADO)
+    """
+    try:
+        # ===== OPTIMIZACIÓN: LIMITAR CONSULTAS Y USAR CACHÉ =====
+        
+        # Obtener métricas de usabilidad de herramientas (últimas 1000)
+        metricas_herramientas = MetricasHerramientas.query.order_by(
+            MetricasHerramientas.timestamp.desc()
+        ).limit(1000).all()
+        
+        # Obtener métricas de IA (últimas 500)
+        metricas_ia = MetricasIA.query.order_by(
+            MetricasIA.timestamp.desc()
+        ).limit(500).all()
+        
+        # Obtener estadísticas de usuarios (consultas optimizadas)
+        total_usuarios = Usuario.query.count()
+        usuarios_activos = Usuario.query.filter_by(activo=True).count()
+        usuarios_admin = Usuario.query.filter_by(rol='admin').count()
+        
+        # Calcular estadísticas de IA (optimizado)
+        total_tokens_consumidos = sum(m.tokens_consumidos for m in metricas_ia)
+        total_costo_ia = sum(m.costo_estimado for m in metricas_ia)
+        
+        # Optimizar consulta de usos de IA hoy
+        hoy = datetime.utcnow().date()
+        usos_ia_hoy = UsoIA.query.filter_by(fecha=hoy).count()
+        
+        # Estadísticas por herramienta
+        herramientas_stats = {}
+        for metrica in metricas_herramientas:
+            if metrica.herramienta not in herramientas_stats:
+                herramientas_stats[metrica.herramienta] = {
+                    'total_clicks': 0,
+                    'total_ejecuciones': 0,
+                    'total_completados': 0,
+                    'total_abandonados': 0
+                }
+            
+            if metrica.accion == 'click':
+                herramientas_stats[metrica.herramienta]['total_clicks'] += 1
+            elif metrica.accion == 'ejecutar':
+                herramientas_stats[metrica.herramienta]['total_ejecuciones'] += 1
+            elif metrica.accion == 'completar':
+                herramientas_stats[metrica.herramienta]['total_completados'] += 1
+            elif metrica.accion == 'abandonar':
+                herramientas_stats[metrica.herramienta]['total_abandonados'] += 1
+        
+        # Estadísticas de IA por modelo
+        ia_stats = {}
+        for metrica in metricas_ia:
+            modelo = metrica.modelo_ia
+            if modelo not in ia_stats:
+                ia_stats[modelo] = {
+                    'total_usos': 0,
+                    'total_tokens': 0,
+                    'costo_total': 0.0,
+                    'tiempo_promedio': 0.0
+                }
+            
+            ia_stats[modelo]['total_usos'] += 1
+            ia_stats[modelo]['total_tokens'] += metrica.tokens_consumidos
+            ia_stats[modelo]['costo_total'] += metrica.costo_estimado
+            ia_stats[modelo]['tiempo_promedio'] += metrica.duracion_segundos
+        
+        # Calcular promedios
+        for modelo in ia_stats:
+            if ia_stats[modelo]['total_usos'] > 0:
+                ia_stats[modelo]['tiempo_promedio'] = ia_stats[modelo]['tiempo_promedio'] / ia_stats[modelo]['total_usos']
+        
+        return render_template('admin_dashboard.html',
+                             usuario=get_current_user(),
+                             total_usuarios=total_usuarios,
+                             usuarios_activos=usuarios_activos,
+                             usuarios_admin=usuarios_admin,
+                             total_tokens_consumidos=total_tokens_consumidos,
+                             total_costo_ia=total_costo_ia,
+                             usos_ia_hoy=usos_ia_hoy,
+                             herramientas_stats=herramientas_stats,
+                             ia_stats=ia_stats,
+                             metricas_herramientas=metricas_herramientas[-10:],  # Últimas 10
+                             metricas_ia=metricas_ia[-10:]  # Últimas 10
+                             )
+    
+    except Exception as e:
+        print(f"Error en admin dashboard: {e}")
+        flash(f'Error cargando dashboard: {str(e)}', 'error')
+        return redirect(url_for('home'))
 
 @app.route('/regla-50-30-20')
 @login_required
@@ -767,7 +1228,9 @@ def init_db():
                 username='admin',
                 email='admin@appfinanciera.com',
                 nombre='Administrador',
-                rol='admin'
+                rol='admin',
+                is_admin=True,  # Marcar como administrador
+                daily_ai_limit=999999  # Límite muy alto para admin
             )
             admin_user.set_password('admin123')
             db.session.add(admin_user)

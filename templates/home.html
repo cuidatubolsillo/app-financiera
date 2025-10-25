@@ -24,6 +24,11 @@
                     <i class="fas fa-user-circle"></i>
                     <span>¡Hola, {{ usuario.nombre }}!</span>
                 </div>
+                <!-- Contador de límites de IA -->
+                <div class="ai-limits-counter" id="aiLimitsCounter">
+                    <span class="limits-label">IA:</span>
+                    <span class="limits-count" id="limitsCount">Cargando...</span>
+                </div>
                 <div class="user-actions">
                     <a href="{{ url_for('logout') }}" class="logout-btn">
                         <i class="fas fa-sign-out-alt"></i>
@@ -76,6 +81,24 @@
                     <p>Calcula préstamos y abonos</p>
                     <div class="menu-badge active">¡Activo!</div>
                 </a>
+
+                <!-- Opción 5: Tarjetas de Crédito -->
+                <a href="/tarjetas-credito" class="menu-card tarjetas-credito">
+                    <div class="menu-icon">💳</div>
+                    <h3>Tarjetas de Crédito</h3>
+                    <p>Herramientas para manejo de tarjetas</p>
+                    <div class="menu-badge new-feature">¡Nuevo!</div>
+                </a>
+
+                <!-- Opción 6: Dashboard de Administrador (Solo Admin) -->
+                {% if usuario.rol == 'admin' %}
+                <a href="/admin/dashboard" class="menu-card admin-dashboard">
+                    <div class="menu-icon">📊</div>
+                    <h3>Dashboard de Administrador</h3>
+                    <p>Métricas y analytics del sistema</p>
+                    <div class="menu-badge admin-only">Solo Admin</div>
+                </a>
+                {% endif %}
             </div>
         </div>
 
@@ -84,5 +107,183 @@
             <p>&copy; 2025 CUIDA TU BOLSILLO. Todos los derechos reservados.</p>
         </div>
     </div>
+
+<script>
+    // ===== TRACKING AUTOMÁTICO DE MÉTRICAS =====
+    
+    // Variables globales para tracking
+    let pageStartTime = Date.now();
+    let sessionData = {
+        device: detectDevice(),
+        userAgent: navigator.userAgent,
+        screenResolution: `${screen.width}x${screen.height}`,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    };
+    
+    // Detectar tipo de dispositivo
+    function detectDevice() {
+        const userAgent = navigator.userAgent.toLowerCase();
+        if (/tablet|ipad/.test(userAgent)) return 'tablet';
+        if (/mobile|android|iphone/.test(userAgent)) return 'mobile';
+        return 'desktop';
+    }
+    
+    // ===== TRACKING OPTIMIZADO - BATCH PROCESSING =====
+    
+    let metricsQueue = [];
+    let batchTimeout = null;
+    
+    // Función para registrar métricas (optimizada)
+    async function trackMetric(herramienta, accion, metadatos = {}) {
+        // Agregar a la cola en lugar de enviar inmediatamente
+        metricsQueue.push({
+            herramienta: herramienta,
+            accion: accion,
+            metadatos: JSON.stringify({
+                ...metadatos,
+                ...sessionData,
+                timestamp: new Date().toISOString()
+            })
+        });
+        
+        // Procesar en lotes cada 10 segundos o cuando se alcancen 5 métricas
+        if (metricsQueue.length >= 5) {
+            await processBatch();
+        } else if (!batchTimeout) {
+            batchTimeout = setTimeout(processBatch, 10000); // 10 segundos
+        }
+    }
+    
+    // Procesar lote de métricas
+    async function processBatch() {
+        if (metricsQueue.length === 0) return;
+        
+        try {
+            const batchData = {
+                metrics: metricsQueue.slice() // Copia del array
+            };
+            
+            await fetch('/api/track-metric-batch', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(batchData)
+            });
+            
+            // Limpiar la cola
+            metricsQueue = [];
+            if (batchTimeout) {
+                clearTimeout(batchTimeout);
+                batchTimeout = null;
+            }
+        } catch (error) {
+            console.log('Error processing batch:', error);
+        }
+    }
+    
+    // ===== TRACKING DE CLICKS EN BOTONES PRINCIPALES =====
+    
+    // Tracking de clicks en tarjetas de menú
+    document.addEventListener('click', function(event) {
+        const menuCard = event.target.closest('.menu-card');
+        if (menuCard) {
+            const cardTitle = menuCard.querySelector('h3');
+            if (cardTitle) {
+                const herramienta = cardTitle.textContent.trim().toLowerCase()
+                    .replace(/\s+/g, '_')
+                    .replace(/[áéíóú]/g, function(match) {
+                        const map = {'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u'};
+                        return map[match];
+                    });
+                
+                trackMetric(herramienta, 'click', {
+                    cardType: menuCard.className,
+                    hasBadge: !!menuCard.querySelector('.menu-badge')
+                });
+            }
+        }
+    });
+    
+    // ===== TRACKING DE TIEMPO DE PÁGINA =====
+    
+    // Registrar tiempo al cargar la página
+    trackMetric('home', 'page_load', {
+        loadTime: Date.now() - pageStartTime
+    });
+    
+    // Registrar tiempo al salir de la página
+    window.addEventListener('beforeunload', function() {
+        const timeSpent = Date.now() - pageStartTime;
+        trackMetric('home', 'page_exit', {
+            timeSpent: timeSpent,
+            timeSpentMinutes: Math.round(timeSpent / 1000 / 60 * 100) / 100
+        });
+    });
+    
+    // ===== TRACKING DE HORARIO DE USO =====
+    
+    // Registrar horario de inicio de sesión
+    const currentHour = new Date().getHours();
+    let timeOfDay = 'morning';
+    if (currentHour >= 6 && currentHour < 12) timeOfDay = 'morning';
+    else if (currentHour >= 12 && currentHour < 18) timeOfDay = 'afternoon';
+    else if (currentHour >= 18 && currentHour < 22) timeOfDay = 'evening';
+    else timeOfDay = 'night';
+    
+    trackMetric('home', 'session_start', {
+        hour: currentHour,
+        timeOfDay: timeOfDay,
+        dayOfWeek: new Date().getDay(),
+        isWeekend: [0, 6].includes(new Date().getDay())
+    });
+    
+    // ===== TRACKING DE DISPOSITIVO =====
+    
+    // Registrar información del dispositivo
+    trackMetric('home', 'device_info', {
+        device: sessionData.device,
+        screenResolution: sessionData.screenResolution,
+        userAgent: sessionData.userAgent,
+        language: navigator.language,
+        platform: navigator.platform
+    });
+    
+    // Cargar límites de IA al iniciar la página
+    async function loadAILimits() {
+        try {
+            const response = await fetch('/api/user-limits');
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                const { usos_analisis_pdf, daily_ai_limit, is_admin, usos_restantes_analisis_pdf } = data.data;
+                const limitsCount = document.getElementById('limitsCount');
+                
+                if (is_admin) {
+                    limitsCount.textContent = '∞ (Admin)';
+                    limitsCount.className = 'limits-count admin';
+                } else {
+                    limitsCount.textContent = `${usos_analisis_pdf}/${daily_ai_limit}`;
+                    
+                    // Cambiar color según el uso
+                    limitsCount.className = 'limits-count';
+                    if (usos_analisis_pdf >= daily_ai_limit) {
+                        limitsCount.classList.add('exhausted');
+                    } else if (usos_analisis_pdf >= daily_ai_limit * 0.8) {
+                        limitsCount.classList.add('low');
+                    }
+                }
+            } else {
+                document.getElementById('limitsCount').textContent = 'Error';
+            }
+        } catch (error) {
+            console.error('Error cargando límites:', error);
+            document.getElementById('limitsCount').textContent = 'Error';
+        }
+    }
+    
+    // Cargar límites al iniciar
+    loadAILimits();
+</script>
 </body>
 </html>

@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Administrador - App Financiera</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .header p {
+            color: #7f8c8d;
+            font-size: 1.1rem;
+        }
+
+        .admin-badge {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: inline-block;
+            margin-top: 10px;
+        }
+
+        /* ===== ESTILOS DEL SLIDER DE MÉTRICAS ===== */
+        .metrics-slider {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .slider-container {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .slider-btn {
+            background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+            border: 2px solid #dee2e6;
+            color: #495057;
+            padding: 15px 25px;
+            border-radius: 15px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 200px;
+            justify-content: center;
+        }
+
+        .slider-btn:hover {
+            background: linear-gradient(45deg, #e3f2fd, #bbdefb);
+            border-color: #2196f3;
+            color: #1976d2;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(33, 150, 243, 0.3);
+        }
+
+        .slider-btn.active {
+            background: linear-gradient(45deg, #2196f3, #1976d2);
+            border-color: #1976d2;
+            color: white;
+            transform: translateY(-3px);
+            box-shadow: 0 12px 25px rgba(33, 150, 243, 0.4);
+        }
+
+        .slider-btn.active:hover {
+            background: linear-gradient(45deg, #1976d2, #1565c0);
+            transform: translateY(-4px);
+            box-shadow: 0 15px 30px rgba(33, 150, 243, 0.5);
+        }
+
+        /* ===== ESTILOS PARA LAS NUEVAS SECCIONES DE ANÁLISIS ===== */
+        .ai-analysis-container,
+        .consumption-analysis-container,
+        .cards-analysis-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .ai-analysis-container h2,
+        .consumption-analysis-container h2,
+        .cards-analysis-container h2 {
+            color: #2c3e50;
+            font-size: 2rem;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        .ai-stats,
+        .consumption-stats,
+        .cards-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .ai-stat-card,
+        .consumption-stat-card,
+        .cards-stat-card {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .ai-stat-card:hover,
+        .consumption-stat-card:hover,
+        .cards-stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .ai-stat-card h3,
+        .consumption-stat-card h3,
+        .cards-stat-card h3 {
+            color: #2c3e50;
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+        }
+
+        .ai-stat-card p,
+        .consumption-stat-card p,
+        .cards-stat-card p {
+            color: #7f8c8d;
+            font-size: 1rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-card h3 {
+            color: #2c3e50;
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #3498db;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 1rem;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .chart-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .chart-card h3 {
+            color: #2c3e50;
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .metric-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .metric-item:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .metric-value {
+            font-weight: 700;
+            color: #3498db;
+        }
+
+        .recent-activity {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .recent-activity h3 {
+            color: #2c3e50;
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 0;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+        }
+
+        .activity-icon.ia {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+        }
+
+        .activity-icon.herramienta {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+        }
+
+        .activity-content {
+            flex: 1;
+        }
+
+        .activity-title {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .activity-time {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+        .back-btn {
+            background: linear-gradient(45deg, #95a5a6, #7f8c8d);
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+
+        .back-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            color: #bdc3c7;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stat-value {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="{{ url_for('home') }}" class="back-btn">
+            <i class="fas fa-arrow-left"></i>
+            Volver al Menú Principal
+        </a>
+
+        <div class="header">
+            <h1>
+                <i class="fas fa-chart-line"></i>
+                Dashboard de Administrador
+            </h1>
+            <p>Métricas y analytics de la aplicación</p>
+            <div class="admin-badge">
+                <i class="fas fa-crown"></i>
+                Administrador
+            </div>
+            <button onclick="refreshDashboard()" class="refresh-btn" style="
+                background: linear-gradient(45deg, #3498db, #2980b9);
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 25px;
+                font-size: 0.9rem;
+                font-weight: 600;
+                cursor: pointer;
+                margin-top: 15px;
+                transition: all 0.3s ease;
+            ">
+                <i class="fas fa-sync-alt"></i>
+                Actualizar Datos
+            </button>
+        </div>
+        
+        <!-- ===== SLIDER DE OPCIONES DE MÉTRICAS ===== -->
+        <div class="metrics-slider">
+            <div class="slider-container">
+                <button class="slider-btn active" data-metric="general">
+                    📊 Métricas Generales
+                </button>
+                <button class="slider-btn" data-metric="ai-usage">
+                    🤖 Uso de IA por Usuario
+                </button>
+                <button class="slider-btn" data-metric="consumption">
+                    🛒 Análisis de Consumos
+                </button>
+                <button class="slider-btn" data-metric="cards-banks">
+                    💳 Tipos de Tarjetas/Bancos
+                </button>
+            </div>
+        </div>
+
+        <!-- Estadísticas Generales -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3><i class="fas fa-users"></i> Usuarios</h3>
+                <div class="stat-value">{{ total_usuarios }}</div>
+                <div class="stat-label">Total de usuarios registrados</div>
+            </div>
+
+            <div class="stat-card">
+                <h3><i class="fas fa-user-check"></i> Usuarios Activos</h3>
+                <div class="stat-value">{{ usuarios_activos }}</div>
+                <div class="stat-label">Usuarios con cuentas activas</div>
+            </div>
+
+            <div class="stat-card">
+                <h3><i class="fas fa-robot"></i> Usos de IA Hoy</h3>
+                <div class="stat-value">{{ usos_ia_hoy }}</div>
+                <div class="stat-label">Análisis de PDF realizados hoy</div>
+            </div>
+
+            <div class="stat-card">
+                <h3><i class="fas fa-coins"></i> Tokens Consumidos</h3>
+                <div class="stat-value">{{ "{:,}".format(total_tokens_consumidos) }}</div>
+                <div class="stat-label">Total de tokens utilizados</div>
+            </div>
+
+            <div class="stat-card">
+                <h3><i class="fas fa-dollar-sign"></i> Costo de IA</h3>
+                <div class="stat-value">${{ "%.2f"|format(total_costo_ia) }}</div>
+                <div class="stat-label">Costo estimado total</div>
+            </div>
+        </div>
+
+        <!-- Métricas de Herramientas -->
+        {% if herramientas_stats %}
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3><i class="fas fa-tools"></i> Métricas de Herramientas</h3>
+                {% for herramienta, stats in herramientas_stats.items() %}
+                <div class="metric-item">
+                    <span class="metric-label">{{ herramienta.replace('_', ' ').title() }}</span>
+                    <div>
+                        <div class="metric-value">{{ stats.total_clicks }} clicks</div>
+                        <div class="metric-value">{{ stats.total_ejecuciones }} ejecuciones</div>
+                        <div class="metric-value">{{ stats.total_completados }} completados</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="chart-card">
+                <h3><i class="fas fa-brain"></i> Métricas de IA</h3>
+                {% if ia_stats %}
+                    {% for modelo, stats in ia_stats.items() %}
+                    <div class="metric-item">
+                        <span class="metric-label">{{ modelo }}</span>
+                        <div>
+                            <div class="metric-value">{{ stats.total_usos }} usos</div>
+                            <div class="metric-value">{{ "{:,}".format(stats.total_tokens) }} tokens</div>
+                            <div class="metric-value">${{ "%.2f"|format(stats.costo_total) }}</div>
+                            <div class="metric-value">{{ "%.1f"|format(stats.tiempo_promedio) }}s promedio</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-robot"></i>
+                        <p>No hay métricas de IA disponibles aún</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Actividad Reciente -->
+        <div class="recent-activity">
+            <h3><i class="fas fa-clock"></i> Actividad Reciente</h3>
+            
+            {% if metricas_ia %}
+            <h4 style="color: #3498db; margin: 20px 0 10px 0;">Últimos Usos de IA</h4>
+            {% for metrica in metricas_ia %}
+            <div class="activity-item">
+                <div class="activity-icon ia">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="activity-content">
+                    <div class="activity-title">
+                        {{ metrica.tipo_operacion.replace('_', ' ').title() }} - {{ metrica.modelo_ia }}
+                    </div>
+                    <div class="activity-time">
+                        {{ metrica.timestamp.strftime('%d/%m/%Y %H:%M') }} - 
+                        {{ "{:,}".format(metrica.tokens_consumidos) }} tokens - 
+                        ${{ "%.2f"|format(metrica.costo_estimado) }}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% endif %}
+
+            {% if metricas_herramientas %}
+            <h4 style="color: #e74c3c; margin: 20px 0 10px 0;">Últimas Interacciones con Herramientas</h4>
+            {% for metrica in metricas_herramientas %}
+            <div class="activity-item">
+                <div class="activity-icon herramienta">
+                    <i class="fas fa-tools"></i>
+                </div>
+                <div class="activity-content">
+                    <div class="activity-title">
+                        {{ metrica.herramienta.replace('_', ' ').title() }} - {{ metrica.accion.title() }}
+                    </div>
+                    <div class="activity-time">
+                        {{ metrica.timestamp.strftime('%d/%m/%Y %H:%M') }}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% endif %}
+
+            {% if not metricas_ia and not metricas_herramientas %}
+            <div class="empty-state">
+                <i class="fas fa-chart-line"></i>
+                <p>No hay actividad reciente para mostrar</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        // Botón de actualización manual
+        function refreshDashboard() {
+            location.reload();
+        }
+        
+        // ===== FUNCIONALIDAD DEL SLIDER DE MÉTRICAS =====
+        document.addEventListener('DOMContentLoaded', function() {
+            const now = new Date();
+            const timeString = now.toLocaleString('es-ES');
+            
+            // Agregar timestamp al header
+            const header = document.querySelector('.header p');
+            header.innerHTML += `<br><small>Última actualización: ${timeString}</small>`;
+            
+            // Configurar slider de métricas
+            const sliderBtns = document.querySelectorAll('.slider-btn');
+            const statsGrid = document.querySelector('.stats-grid');
+            const chartsGrid = document.querySelector('.charts-grid');
+            
+            sliderBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // Remover clase active de todos los botones
+                    sliderBtns.forEach(b => b.classList.remove('active'));
+                    // Agregar clase active al botón clickeado
+                    this.classList.add('active');
+                    
+                    const metric = this.getAttribute('data-metric');
+                    loadMetricView(metric);
+                });
+            });
+            
+            function loadMetricView(metric) {
+                console.log(`Cargando vista de métricas: ${metric}`);
+                
+                switch(metric) {
+                    case 'general':
+                        showGeneralMetrics();
+                        break;
+                    case 'ai-usage':
+                        showAIUsageMetrics();
+                        break;
+                    case 'consumption':
+                        showConsumptionMetrics();
+                        break;
+                    case 'cards-banks':
+                        showCardsBanksMetrics();
+                        break;
+                }
+            }
+            
+            function showGeneralMetrics() {
+                // Mostrar métricas generales (vista actual)
+                statsGrid.style.display = 'grid';
+                chartsGrid.style.display = 'grid';
+                console.log('Mostrando métricas generales');
+            }
+            
+            function showAIUsageMetrics() {
+                // Ocultar métricas generales y mostrar análisis de IA
+                statsGrid.style.display = 'none';
+                chartsGrid.style.display = 'none';
+                
+                // Crear contenido dinámico para análisis de IA
+                const aiContent = `
+                    <div class="ai-analysis-container">
+                        <h2>🤖 Análisis Detallado de Uso de IA</h2>
+                        <div class="ai-stats">
+                            <div class="ai-stat-card">
+                                <h3>Usuarios más activos con IA</h3>
+                                <p>Análisis por usuario individual</p>
+                            </div>
+                            <div class="ai-stat-card">
+                                <h3>Patrones de uso</h3>
+                                <p>Horarios, frecuencia, tipos de operación</p>
+                            </div>
+                            <div class="ai-stat-card">
+                                <h3>Costos por usuario</h3>
+                                <p>Tokens consumidos y costos estimados</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Reemplazar contenido
+                const container = document.querySelector('.container');
+                const existingAI = container.querySelector('.ai-analysis-container');
+                if (existingAI) existingAI.remove();
+                
+                const aiDiv = document.createElement('div');
+                aiDiv.innerHTML = aiContent;
+                container.appendChild(aiDiv);
+                
+                console.log('Mostrando análisis de IA');
+            }
+            
+            function showConsumptionMetrics() {
+                // Ocultar métricas generales y mostrar análisis de consumos
+                statsGrid.style.display = 'none';
+                chartsGrid.style.display = 'none';
+                
+                const consumptionContent = `
+                    <div class="consumption-analysis-container">
+                        <h2>🛒 Análisis de Consumos y Segmentación</h2>
+                        <div class="consumption-stats">
+                            <div class="consumption-stat-card">
+                                <h3>Segmento: Mascotas</h3>
+                                <p>Usuarios que gastan en mascotas</p>
+                            </div>
+                            <div class="consumption-stat-card">
+                                <h3>Segmento: Viajes</h3>
+                                <p>Usuarios que gastan en viajes</p>
+                            </div>
+                            <div class="consumption-stat-card">
+                                <h3>Segmento: Alimentación</h3>
+                                <p>Usuarios que gastan en alimentación</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                const container = document.querySelector('.container');
+                const existingConsumption = container.querySelector('.consumption-analysis-container');
+                if (existingConsumption) existingConsumption.remove();
+                
+                const consumptionDiv = document.createElement('div');
+                consumptionDiv.innerHTML = consumptionContent;
+                container.appendChild(consumptionDiv);
+                
+                console.log('Mostrando análisis de consumos');
+            }
+            
+            function showCardsBanksMetrics() {
+                // Ocultar métricas generales y mostrar análisis de tarjetas/bancos
+                statsGrid.style.display = 'none';
+                chartsGrid.style.display = 'none';
+                
+                const cardsContent = `
+                    <div class="cards-analysis-container">
+                        <h2>💳 Análisis de Tipos de Tarjetas y Bancos</h2>
+                        <div class="cards-stats">
+                            <div class="cards-stat-card">
+                                <h3>Bancos más utilizados</h3>
+                                <p>Distribución por institución financiera</p>
+                            </div>
+                            <div class="cards-stat-card">
+                                <h3>Tipos de tarjetas</h3>
+                                <p>Visa, Mastercard, Diners, etc.</p>
+                            </div>
+                            <div class="cards-stat-card">
+                                <h3>Patrones de uso</h3>
+                                <p>Cupos, utilización, preferencias</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                const container = document.querySelector('.container');
+                const existingCards = container.querySelector('.cards-analysis-container');
+                if (existingCards) existingCards.remove();
+                
+                const cardsDiv = document.createElement('div');
+                cardsDiv.innerHTML = cardsContent;
+                container.appendChild(cardsDiv);
+                
+                console.log('Mostrando análisis de tarjetas/bancos');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -83,6 +83,44 @@
     align-items: center;
     margin-top: 20px;
     padding: 15px 20px;
+}
+
+/* Contador de límites de IA */
+.ai-limits-counter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.limits-label {
+    color: #495057;
+}
+
+.limits-count {
+    background-color: #007bff;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+.limits-count.low {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.limits-count.exhausted {
+    background-color: #dc3545;
+}
+
+.limits-count.admin {
+    background-color: #28a745;
     background: rgba(255, 255, 255, 0.1);
     border-radius: 10px;
     backdrop-filter: blur(10px);
@@ -746,6 +784,7 @@
 .menu-card:nth-child(2) { animation-delay: 0.2s; }
 .menu-card:nth-child(3) { animation-delay: 0.3s; }
 .menu-card:nth-child(4) { animation-delay: 0.4s; }
+.menu-card:nth-child(5) { animation-delay: 0.5s; }
 
 /* Efectos de hover mejorados */
 .menu-card:hover {
@@ -772,4 +811,217 @@
     bottom: 0;
     background: linear-gradient(45deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
     pointer-events: none;
+}
+
+/* ===== ESTILOS ESPECÍFICOS PARA ANÁLISIS DE PDF ===== */
+
+/* Tarjeta de análisis de PDF */
+.menu-card.tarjetas-credito {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: 2px solid #5a67d8;
+}
+
+.menu-card.tarjetas-credito:hover {
+    background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+    border-color: #4c51bf;
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 12px 30px rgba(102, 126, 234, 0.3);
+}
+
+.menu-card.tarjetas-credito h3 {
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.menu-card.tarjetas-credito p {
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Badge para nueva funcionalidad */
+.menu-badge.new-feature {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+    color: white;
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 8px rgba(255, 107, 107, 0.3);
+    animation: pulse 2s infinite;
+}
+
+/* Efecto de brillo especial para la tarjeta de IA */
+.menu-card.tarjetas-credito::before {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+}
+
+.menu-card.tarjetas-credito:hover::before {
+    opacity: 1;
+}
+
+/* Icono de tarjetas con animación */
+.menu-card.tarjetas-credito .menu-icon {
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+}
+
+/* Responsive para la nueva tarjeta */
+@media (max-width: 768px) {
+    .menu-card.tarjetas-credito {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .menu-card.tarjetas-credito:hover {
+        transform: translateY(-5px) scale(1.01);
+    }
+}
+
+@media (max-width: 480px) {
+    .menu-card.tarjetas-credito {
+        padding: 20px 18px;
+        min-height: 180px;
+    }
+    
+    .menu-card.tarjetas-credito .menu-icon {
+        font-size: 2.5em;
+        animation: none; /* Desactivar animación en móvil para mejor rendimiento */
+    }
+}
+
+/* ===== ESTILOS ESPECÍFICOS PARA DASHBOARD DE ADMINISTRADOR ===== */
+
+/* Tarjeta de dashboard de administrador */
+.menu-card.admin-dashboard {
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    color: white;
+    border: 2px solid #34495e;
+    position: relative;
+    overflow: hidden;
+}
+
+.menu-card.admin-dashboard::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    transform: rotate(45deg);
+    transition: all 0.6s ease;
+    opacity: 0;
+}
+
+.menu-card.admin-dashboard:hover::before {
+    opacity: 1;
+    animation: shine 0.6s ease-in-out;
+}
+
+@keyframes shine {
+    0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+    100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+}
+
+.menu-card.admin-dashboard:hover {
+    background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+    border-color: #2c3e50;
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 12px 30px rgba(44, 62, 80, 0.4);
+}
+
+.menu-card.admin-dashboard h3 {
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.menu-card.admin-dashboard p {
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Badge para administrador */
+.menu-badge.admin-only {
+    background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+    color: white;
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 8px rgba(243, 156, 18, 0.3);
+    animation: adminPulse 3s infinite;
+}
+
+@keyframes adminPulse {
+    0%, 100% { 
+        transform: scale(1);
+        box-shadow: 0 4px 8px rgba(243, 156, 18, 0.3);
+    }
+    50% { 
+        transform: scale(1.05);
+        box-shadow: 0 6px 12px rgba(243, 156, 18, 0.5);
+    }
+}
+
+/* Icono de administrador con efecto especial */
+.menu-card.admin-dashboard .menu-icon {
+    animation: adminFloat 4s ease-in-out infinite;
+    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes adminFloat {
+    0%, 100% { 
+        transform: translateY(0px) rotate(0deg);
+    }
+    25% { 
+        transform: translateY(-8px) rotate(2deg);
+    }
+    50% { 
+        transform: translateY(-12px) rotate(0deg);
+    }
+    75% { 
+        transform: translateY(-8px) rotate(-2deg);
+    }
+}
+
+/* Efecto de partículas para el dashboard */
+.menu-card.admin-dashboard::after {
+    content: '⚡';
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    font-size: 1.5em;
+    opacity: 0.7;
+    animation: sparkle 2s infinite;
+}
+
+@keyframes sparkle {
+    0%, 100% { opacity: 0.7; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.2); }
+}
+
+/* Responsive para dashboard de administrador */
+@media (max-width: 768px) {
+    .menu-card.admin-dashboard {
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    }
+    
+    .menu-card.admin-dashboard:hover {
+        transform: translateY(-5px) scale(1.01);
+    }
+    
+    .menu-card.admin-dashboard .menu-icon {
+        animation: none; /* Desactivar animación en móvil para mejor rendimiento */
+    }
+}
+
+@media (max-width: 480px) {
+    .menu-card.admin-dashboard {
+        padding: 20px 18px;
+        min-height: 180px;
+    }
+    
+    .menu-card.admin-dashboard .menu-icon {
+        font-size: 2.5em;
+    }
 }

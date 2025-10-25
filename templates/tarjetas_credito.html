@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarjetas de Crédito - App Financiera</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        /* ===== SLIDER DE OPCIONES ===== */
+        .options-slider {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .slider-container {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .slider-btn {
+            background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+            border: 2px solid #dee2e6;
+            color: #495057;
+            padding: 20px 30px;
+            border-radius: 15px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 250px;
+            justify-content: center;
+        }
+
+        .slider-btn:hover {
+            background: linear-gradient(45deg, #e3f2fd, #bbdefb);
+            border-color: #2196f3;
+            color: #1976d2;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(33, 150, 243, 0.3);
+        }
+
+        .slider-btn.active {
+            background: linear-gradient(45deg, #2196f3, #1976d2);
+            border-color: #1976d2;
+            color: white;
+            transform: translateY(-3px);
+            box-shadow: 0 12px 25px rgba(33, 150, 243, 0.4);
+        }
+
+        .slider-btn.active:hover {
+            background: linear-gradient(45deg, #1976d2, #1565c0);
+            transform: translateY(-4px);
+            box-shadow: 0 15px 30px rgba(33, 150, 243, 0.5);
+        }
+
+        /* ===== CONTENIDO DINÁMICO ===== */
+        .content-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            min-height: 400px;
+        }
+
+        .content-section {
+            display: none;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        .section-title {
+            color: #2c3e50;
+            font-size: 2rem;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .section-description {
+            color: #7f8c8d;
+            font-size: 1.1rem;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+
+        .feature-card {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .feature-card h3 {
+            color: #2c3e50;
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+        }
+
+        .feature-card p {
+            color: #7f8c8d;
+            font-size: 1rem;
+        }
+
+        .coming-soon {
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+            border: 2px solid #f39c12;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .coming-soon h3 {
+            color: #d68910;
+            margin-bottom: 10px;
+        }
+
+        .coming-soon p {
+            color: #b7950b;
+        }
+
+        .back-btn {
+            background: linear-gradient(45deg, #6c757d, #495057);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: linear-gradient(45deg, #495057, #343a40);
+            transform: translateY(-2px);
+            color: white;
+            text-decoration: none;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .slider-container {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .slider-btn {
+                min-width: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="{{ url_for('home') }}" class="back-btn">
+            <i class="fas fa-arrow-left"></i>
+            Volver al Menú Principal
+        </a>
+
+        <div class="header">
+            <h1>
+                <i class="fas fa-credit-card"></i>
+                Tarjetas de Crédito
+            </h1>
+            <p>Herramientas inteligentes para el manejo de tus tarjetas de crédito</p>
+        </div>
+
+        <!-- ===== SLIDER DE OPCIONES ===== -->
+        <div class="options-slider">
+            <div class="slider-container">
+                <button class="slider-btn active" data-option="analizar">
+                    <i class="fas fa-file-pdf"></i>
+                    Analizar Estado de Cuenta
+                </button>
+                <button class="slider-btn" data-option="historial">
+                    <i class="fas fa-history"></i>
+                    Historial de Estados
+                </button>
+                <button class="slider-btn" data-option="simulador">
+                    <i class="fas fa-calculator"></i>
+                    Simulador de Pagos
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== CONTENIDO DINÁMICO ===== -->
+        <div class="content-container">
+            <!-- Analizar Estado de Cuenta -->
+            <div class="content-section active" id="analizar-content">
+                <h2 class="section-title">📄 Analizar Estado de Cuenta</h2>
+                <p class="section-description">
+                    Sube tu estado de cuenta en PDF y obtén un análisis completo con inteligencia artificial
+                </p>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h3><i class="fas fa-robot"></i> Análisis con IA</h3>
+                        <p>Extracción automática de datos clave usando Claude Haiku</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3><i class="fas fa-chart-line"></i> Datos Completos</h3>
+                        <p>Fecha de corte, cupos, consumos, pagos y más información relevante</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3><i class="fas fa-shield-alt"></i> Seguro y Privado</h3>
+                        <p>Tu información se procesa de forma segura y no se almacena</p>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 30px;">
+                    <a href="{{ url_for('analizar_pdf') }}" class="slider-btn" style="text-decoration: none; display: inline-flex;">
+                        <i class="fas fa-play"></i>
+                        Comenzar Análisis
+                    </a>
+                </div>
+            </div>
+
+            <!-- Historial de Estados -->
+            <div class="content-section" id="historial-content">
+                <h2 class="section-title">📊 Historial de Estados de Cuenta</h2>
+                <p class="section-description">
+                    Visualiza y analiza el historial completo de tus estados de cuenta
+                </p>
+                
+                <div class="coming-soon">
+                    <h3><i class="fas fa-tools"></i> En Desarrollo</h3>
+                    <p>Esta funcionalidad estará disponible próximamente. Podrás ver el historial completo de tus estados de cuenta, comparar períodos y analizar tendencias de gastos.</p>
+                </div>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h3><i class="fas fa-calendar-alt"></i> Historial Completo</h3>
+                        <p>Almacena y visualiza todos tus estados de cuenta históricos</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3><i class="fas fa-chart-bar"></i> Análisis de Tendencias</h3>
+                        <p>Compara gastos entre períodos y identifica patrones</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3><i class="fas fa-search"></i> Búsqueda Avanzada</h3>
+                        <p>Encuentra estados de cuenta por fecha, banco o tipo de tarjeta</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Simulador de Pagos -->
+            <div class="content-section" id="simulador-content">
+                <h2 class="section-title">🧮 Simulador de Pagos</h2>
+                <p class="section-description">
+                    Simula diferentes escenarios de pago y entiende el impacto en tus finanzas
+                </p>
+                
+                <div class="coming-soon">
+                    <h3><i class="fas fa-tools"></i> En Desarrollo</h3>
+                    <p>Esta funcionalidad estará disponible próximamente. Podrás simular diferentes montos de pago y ver cómo afectan tus intereses y tiempo de pago total.</p>
+                </div>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h3><i class="fas fa-calculator"></i> Simulaciones Inteligentes</h3>
+                        <p>Calcula el impacto de diferentes montos de pago</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3><i class="fas fa-clock"></i> Tiempo de Pago</h3>
+                        <p>Estima cuánto tiempo tomará pagar tu deuda</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3><i class="fas fa-lightbulb"></i> Recomendaciones</h3>
+                        <p>Recibe sugerencias para optimizar tus pagos</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== FUNCIONALIDAD DEL SLIDER =====
+        document.addEventListener('DOMContentLoaded', function() {
+            const sliderBtns = document.querySelectorAll('.slider-btn[data-option]');
+            const contentSections = document.querySelectorAll('.content-section');
+            
+            sliderBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // Remover clase active de todos los botones
+                    sliderBtns.forEach(b => b.classList.remove('active'));
+                    // Agregar clase active al botón clickeado
+                    this.classList.add('active');
+                    
+                    const option = this.getAttribute('data-option');
+                    loadSection(option);
+                });
+            });
+            
+            function loadSection(option) {
+                console.log(`Cargando sección: ${option}`);
+                
+                // Ocultar todas las secciones
+                contentSections.forEach(section => {
+                    section.classList.remove('active');
+                });
+                
+                // Mostrar la sección seleccionada
+                const targetSection = document.getElementById(`${option}-content`);
+                if (targetSection) {
+                    targetSection.classList.add('active');
+                }
+            }
+        });
+    </script>
+</body>
+</html>
