@@ -1220,7 +1220,7 @@ def test_webhook():
 # Función para crear la base de datos y agregar datos de ejemplo
 def init_db():
     with app.app_context():
-        # Crear todas las tablas
+        # Crear todas las tablas - Forzar actualización de esquema en producción
         db.create_all()
         
         # Crear usuario administrador por defecto si no existe
