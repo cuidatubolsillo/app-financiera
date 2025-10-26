@@ -232,7 +232,7 @@ def get_current_user():
     return None
 
 def verificar_limite_ia(usuario_id, tipo_uso='analisis_pdf'):
-    """Verificar si el usuario puede usar IA (no ha excedido su límite diario)"""
+    """Verificar si el usuario puede usar IA (no ha excedido su límite)"""
     usuario = Usuario.query.get(usuario_id)
     if not usuario:
         return False, "Usuario no encontrado"
@@ -241,19 +241,26 @@ def verificar_limite_ia(usuario_id, tipo_uso='analisis_pdf'):
     if usuario.is_admin:
         return True, "Administrador - sin límites"
     
-    # Contar usos de hoy
+    # CAMBIO: Usar límite mensual en lugar de diario para usuarios normales
+    # Contar usos del mes actual
     hoy = datetime.utcnow().date()
-    usos_hoy = UsoIA.query.filter_by(
-        usuario_id=usuario_id, 
-        fecha=hoy, 
-        tipo_uso=tipo_uso
+    inicio_mes = hoy.replace(day=1)  # Primer día del mes
+    
+    usos_mes = UsoIA.query.filter(
+        UsoIA.usuario_id == usuario_id,
+        UsoIA.fecha >= inicio_mes,
+        UsoIA.fecha <= hoy,
+        UsoIA.tipo_uso == tipo_uso
     ).count()
     
-    # Verificar si ha excedido el límite
-    if usos_hoy >= usuario.daily_ai_limit:
-        return False, f"Límite diario excedido ({usuario.daily_ai_limit} usos)"
+    # Límite mensual: 50 usos por mes para usuarios normales
+    limite_mensual = 50
     
-    return True, f"Usos restantes: {usuario.daily_ai_limit - usos_hoy}"
+    # Verificar si ha excedido el límite mensual
+    if usos_mes >= limite_mensual:
+        return False, f"Límite mensual excedido ({limite_mensual} usos)"
+    
+    return True, f"Usos restantes este mes: {limite_mensual - usos_mes}"
 
 def registrar_uso_ia(usuario_id, tipo_uso='analisis_pdf'):
     """Registrar un uso de IA"""
@@ -273,20 +280,28 @@ def get_user_limits(usuario_id):
     if not usuario:
         return None
     
-    # Contar usos de hoy por tipo
+    # CAMBIO: Usar límite mensual en lugar de diario
     hoy = datetime.utcnow().date()
-    usos_analisis_pdf = UsoIA.query.filter_by(
-        usuario_id=usuario_id, 
-        fecha=hoy, 
-        tipo_uso='analisis_pdf'
+    inicio_mes = hoy.replace(day=1)  # Primer día del mes
+    
+    usos_analisis_pdf_mes = UsoIA.query.filter(
+        UsoIA.usuario_id == usuario_id,
+        UsoIA.fecha >= inicio_mes,
+        UsoIA.fecha <= hoy,
+        UsoIA.tipo_uso == 'analisis_pdf'
     ).count()
+    
+    # Límite mensual: 50 usos por mes para usuarios normales
+    limite_mensual = 50
     
     return {
         'usuario_id': usuario_id,
         'is_admin': usuario.is_admin,
-        'daily_ai_limit': usuario.daily_ai_limit,
-        'usos_analisis_pdf': usos_analisis_pdf,
-        'usos_restantes_analisis_pdf': max(0, usuario.daily_ai_limit - usos_analisis_pdf) if not usuario.is_admin else 999999
+        'daily_ai_limit': limite_mensual,  # Mantener nombre por compatibilidad
+        'usos_analisis_pdf': usos_analisis_pdf_mes,
+        'usos_restantes_analisis_pdf': max(0, limite_mensual - usos_analisis_pdf_mes) if not usuario.is_admin else 999999,
+        'periodo': 'mensual',  # Indicar que es límite mensual
+        'limite_mensual': limite_mensual
     }
 
 def can_use_feature(usuario_id, feature='analisis_pdf'):
@@ -299,9 +314,9 @@ def can_use_feature(usuario_id, feature='analisis_pdf'):
         return True, "Administrador - sin límites"
     
     if feature == 'analisis_pdf':
-        if limits['usos_analisis_pdf'] >= limits['daily_ai_limit']:
-            return False, f"Límite diario excedido ({limits['daily_ai_limit']} usos)"
-        return True, f"Usos restantes: {limits['usos_restantes_analisis_pdf']}"
+        if limits['usos_analisis_pdf'] >= limits['limite_mensual']:
+            return False, f"Límite mensual excedido ({limits['limite_mensual']} usos)"
+        return True, f"Usos restantes este mes: {limits['usos_restantes_analisis_pdf']}"
     
     return True, "Característica disponible"
 
@@ -483,6 +498,14 @@ def authorize_google():
                 oauth_id=oauth_id,
                 avatar_url=avatar_url
             )
+            
+            # VERIFICAR SI ES EL ADMIN ESPECÍFICO
+            if email == 'cuidatubolsillo20@gmail.com':
+                usuario.is_admin = True
+                usuario.rol = 'admin'
+                usuario.daily_ai_limit = 999999
+                print(f"=== DEBUG: Usuario admin creado: {usuario.id} ===")
+            
             db.session.add(usuario)
             db.session.commit()
             print(f"=== DEBUG: Usuario creado: {usuario.id} ===")
@@ -491,6 +514,14 @@ def authorize_google():
             # Actualizar información si es necesario
             usuario.nombre = nombre
             usuario.avatar_url = avatar_url
+            
+            # VERIFICAR SI ES EL ADMIN ESPECÍFICO Y FORZAR PERMISOS
+            if email == 'cuidatubolsillo20@gmail.com':
+                usuario.is_admin = True
+                usuario.rol = 'admin'
+                usuario.daily_ai_limit = 999999
+                print(f"=== DEBUG: Permisos de admin forzados para: {usuario.id} ===")
+            
             db.session.commit()
             print(f"=== DEBUG: Usuario actualizado: {usuario.id} ===")
             flash(f'¡Bienvenido de nuevo, {nombre}!', 'success')
@@ -1232,7 +1263,7 @@ def init_db():
             admin_user.rol = 'admin'
             admin_user.daily_ai_limit = 999999
             db.session.commit()
-            print(f"✅ ADMIN FORZADO: {admin_user.email} - is_admin: {admin_user.is_admin}, rol: {admin_user.rol}")
+            print(f"ADMIN FORZADO: {admin_user.email} - is_admin: {admin_user.is_admin}, rol: {admin_user.rol}")
         else:
             # Usuario no existe - crear nuevo admin
             # Verificar si ya existe un usuario con username 'admin'
