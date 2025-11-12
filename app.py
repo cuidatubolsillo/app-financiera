@@ -1085,9 +1085,47 @@ def analizar_pdf():
                 temp_path = temp_file.name
             
             try:
+                # Verificar que la API key esté configurada
+                anthropic_key = os.environ.get('ANTHROPIC_API_KEY')
+                if not anthropic_key:
+                    print("ERROR: ANTHROPIC_API_KEY no está configurada")
+                    print(f"Variables de entorno disponibles: {list(os.environ.keys())}")
+                    return jsonify({
+                        'status': 'error',
+                        'message': 'ANTHROPIC_API_KEY no está configurada en las variables de entorno. Por favor, verifica la configuración en Render.',
+                        'error_type': 'MissingAPIKey'
+                    }), 500
+                
+                print(f"DEBUG - ANTHROPIC_API_KEY encontrada (longitud: {len(anthropic_key)})")
+                
                 # Analizar el PDF con Claude (análisis completo con movimientos detallados)
-                analyzer = PDFAnalyzer()
-                resultado = analyzer.analizar_estado_cuenta(temp_path, extraer_movimientos_detallados=True)
+                try:
+                    analyzer = PDFAnalyzer()
+                except ValueError as e:
+                    return jsonify({
+                        'status': 'error',
+                        'message': f'Error inicializando analizador: {str(e)}'
+                    }), 500
+                except Exception as e:
+                    import traceback
+                    print(f"ERROR inicializando PDFAnalyzer: {str(e)}")
+                    print(f"Traceback: {traceback.format_exc()}")
+                    return jsonify({
+                        'status': 'error',
+                        'message': f'Error inicializando analizador: {str(e)}'
+                    }), 500
+                
+                try:
+                    resultado = analyzer.analizar_estado_cuenta(temp_path, extraer_movimientos_detallados=True)
+                except Exception as e:
+                    import traceback
+                    print(f"ERROR en analizar_estado_cuenta: {str(e)}")
+                    print(f"Traceback: {traceback.format_exc()}")
+                    return jsonify({
+                        'status': 'error',
+                        'message': f'Error analizando PDF: {str(e)}',
+                        'error_type': type(e).__name__
+                    }), 500
                 
                 # Debug: mostrar el resultado crudo
                 print(f"DEBUG - Resultado crudo: {resultado}")
@@ -1112,9 +1150,13 @@ def analizar_pdf():
                     # Estimación más realista de tokens
                     # Input: texto del PDF (puede ser 10,000+ caracteres)
                     # Output: respuesta JSON estructurada
-                    tokens_input = len(texto_pdf.split()) * 1.3  # Tokens de entrada
-                    tokens_output = len(raw_response.split()) * 1.3  # Tokens de salida
-                    tokens_estimados = int(tokens_input + tokens_output)
+                    try:
+                        tokens_input = len(texto_pdf.split()) * 1.3 if texto_pdf else 0  # Tokens de entrada
+                        tokens_output = len(raw_response.split()) * 1.3 if raw_response else 0  # Tokens de salida
+                        tokens_estimados = int(tokens_input + tokens_output)
+                    except Exception as e:
+                        print(f"ERROR calculando tokens: {str(e)}")
+                        tokens_estimados = 0
                     
                     # Precio real de Claude Haiku: $0.25 por 1 MILLÓN de tokens
                     precio_por_token = 0.25 / 1_000_000  # $0.00000025 por token
@@ -1143,9 +1185,14 @@ def analizar_pdf():
                     pass
                     
         except Exception as e:
+            import traceback
+            error_traceback = traceback.format_exc()
+            print(f"ERROR en analizar-pdf: {str(e)}")
+            print(f"Traceback completo: {error_traceback}")
             return jsonify({
                 'status': 'error',
-                'message': f'Error procesando PDF: {str(e)}'
+                'message': f'Error procesando PDF: {str(e)}',
+                'error_type': type(e).__name__
             }), 500
     
     # GET request - mostrar la página
