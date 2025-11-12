@@ -1,0 +1,154 @@
+/* ===== TOGGLE DE TEMA OSCURO/CLARO ===== */
+
+/* Variables CSS para modo claro (por defecto) */
+:root {
+    --theme-bg-primary: #ffffff;
+    --theme-bg-secondary: #f8f9fa;
+    --theme-text-primary: #0a2e22;
+    --theme-text-secondary: #475569;
+    --theme-border: #e2e8f0;
+    --theme-card-bg: #ffffff;
+    --theme-shadow: rgba(0, 0, 0, 0.1);
+}
+
+/* Variables CSS para modo oscuro */
+[data-theme="dark"] {
+    --theme-bg-primary: #0f172a;
+    --theme-bg-secondary: #1e293b;
+    --theme-text-primary: #f1f5f9;
+    --theme-text-secondary: #cbd5e1;
+    --theme-border: #334155;
+    --theme-card-bg: #1e293b;
+    --theme-shadow: rgba(0, 0, 0, 0.3);
+}
+
+/* Aplicar tema al body y html */
+html,
+body {
+    background-color: var(--theme-bg-primary);
+    color: var(--theme-text-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Aplicar tema a contenedores principales */
+.unified-container,
+.app-container,
+.main-content {
+    background-color: var(--theme-bg-primary);
+    color: var(--theme-text-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Modo oscuro para app-container */
+[data-theme="dark"] .app-container {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%);
+}
+
+/* Aplicar tema a cards y secciones */
+.config-section,
+.unified-content,
+.main-container,
+.menu-card {
+    background-color: var(--theme-card-bg);
+    color: var(--theme-text-primary);
+    border-color: var(--theme-border);
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Aplicar tema a inputs */
+.form-input,
+input[type="text"],
+input[type="email"],
+input[type="number"],
+textarea,
+select,
+.value-cell {
+    background-color: var(--theme-bg-primary);
+    color: var(--theme-text-primary);
+    border-color: var(--theme-border);
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+.form-input:focus,
+input:focus,
+textarea:focus,
+select:focus {
+    border-color: var(--verde-vital);
+    background-color: var(--theme-bg-primary);
+}
+
+/* Aplicar tema a tablas */
+table {
+    background-color: var(--theme-card-bg);
+    color: var(--theme-text-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+th, td {
+    border-color: var(--theme-border);
+    color: var(--theme-text-primary);
+}
+
+/* Aplicar tema a botones (mantener gradientes de marca) */
+.btn-save,
+.main-button,
+.add-transaction {
+    background: linear-gradient(135deg, var(--fondo-oscuro) 0%, var(--fondo-intermedio) 50%, var(--verde-vital) 100%);
+    color: var(--blanco);
+}
+
+/* Mantener colores de marca en modo oscuro */
+[data-theme="dark"] .unified-header {
+    background: linear-gradient(135deg, var(--fondo-oscuro) 0%, var(--fondo-intermedio) 50%, var(--verde-vital) 100%);
+}
+
+[data-theme="dark"] .back-btn {
+    background: linear-gradient(135deg, #1e543b 0%, #2d6a4f 50%, #3a7a5f 100%);
+}
+
+/* Ajustar texto secundario */
+.section-description,
+.text-muted,
+.app-subtitle {
+    color: var(--theme-text-secondary);
+    transition: color 0.3s ease;
+}
+
+/* Aplicar tema a stats y stat-cards */
+.stats,
+.stat-card {
+    background-color: var(--theme-card-bg);
+    color: var(--theme-text-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Aplicar tema a controles y backgrounds */
+.controls-background {
+    background-color: var(--theme-bg-secondary);
+    transition: background-color 0.3s ease;
+}
+
+/* Aplicar tema a app-footer */
+.app-footer {
+    background-color: var(--theme-bg-secondary);
+    color: var(--theme-text-secondary);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Aplicar tema a menu-grid */
+.menu-grid {
+    background-color: transparent;
+}
+
+/* Mantener colores específicos que no deben cambiar */
+[data-theme="dark"] .app-header {
+    background: linear-gradient(135deg, #0a2e22 0%, #1e543b 50%, #7ba74e 100%);
+    color: white;
+}
+
+/* Asegurar que los badges y elementos especiales mantengan contraste */
+.menu-badge,
+.sidebar-nav-badge {
+    transition: opacity 0.3s ease;
+}
+

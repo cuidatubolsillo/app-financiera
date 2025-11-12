@@ -5,30 +5,71 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control automático de tarjetas - CUIDA TU BOLSILLO</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='unified-style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .content-section {
+            display: none;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="logo-container">
-                <img src="{{ url_for('static', filename='logoCB.png') }}" alt="CUIDA TU BOLSILLO" class="logo">
-            </div>
-            <h1>Control automático de tarjetas</h1>
+    <div class="unified-container">
+        <a href="{{ url_for('home') }}" class="back-btn">
+            <i class="fas fa-arrow-left"></i>
+            Volver al Menú Principal
+        </a>
+
+        <div class="unified-header">
+            <h1>
+                <i class="fas fa-credit-card"></i>
+                Control de Consumos
+            </h1>
             <p>La única aplicación que controla tus consumos mientras los vas realizando</p>
-            <a href="/" class="back-link">← Volver al menú principal</a>
         </div>
 
-        <!-- Mensajes flash -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }}" style="padding: 15px; margin-bottom: 20px; border-radius: 6px; background: {% if category == 'success' %}#d4edda; color: #155724; border: 1px solid #c3e6cb{% else %}#f8d7da; color: #721c24; border: 1px solid #f5c6cb{% endif %};">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
+        <!-- ===== SLIDER DE OPCIONES ===== -->
+        <div class="unified-slider">
+            <div class="slider-container">
+                <button class="slider-btn active" data-option="transacciones">
+                    <i class="fas fa-list"></i>
+                    Transacciones
+                </button>
+                <button class="slider-btn" data-option="pendiente1">
+                    <i class="fas fa-cog"></i>
+                    Opción 1 (Pendiente)
+                </button>
+                <button class="slider-btn" data-option="pendiente2">
+                    <i class="fas fa-cog"></i>
+                    Opción 2 (Pendiente)
+                </button>
+            </div>
+        </div>
 
-        <!-- Estadísticas -->
+        <!-- ===== CONTENIDO DINÁMICO ===== -->
+        <div class="unified-content">
+            <div class="content-section active" id="transacciones-content">
+                <h2 class="section-title">📊 Transacciones</h2>
+                <p class="section-description">
+                    Visualiza y gestiona todas tus transacciones financieras
+                </p>
+
+                <!-- Mensajes flash -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}" style="padding: 15px; margin-bottom: 20px; border-radius: 6px; background: {% if category == 'success' %}#d4edda; color: #155724; border: 1px solid #c3e6cb{% else %}#f8d7da; color: #721c24; border: 1px solid #f5c6cb{% endif %};">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <!-- Estadísticas -->
         <div class="stats">
             <div class="stat-card">
                 <h3>{{ total_transacciones }}</h3>
@@ -92,16 +133,74 @@
                 {% endfor %}
             </tbody>
         </table>
-        {% else %}
-        <div class="no-data">
-            <p>📊 No hay transacciones registradas.</p>
-            <p>¡Agrega tu primera transacción para comenzar!</p>
+                {% else %}
+                <div class="no-data">
+                    <p>📊 No hay transacciones registradas.</p>
+                    <p>¡Agrega tu primera transacción para comenzar!</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Opción 1 Pendiente -->
+            <div class="content-section" id="pendiente1-content">
+                <h2 class="section-title">⚙️ Opción 1</h2>
+                <p class="section-description">
+                    Esta funcionalidad estará disponible próximamente
+                </p>
+                <div style="text-align: center; padding: 40px;">
+                    <i class="fas fa-tools" style="font-size: 4rem; color: var(--gris-oscuro); margin-bottom: 20px;"></i>
+                    <p style="color: var(--gris-oscuro); font-size: 1.2rem;">En desarrollo</p>
+                </div>
+            </div>
+
+            <!-- Opción 2 Pendiente -->
+            <div class="content-section" id="pendiente2-content">
+                <h2 class="section-title">⚙️ Opción 2</h2>
+                <p class="section-description">
+                    Esta funcionalidad estará disponible próximamente
+                </p>
+                <div style="text-align: center; padding: 40px;">
+                    <i class="fas fa-tools" style="font-size: 4rem; color: var(--gris-oscuro); margin-bottom: 20px;"></i>
+                    <p style="color: var(--gris-oscuro); font-size: 1.2rem;">En desarrollo</p>
+                </div>
+            </div>
         </div>
-        {% endif %}
     </div>
 
-    <!-- JavaScript para eliminar transacciones -->
+    <!-- JavaScript para eliminar transacciones y slider -->
     <script>
+        // ===== FUNCIONALIDAD DEL SLIDER =====
+        document.addEventListener('DOMContentLoaded', function() {
+            const sliderBtns = document.querySelectorAll('.slider-btn[data-option]');
+            const contentSections = document.querySelectorAll('.content-section');
+            
+            sliderBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // Remover clase active de todos los botones
+                    sliderBtns.forEach(b => b.classList.remove('active'));
+                    // Agregar clase active al botón clickeado
+                    this.classList.add('active');
+                    
+                    const option = this.getAttribute('data-option');
+                    loadSection(option);
+                });
+            });
+            
+            function loadSection(option) {
+                // Ocultar todas las secciones
+                contentSections.forEach(section => {
+                    section.classList.remove('active');
+                });
+                
+                // Mostrar la sección seleccionada
+                const targetSection = document.getElementById(`${option}-content`);
+                if (targetSection) {
+                    targetSection.classList.add('active');
+                }
+            }
+        });
+
+        // ===== FUNCIÓN PARA ELIMINAR TRANSACCIONES =====
         function deleteTransaction(transactionId, description, amount) {
             // Mostrar confirmación
             const confirmMessage = `¿Estás seguro de que deseas eliminar la transacción "${description}" por $${amount.toFixed(2)}?`;

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="{{ session.get('language', 'es') }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CUIDA TU BOLSILLO - App Financiera{% endblock %}</title>
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='unified-style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='sidebar-menu.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='theme-toggle.css') }}">
+    {% block extra_css %}{% endblock %}
+    
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Script para aplicar tema inmediatamente (evitar flash) -->
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
+</head>
+<body>
+    <!-- Botón Hamburger (3 líneas) -->
+    <button id="sidebar-toggle" class="hamburger-btn" aria-label="Abrir menú">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+    
+    <!-- Overlay (sombra sobre el contenido) -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+    
+    <!-- Menú Lateral -->
+    <aside id="sidebar-menu" class="sidebar-menu">
+        <!-- Header del Sidebar -->
+        <div class="sidebar-header">
+            {% if usuario %}
+                {% if usuario.avatar_url %}
+                    <img src="{{ usuario.avatar_url }}" alt="{{ usuario.nombre }}" class="sidebar-logo">
+                {% else %}
+                    <div class="sidebar-logo" style="background: var(--verde-vital); display: flex; align-items: center; justify-content: center; color: var(--blanco); font-size: 2rem; font-weight: bold;">
+                        {{ usuario.nombre[0].upper() if usuario.nombre else 'U' }}
+                    </div>
+                {% endif %}
+                <h3 class="sidebar-user-name">{{ usuario.nombre }}</h3>
+                <p class="sidebar-user-email">{{ usuario.email }}</p>
+                {% if usuario.rol == 'admin' %}
+                    <span class="sidebar-plan-badge premium">Premium</span>
+                {% else %}
+                    <span class="sidebar-plan-badge">Gratis</span>
+                {% endif %}
+            {% else %}
+                <div class="sidebar-logo" style="background: var(--verde-vital); display: flex; align-items: center; justify-content: center; color: var(--blanco); font-size: 2rem; font-weight: bold;">
+                    U
+                </div>
+                <h3 class="sidebar-user-name">Usuario</h3>
+                <p class="sidebar-user-email">No autenticado</p>
+            {% endif %}
+        </div>
+        
+        <!-- Navegación -->
+        <nav class="sidebar-nav">
+            <!-- Menú Principal -->
+            <div class="sidebar-menu-main" id="sidebar-menu-main">
+                <a href="{{ url_for('home') }}" class="sidebar-nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Inicio</span>
+                </a>
+                
+                <button class="sidebar-nav-item sidebar-submenu-trigger" data-submenu="herramientas">
+                    <i class="fas fa-tools"></i>
+                    <span>Herramientas</span>
+                    <i class="fas fa-chevron-right" style="margin-left: auto;"></i>
+                </button>
+                
+                <button class="sidebar-nav-item sidebar-submenu-trigger" data-submenu="quienes-somos">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Quiénes Somos</span>
+                    <i class="fas fa-chevron-right" style="margin-left: auto;"></i>
+                </button>
+                
+                <button class="sidebar-nav-item sidebar-submenu-trigger" data-submenu="configuracion">
+                    <i class="fas fa-cog"></i>
+                    <span>Configuración</span>
+                    <i class="fas fa-chevron-right" style="margin-left: auto;"></i>
+                </button>
+            </div>
+            
+            <!-- Submenú: Herramientas -->
+            <div class="sidebar-submenu" id="sidebar-submenu-herramientas" style="display: none;">
+                <button class="sidebar-submenu-back" data-back-to="main">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Herramientas</span>
+                </button>
+                <div class="sidebar-submenu-content">
+                    <a href="/regla-50-30-20" class="sidebar-nav-item">
+                        <i class="fas fa-balance-scale"></i>
+                        <span>Regla 50-30-20</span>
+                    </a>
+                    <a href="/amortizacion" class="sidebar-nav-item">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Tablas de Amortización</span>
+                    </a>
+                    <a href="/tarjetas-credito" class="sidebar-nav-item">
+                        <i class="fas fa-credit-card"></i>
+                        <span>Tarjetas de Crédito</span>
+                    </a>
+                    {% if usuario and usuario.rol == 'admin' %}
+                    <a href="/control-gastos" class="sidebar-nav-item">
+                        <i class="fas fa-wallet"></i>
+                        <span>Control de Gastos</span>
+                        <span class="sidebar-nav-badge">Admin</span>
+                    </a>
+                    <a href="/admin/dashboard" class="sidebar-nav-item">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Dashboard Admin</span>
+                        <span class="sidebar-nav-badge">Admin</span>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Submenú: Quiénes Somos -->
+            <div class="sidebar-submenu" id="sidebar-submenu-quienes-somos" style="display: none;">
+                <button class="sidebar-submenu-back" data-back-to="main">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Quiénes Somos</span>
+                </button>
+                <div class="sidebar-submenu-content">
+                    <a href="https://www.facebook.com/profile.php?id=61577314299349" class="sidebar-nav-item" id="link-facebook" target="_blank" rel="noopener noreferrer">
+                        <i class="fab fa-facebook"></i>
+                        <span>Facebook</span>
+                    </a>
+                    <a href="https://www.instagram.com/cuidatubolsillo_/" class="sidebar-nav-item" id="link-instagram" target="_blank" rel="noopener noreferrer">
+                        <i class="fab fa-instagram"></i>
+                        <span>Instagram</span>
+                    </a>
+                    <a href="https://cuidatubolsillo20.wixsite.com/cuida-tu-bolsillo" class="sidebar-nav-item" id="link-web" target="_blank" rel="noopener noreferrer">
+                        <i class="fas fa-globe"></i>
+                        <span>Página Web</span>
+                    </a>
+                    <a href="https://nas.io/es-mx/cuida-tu-bolsillo" class="sidebar-nav-item" id="link-comunidad" target="_blank" rel="noopener noreferrer">
+                        <i class="fas fa-users"></i>
+                        <span>Comunidad</span>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Submenú: Configuración -->
+            <div class="sidebar-submenu" id="sidebar-submenu-configuracion" style="display: none;">
+                <button class="sidebar-submenu-back" data-back-to="main">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Configuración</span>
+                </button>
+                <div class="sidebar-submenu-content">
+                    <a href="/configuracion#cuenta" class="sidebar-nav-item">
+                        <i class="fas fa-user"></i>
+                        <span>Cuenta</span>
+                    </a>
+                    <a href="/configuracion#facturacion" class="sidebar-nav-item">
+                        <i class="fas fa-credit-card"></i>
+                        <span>Facturación</span>
+                    </a>
+                    <a href="/configuracion#soporte" class="sidebar-nav-item">
+                        <i class="fas fa-headset"></i>
+                        <span>Soporte</span>
+                    </a>
+                    <button class="sidebar-nav-item" id="theme-toggle">
+                        <i class="fas fa-moon" id="theme-icon"></i>
+                        <span id="theme-text">Modo Oscuro</span>
+                    </button>
+                </div>
+            </div>
+        </nav>
+        
+        <!-- Footer del Sidebar -->
+        <div class="sidebar-footer">
+            <a href="{{ url_for('logout') }}" class="sidebar-footer-item logout">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Cerrar Sesión</span>
+            </a>
+        </div>
+    </aside>
+    
+    <!-- Contenido Principal -->
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- JavaScript -->
+    <script src="{{ url_for('static', filename='sidebar-menu.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
+

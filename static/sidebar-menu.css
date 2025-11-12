@@ -1,0 +1,403 @@
+/* ===== MENÚ LATERAL (SIDEBAR) - CUIDA TU BOLSILLO ===== */
+
+/* Botón Hamburger (3 líneas) */
+.hamburger-btn {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 1001;
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, var(--fondo-oscuro) 0%, var(--fondo-intermedio) 50%, var(--verde-vital) 100%);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    padding: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+.hamburger-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.hamburger-btn span {
+    width: 24px;
+    height: 3px;
+    background: var(--blanco);
+    border-radius: 2px;
+    transition: all 0.3s ease;
+}
+
+.hamburger-btn.active span:nth-child(1) {
+    transform: rotate(45deg) translate(8px, 8px);
+}
+
+.hamburger-btn.active span:nth-child(2) {
+    opacity: 0;
+}
+
+.hamburger-btn.active span:nth-child(3) {
+    transform: rotate(-45deg) translate(8px, -8px);
+}
+
+/* Overlay (sombra sobre el contenido) */
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(2px);
+}
+
+.sidebar-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Menú Lateral */
+.sidebar-menu {
+    position: fixed;
+    top: 0;
+    left: -320px;
+    width: 320px;
+    height: 100%;
+    background: linear-gradient(180deg, var(--fondo-oscuro) 0%, var(--fondo-intermedio) 100%);
+    z-index: 1000;
+    transition: left 0.3s ease;
+    overflow-y: auto;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-menu.active {
+    left: 0;
+}
+
+/* Header del Sidebar */
+.sidebar-header {
+    padding: 30px 20px 20px;
+    background: linear-gradient(135deg, var(--fondo-oscuro) 0%, var(--fondo-intermedio) 50%, var(--verde-vital) 100%);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    text-align: center;
+}
+
+.sidebar-logo {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 15px;
+    border-radius: 50%;
+    border: 3px solid var(--blanco);
+    object-fit: cover;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.sidebar-user-name {
+    color: var(--blanco);
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.sidebar-user-email {
+    color: var(--gris-claro);
+    font-size: 0.9rem;
+    margin: 5px 0 0;
+}
+
+/* Plan Badge */
+.sidebar-plan-badge {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 6px 12px;
+    background: var(--verde-vital);
+    color: var(--blanco);
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.sidebar-plan-badge.premium {
+    background: linear-gradient(135deg, var(--dorado) 0%, #ffed4e 100%);
+    color: var(--texto-oscuro);
+}
+
+/* Navegación del Sidebar */
+.sidebar-nav {
+    flex: 1;
+    padding: 20px 0;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Menú Principal y Submenús */
+.sidebar-menu-main,
+.sidebar-submenu {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.sidebar-menu-main {
+    position: relative;
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.sidebar-submenu {
+    opacity: 0;
+    transform: translateX(100%);
+    display: block !important;
+}
+
+.sidebar-submenu.active {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.sidebar-menu-main.hidden {
+    opacity: 0;
+    transform: translateX(-100%);
+}
+
+/* Botón de Volver Atrás */
+.sidebar-submenu-back {
+    display: flex;
+    align-items: center;
+    padding: 14px 20px;
+    color: var(--blanco);
+    background: rgba(255, 255, 255, 0.05);
+    border: none;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    width: 100%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    gap: 12px;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.sidebar-submenu-back:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-submenu-back i {
+    width: 24px;
+    text-align: center;
+    font-size: 1.1rem;
+}
+
+/* Contenido del Submenú */
+.sidebar-submenu-content {
+    padding: 10px 0;
+}
+
+.sidebar-nav-section {
+    margin-bottom: 30px;
+}
+
+.sidebar-nav-title {
+    color: var(--gris-claro);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 0 20px 10px;
+    margin: 0;
+    font-weight: 600;
+}
+
+.sidebar-nav-item {
+    display: flex;
+    align-items: center;
+    padding: 14px 20px;
+    color: var(--blanco);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+    gap: 12px;
+    width: 100%;
+    background: none;
+    border: none;
+    text-align: left;
+    font-family: inherit;
+    font-size: inherit;
+    cursor: pointer;
+}
+
+.sidebar-nav-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-left-color: var(--verde-vital);
+    padding-left: 25px;
+}
+
+.sidebar-nav-item.active {
+    background: rgba(123, 167, 78, 0.2);
+    border-left-color: var(--verde-vital);
+}
+
+.sidebar-nav-item i {
+    width: 24px;
+    text-align: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.sidebar-nav-item span {
+    flex: 1;
+    font-size: 0.95rem;
+}
+
+/* Botón trigger para submenús */
+.sidebar-submenu-trigger {
+    justify-content: space-between;
+}
+
+.sidebar-submenu-trigger .fa-chevron-right {
+    transition: transform 0.3s ease;
+}
+
+.sidebar-submenu-trigger:hover .fa-chevron-right {
+    transform: translateX(3px);
+}
+
+.sidebar-nav-badge {
+    background: var(--verde-vital);
+    color: var(--blanco);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+/* Divider */
+.sidebar-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 15px 20px;
+}
+
+/* Footer del Sidebar */
+.sidebar-footer {
+    padding: 20px;
+    border-top: 2px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.sidebar-footer-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    color: var(--gris-claro);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    gap: 12px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.sidebar-footer-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--blanco);
+}
+
+.sidebar-footer-item.logout {
+    color: #ff6b6b;
+    margin-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 15px;
+}
+
+.sidebar-footer-item.logout:hover {
+    background: rgba(255, 107, 107, 0.2);
+}
+
+.sidebar-footer-item i {
+    width: 24px;
+    text-align: center;
+}
+
+/* Contenido Principal (ajuste cuando sidebar está abierto) */
+.main-content {
+    transition: margin-left 0.3s ease, padding-left 0.3s ease;
+}
+
+.sidebar-menu.active ~ .main-content {
+    margin-left: 0;
+}
+
+/* Responsive - Desktop */
+@media (min-width: 1024px) {
+    .sidebar-menu {
+        left: -320px;
+    }
+    
+    .sidebar-menu.active {
+        left: 0;
+    }
+    
+    /* En desktop, el contenido puede tener margen si se desea */
+    .sidebar-menu.active ~ .main-content {
+        margin-left: 0; /* O 320px si queremos que el contenido se mueva */
+    }
+}
+
+/* Responsive - Mobile */
+@media (max-width: 768px) {
+    .hamburger-btn {
+        top: 15px;
+        left: 15px;
+        width: 45px;
+        height: 45px;
+    }
+    
+    .sidebar-menu {
+        width: 280px;
+        left: -280px;
+    }
+    
+    .sidebar-header {
+        padding: 25px 15px 15px;
+    }
+    
+    .sidebar-logo {
+        width: 70px;
+        height: 70px;
+    }
+}
+
+/* Scrollbar personalizado para el sidebar */
+.sidebar-menu::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar-menu::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.sidebar-menu::-webkit-scrollbar-thumb {
+    background: var(--verde-vital);
+    border-radius: 3px;
+}
+
+.sidebar-menu::-webkit-scrollbar-thumb:hover {
+    background: var(--verde-vital);
+    opacity: 0.8;
+}
+

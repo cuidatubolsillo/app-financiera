@@ -1,0 +1,479 @@
+{% extends "base.html" %}
+
+{% block title %}Configuración - CUIDA TU BOLSILLO{% endblock %}
+
+{% block extra_css %}
+<style>
+    .config-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 30px 20px;
+    }
+    
+    .config-section {
+        background: var(--blanco);
+        border-radius: 16px;
+        padding: 30px;
+        margin-bottom: 25px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .config-section-title {
+        color: var(--fondo-oscuro);
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid var(--verde-vital);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .config-section-title i {
+        color: var(--verde-vital);
+    }
+    
+    .form-group {
+        margin-bottom: 25px;
+    }
+    
+    .form-label {
+        display: block;
+        color: var(--texto-oscuro);
+        font-weight: 600;
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+    }
+    
+    .form-input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid var(--gris-claro);
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .form-input:focus {
+        outline: none;
+        border-color: var(--verde-vital);
+        box-shadow: 0 0 0 3px rgba(123, 167, 78, 0.1);
+    }
+    
+    .profile-picture-container {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .profile-picture {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid var(--verde-vital);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .profile-picture-placeholder {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--fondo-oscuro) 0%, var(--verde-vital) 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--blanco);
+        font-size: 3rem;
+        font-weight: bold;
+        border: 4px solid var(--verde-vital);
+    }
+    
+    .btn-upload {
+        padding: 10px 20px;
+        background: var(--verde-vital);
+        color: var(--blanco);
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-upload:hover {
+        background: var(--fondo-intermedio);
+        transform: translateY(-2px);
+    }
+    
+    .plan-card {
+        background: linear-gradient(135deg, var(--fondo-oscuro) 0%, var(--fondo-intermedio) 100%);
+        color: var(--blanco);
+        padding: 25px;
+        border-radius: 12px;
+        margin-bottom: 15px;
+    }
+    
+    .plan-card.premium {
+        background: linear-gradient(135deg, var(--dorado) 0%, #ffed4e 100%);
+        color: var(--texto-oscuro);
+    }
+    
+    .plan-name {
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+    
+    .plan-features {
+        list-style: none;
+        padding: 0;
+        margin: 15px 0;
+    }
+    
+    .plan-features li {
+        padding: 8px 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .plan-features li i {
+        color: var(--verde-vital);
+    }
+    
+    .plan-card.premium .plan-features li i {
+        color: var(--fondo-oscuro);
+    }
+    
+    .btn-upgrade {
+        padding: 12px 24px;
+        background: var(--verde-vital);
+        color: var(--blanco);
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        width: 100%;
+        margin-top: 15px;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-upgrade:hover {
+        background: var(--fondo-intermedio);
+        transform: translateY(-2px);
+    }
+    
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 26px;
+    }
+    
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    
+    .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: var(--gris-oscuro);
+        transition: 0.3s;
+        border-radius: 26px;
+    }
+    
+    .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 20px;
+        width: 20px;
+        left: 3px;
+        bottom: 3px;
+        background-color: var(--blanco);
+        transition: 0.3s;
+        border-radius: 50%;
+    }
+    
+    .toggle-switch input:checked + .toggle-slider {
+        background-color: var(--verde-vital);
+    }
+    
+    .toggle-switch input:checked + .toggle-slider:before {
+        transform: translateX(24px);
+    }
+    
+    .email-config-item {
+        background: var(--gris-claro);
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .email-config-item code {
+        background: var(--blanco);
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-family: monospace;
+    }
+    
+    .btn-save {
+        padding: 14px 28px;
+        background: linear-gradient(135deg, var(--fondo-oscuro) 0%, var(--verde-vital) 100%);
+        color: var(--blanco);
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        width: 100%;
+        margin-top: 20px;
+    }
+    
+    .btn-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    
+    .feedback-form textarea {
+        width: 100%;
+        min-height: 150px;
+        padding: 12px;
+        border: 2px solid var(--gris-claro);
+        border-radius: 8px;
+        font-family: inherit;
+        resize: vertical;
+    }
+    
+    .feedback-form textarea:focus {
+        outline: none;
+        border-color: var(--verde-vital);
+        box-shadow: 0 0 0 3px rgba(123, 167, 78, 0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="config-container">
+    <div class="unified-header">
+        <h1>
+            <i class="fas fa-cog"></i>
+            Configuración
+        </h1>
+        <p>Gestiona tu perfil, preferencias y configuración de la cuenta</p>
+    </div>
+    
+    <form method="POST" action="/configuracion" enctype="multipart/form-data">
+        <!-- Sección: Perfil / Cuenta -->
+        <div class="config-section" id="cuenta">
+            <h2 class="config-section-title">
+                <i class="fas fa-user"></i>
+                Cuenta
+            </h2>
+            
+            <div class="profile-picture-container">
+                {% if usuario.avatar_url %}
+                    <img src="{{ usuario.avatar_url }}" alt="{{ usuario.nombre }}" class="profile-picture">
+                {% else %}
+                    <div class="profile-picture-placeholder">
+                        {{ usuario.nombre[0].upper() if usuario.nombre else 'U' }}
+                    </div>
+                {% endif %}
+                <div>
+                    <label for="avatar" class="btn-upload">
+                        <i class="fas fa-upload"></i> Cambiar Foto
+                    </label>
+                    <input type="file" id="avatar" name="avatar" accept="image/*" style="display: none;" onchange="previewImage(this)">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="nombre">Nombre de Usuario</label>
+                <input type="text" id="nombre" name="nombre" class="form-input" value="{{ usuario.nombre }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Correo Electrónico</label>
+                <input type="email" class="form-input" value="{{ usuario.email }}" disabled>
+                <small style="color: var(--gris-oscuro); font-size: 0.85rem;">El correo no se puede modificar</small>
+            </div>
+        </div>
+        
+        <!-- Sección: Plan y Facturación -->
+        <div class="config-section" id="facturacion">
+            <h2 class="config-section-title">
+                <i class="fas fa-crown"></i>
+                Plan y Facturación
+            </h2>
+            
+            {% if usuario.rol == 'admin' %}
+                <div class="plan-card premium">
+                    <div class="plan-name">Plan Premium</div>
+                    <p>Disfruta de todas las funcionalidades sin límites</p>
+                    <ul class="plan-features">
+                        <li><i class="fas fa-check"></i> Análisis de PDF ilimitado</li>
+                        <li><i class="fas fa-check"></i> Acceso a todas las herramientas</li>
+                        <li><i class="fas fa-check"></i> Dashboard de administrador</li>
+                        <li><i class="fas fa-check"></i> Soporte prioritario</li>
+                    </ul>
+                </div>
+            {% else %}
+                <div class="plan-card">
+                    <div class="plan-name">Plan Gratis</div>
+                    <p>Acceso básico a las herramientas financieras</p>
+                    <ul class="plan-features">
+                        <li><i class="fas fa-check"></i> Regla 50-30-20</li>
+                        <li><i class="fas fa-check"></i> Tablas de Amortización</li>
+                        <li><i class="fas fa-check"></i> Tarjetas de Crédito</li>
+                        <li><i class="fas fa-times"></i> Análisis de PDF limitado (50/mes)</li>
+                    </ul>
+                    <button type="button" class="btn-upgrade" onclick="alert('Próximamente: Sistema de planes premium')">
+                        <i class="fas fa-arrow-up"></i> Actualizar a Premium
+                    </button>
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Sección: Correos para Control de Consumos -->
+        <div class="config-section">
+            <h2 class="config-section-title">
+                <i class="fas fa-envelope"></i>
+                Correos para Control de Consumos
+            </h2>
+            
+            <div class="form-group">
+                <label class="form-label">Correo Principal</label>
+                <div class="email-config-item">
+                    <span>{{ usuario.email }}</span>
+                    <code>{{ usuario.email.split('@')[0] }}@mailgun.cuidatubolsillo.com</code>
+                </div>
+                <small style="color: var(--gris-oscuro); font-size: 0.85rem;">
+                    Reenvía tus correos bancarios a esta dirección para procesamiento automático
+                </small>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Correos Adicionales (Próximamente)</label>
+                <input type="email" class="form-input" placeholder="correo@ejemplo.com" disabled>
+                <small style="color: var(--gris-oscuro); font-size: 0.85rem;">Funcionalidad en desarrollo</small>
+            </div>
+        </div>
+        
+        <!-- Sección: Notificaciones -->
+        <div class="config-section">
+            <h2 class="config-section-title">
+                <i class="fas fa-bell"></i>
+                Notificaciones
+            </h2>
+            
+            <div class="form-group" style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <label class="form-label">Notificaciones por Correo</label>
+                    <small style="color: var(--gris-oscuro); display: block; margin-top: 5px;">
+                        Recibe alertas y resúmenes por correo electrónico
+                    </small>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" name="notificaciones_email" {% if usuario.get('notificaciones_email', True) %}checked{% endif %}>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            
+            <div class="form-group" style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <label class="form-label">Resumen Semanal</label>
+                    <small style="color: var(--gris-oscuro); display: block; margin-top: 5px;">
+                        Recibe un resumen de tus finanzas cada semana
+                    </small>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" name="resumen_semanal" {% if usuario.get('resumen_semanal', False) %}checked{% endif %}>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+        
+        <!-- Sección: Idioma -->
+        <div class="config-section">
+            <h2 class="config-section-title">
+                <i class="fas fa-language"></i>
+                Idioma
+            </h2>
+            
+            <div class="form-group">
+                <label class="form-label" for="idioma">Seleccionar Idioma</label>
+                <select id="idioma" name="idioma" class="form-input">
+                    <option value="es" {% if session.get('language', 'es') == 'es' %}selected{% endif %}>Español</option>
+                    <option value="en" {% if session.get('language', 'es') == 'en' %}selected{% endif %}>English</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- Sección: Soporte -->
+        <div class="config-section" id="soporte">
+            <h2 class="config-section-title">
+                <i class="fas fa-headset"></i>
+                Soporte
+            </h2>
+            
+            <div class="form-group">
+                <label class="form-label" for="feedback">Enviar Feedback</label>
+                <textarea id="feedback" name="feedback" class="form-input" placeholder="Comparte tus comentarios, sugerencias o reporta un problema..."></textarea>
+            </div>
+            
+            <button type="submit" name="action" value="send_feedback" class="btn-save">
+                <i class="fas fa-paper-plane"></i> Enviar Feedback
+            </button>
+        </div>
+        
+        <!-- Botón Guardar Cambios -->
+        <button type="submit" name="action" value="save" class="btn-save">
+            <i class="fas fa-save"></i> Guardar Cambios
+        </button>
+    </form>
+</div>
+
+<script>
+function previewImage(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = document.querySelector('.profile-picture') || document.querySelector('.profile-picture-placeholder');
+            if (img) {
+                if (img.classList.contains('profile-picture-placeholder')) {
+                    img.outerHTML = `<img src="${e.target.result}" alt="Preview" class="profile-picture">`;
+                } else {
+                    img.src = e.target.result;
+                }
+            }
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+// Scroll automático a la sección si hay un hash en la URL
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.location.hash) {
+        const hash = window.location.hash.substring(1);
+        const section = document.getElementById(hash);
+        if (section) {
+            setTimeout(() => {
+                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        }
+    }
+});
+</script>
+{% endblock %}
+

@@ -4,42 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simulador de Préstamos - CUIDA TU BOLSILLO</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='unified-style.css') }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #1b2e34;
+            background: linear-gradient(135deg, var(--gris-oscuro) 0%, var(--gris-claro) 50%, var(--blanco) 100%);
             min-height: 100vh;
         }
         
-        /* Colores originales de Gemini */
-        .text-brand-yellow { color: #ffd700; }
-        .bg-brand-dark { background-color: #ffffff; }
-        .bg-brand-green-dark { background-color: #3a5f36; }
-        .bg-brand-green-light { background-color: #7ba74e; }
-        .bg-brand-cyan { background-color: #5cc9d9; }
-        .text-brand-gold { color: #1b2e34; }
-        .border-brand-gray { border-color: #d6d6d6; }
-        .ring-brand-cyan { ring-color: #5cc9d9; }
-        .text-brand-black { color: #06090f; }
-        .text-brand-cyan { color: #5cc9d9; }
+        /* Colores de marca */
+        .text-brand-yellow { color: var(--dorado); }
+        .bg-brand-dark { background-color: var(--blanco); }
+        .bg-brand-green-dark { background-color: var(--fondo-intermedio); }
+        .bg-brand-green-light { background-color: var(--verde-vital); }
+        .bg-brand-cyan { background-color: var(--azul-util); }
+        .text-brand-gold { color: var(--texto-oscuro); }
+        .border-brand-gray { border-color: var(--gris-oscuro); }
+        .ring-brand-cyan { ring-color: var(--azul-util); }
+        .text-brand-black { color: var(--texto-oscuro); }
+        .text-brand-cyan { color: var(--azul-util); }
         
         /* Styling for the details/summary accordion */
         details > summary {
             list-style: none;
             cursor: pointer;
             padding: 1rem;
-            background-color: #1b2e34;
-            color: #ffd700;
+            background-color: var(--fondo-oscuro);
+            color: var(--dorado);
             font-weight: 600;
             border-radius: 0.5rem;
             transition: background-color 0.3s;
         }
         details > summary:hover {
-            background-color: #2c4a55;
+            background-color: var(--fondo-intermedio);
         }
         details > summary::-webkit-details-marker {
             display: none;
@@ -56,50 +59,48 @@
             transform: rotate(90deg);
         }
         .form-input {
-            background-color: #d6d6d6;
-            color: #1b2e34;
+            background-color: var(--gris-claro);
+            color: var(--texto-oscuro);
             border: 2px solid transparent;
         }
         .form-input:focus {
             outline: none;
-            border-color: #5cc9d9;
-            box-shadow: 0 0 0 3px rgba(92, 201, 217, 0.5);
+            border-color: var(--azul-util);
+            box-shadow: 0 0 0 3px rgba(76, 165, 179, 0.5);
         }
         .btn-calculate {
-            background-color: #7ba74e;
+            background-color: var(--verde-vital);
             transition: background-color 0.3s, transform 0.2s;
         }
         .btn-calculate:hover {
-            background-color: #95c763;
+            background-color: var(--fondo-intermedio);
             transform: translateY(-2px);
-        }
-        .back-link {
-            color: #ffd700;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 1.1em;
-            transition: color 0.3s;
-        }
-        .back-link:hover {
-            color: #ffffff;
-            text-decoration: none;
         }
     </style>
 </head>
 <body class="bg-brand-dark text-white p-4 sm:p-6 md:p-8">
 
-    <div class="max-w-7xl mx-auto">
-        <!-- Header con logo y navegación -->
-        <div class="text-center mb-8">
-            <div class="flex justify-center items-center mb-4">
-                <img src="{{ url_for('static', filename='logoCB.png') }}" alt="CUIDA TU BOLSILLO" class="h-20 w-auto object-fit contain">
-            </div>
-            <h1 class="text-3xl md:text-4xl font-bold text-brand-gold">Simulador de Préstamos Comparativo</h1>
-            <p class="text-lg text-brand-black mt-2">Analiza y compara dos escenarios de crédito para tomar la mejor decisión.</p>
-            <a href="/" class="back-link inline-block mt-4">← Volver al menú principal</a>
+    <div class="unified-container">
+        <a href="{{ url_for('home') }}" class="back-btn">
+            <i class="fas fa-arrow-left"></i>
+            Volver al Menú Principal
+        </a>
+
+        <div class="unified-header">
+            <h1>
+                <i class="fas fa-calculator"></i>
+                Simulador de Préstamos Comparativo
+            </h1>
+            <p>Analiza y compara dos escenarios de crédito para tomar la mejor decisión</p>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="unified-content">
+            <h2 class="section-title">🧮 Simulador de Préstamos</h2>
+            <p class="section-description">
+                Compara dos escenarios de préstamo lado a lado y calcula el impacto de abonos adicionales en tus intereses
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8" style="margin-top: 30px;">
             <!-- Simulator 1 -->
             <div id="simulator-1" class="bg-brand-green-dark p-6 rounded-xl shadow-2xl">
                 <h2 class="text-2xl font-bold text-center mb-6 text-brand-cyan">Escenario 1</h2>
@@ -201,6 +202,7 @@
                 </button>
                 <div id="results-2" class="mt-6"></div>
             </div>
+        </div>
         </div>
     </div>
 

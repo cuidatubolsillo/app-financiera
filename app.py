@@ -6,9 +6,12 @@ from datetime import datetime
 from email_parser import EmailParser
 from pdf_analyzer import PDFAnalyzer
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
+import uuid
 from functools import wraps
 from authlib.integrations.flask_client import OAuth
 from sqlalchemy import text
+from sqlalchemy import inspect as sqlalchemy_inspect
 import tempfile
 import os
 
@@ -199,6 +202,86 @@ class MetricasIA(db.Model):
     def __repr__(self):
         return f'<MetricasIA {self.tipo_operacion}: {self.tokens_consumidos} tokens por {self.usuario_id}>'
 
+# Tabla para estados de cuenta analizados
+class EstadosCuenta(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
+    
+    # Campos extraídos del análisis de PDF
+    fecha_corte = db.Column(db.Date, nullable=True)
+    fecha_pago = db.Column(db.Date, nullable=True)
+    cupo_autorizado = db.Column(db.Float, nullable=True)
+    cupo_disponible = db.Column(db.Float, nullable=True)
+    cupo_utilizado = db.Column(db.Float, nullable=True)
+    deuda_anterior = db.Column(db.Float, nullable=True)
+    consumos_debitos = db.Column(db.Float, nullable=True)
+    otros_cargos = db.Column(db.Float, nullable=True)
+    consumos_cargos_totales = db.Column(db.Float, nullable=True)
+    pagos_creditos = db.Column(db.Float, nullable=True)
+    intereses = db.Column(db.Float, nullable=True)
+    deuda_total_pagar = db.Column(db.Float, nullable=True)
+    
+    # Información del banco y tarjeta
+    nombre_banco = db.Column(db.String(100), nullable=True)
+    tipo_tarjeta = db.Column(db.String(100), nullable=True)
+    ultimos_digitos = db.Column(db.String(10), nullable=True)
+    
+    # Campos calculados
+    porcentaje_utilizacion = db.Column(db.Float, nullable=True)
+    
+    # Metadatos
+    fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    archivo_original = db.Column(db.String(200), nullable=True)  # Nombre del archivo PDF original
+    
+    # Relaciones
+    usuario = db.relationship('Usuario', backref=db.backref('estados_cuenta', lazy=True))
+    
+    def __repr__(self):
+        return f'<EstadosCuenta {self.nombre_banco} - {self.tipo_tarjeta} ({self.fecha_corte})>'
+
+# Tabla para consumos detallados de estados de cuenta
+class ConsumosDetalle(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    estado_cuenta_id = db.Column(db.Integer, db.ForeignKey('estados_cuenta.id'), nullable=False)
+    fecha = db.Column(db.Date, nullable=True)
+    descripcion = db.Column(db.String(200), nullable=True)
+    monto = db.Column(db.Float, nullable=True)
+    categoria = db.Column(db.String(50), nullable=True)
+    tipo_transaccion = db.Column(db.String(50), nullable=True)  # 'consumo', 'pago', 'interes', etc.
+    fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    
+    # Relaciones
+    estado_cuenta = db.relationship('EstadosCuenta', backref=db.backref('consumos_detalle', lazy=True))
+    
+    def __repr__(self):
+        return f'<ConsumosDetalle {self.descripcion} - ${self.monto} ({self.fecha})>'
+
+# Tabla para estandarización de bancos
+class BancoEstandarizado(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nombre_estandarizado = db.Column(db.String(100), nullable=False, unique=True)
+    variaciones = db.Column(db.Text, nullable=True)  # JSON con variaciones encontradas
+    pais = db.Column(db.String(50), nullable=True)  # País del banco
+    tipo_banco = db.Column(db.String(20), nullable=True)  # Privado/Público
+    fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    activo = db.Column(db.Boolean, nullable=False, default=True)
+    
+    def __repr__(self):
+        return f'<BancoEstandarizado {self.nombre_estandarizado}>'
+
+# Tabla para estandarización de tipos de tarjeta
+class TipoTarjetaEstandarizado(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nombre_estandarizado = db.Column(db.String(100), nullable=False, unique=True)
+    variaciones = db.Column(db.Text, nullable=True)  # JSON con variaciones encontradas
+    pais = db.Column(db.String(50), nullable=True)  # País de la marca
+    tipo_tarjeta = db.Column(db.String(20), nullable=True)  # Internacional/Nacional
+    fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    activo = db.Column(db.Boolean, nullable=False, default=True)
+    
+    def __repr__(self):
+        return f'<TipoTarjetaEstandarizado {self.nombre_estandarizado}>'
+
 # Decorador para requerir login
 def login_required(f):
     @wraps(f)
@@ -230,6 +313,17 @@ def get_current_user():
     if 'user_id' in session:
         return Usuario.query.get(session['user_id'])
     return None
+
+# Context processor para hacer el usuario disponible en todos los templates
+@app.context_processor
+def inject_user():
+    """
+    Hace que el usuario actual esté disponible en todos los templates
+    """
+    if 'user_id' in session:
+        usuario = get_current_user()
+        return dict(usuario=usuario)
+    return dict(usuario=None)
 
 def verificar_limite_ia(usuario_id, tipo_uso='analisis_pdf'):
     """Verificar si el usuario puede usar IA (no ha excedido su límite)"""
@@ -345,6 +439,271 @@ def registrar_metrica_ia(usuario_id, modelo_ia, tipo_operacion, tokens_consumido
     db.session.add(metrica)
     db.session.commit()
     return metrica
+
+def estandarizar_banco(nombre_banco):
+    """Estandarizar nombre de banco usando base de datos de bancos conocidos"""
+    if not nombre_banco:
+        return None
+    
+    # Limpiar el nombre del banco
+    nombre_limpio = nombre_banco.strip().lower()
+    
+    # Buscar coincidencia exacta
+    banco_existente = BancoEstandarizado.query.filter_by(nombre_estandarizado=nombre_banco).first()
+    if banco_existente:
+        return banco_existente.nombre_estandarizado
+    
+    # Buscar coincidencia parcial inteligente
+    bancos_conocidos = BancoEstandarizado.query.filter(BancoEstandarizado.activo == True).all()
+    
+    for banco_conocido in bancos_conocidos:
+        nombre_conocido = banco_conocido.nombre_estandarizado.lower()
+        
+        # Buscar palabras clave comunes
+        palabras_clave = [
+            "pichincha", "guayaquil", "produbanco", "bolivariano", "internacional",
+            "austro", "machala", "solidario", "rumiñahui", "loja", "manabí",
+            "coopnacional", "procredit", "amazonas", "d-miro", "finca", "delbank",
+            "visionfund", "fucer", "lhv", "citibank", "china", "icbc", "opportunity",
+            "diners", "pacífico", "biess", "banecuador", "desarrollo", "cfn",
+            "jep", "jardín", "azuayo", "policía", "nacional", "alianza", "valle",
+            "sagrario", "octubre", "cooprogreso"
+        ]
+        
+        for palabra in palabras_clave:
+            if palabra in nombre_limpio and palabra in nombre_conocido:
+                return banco_conocido.nombre_estandarizado
+    
+    # Si no existe, crear nuevo registro
+    nuevo_banco = BancoEstandarizado(
+        nombre_estandarizado=nombre_banco,
+        variaciones=f'["{nombre_banco}"]',
+        pais="Ecuador"  # Por defecto Ecuador
+    )
+    db.session.add(nuevo_banco)
+    db.session.commit()
+    
+    return nombre_banco
+
+def estandarizar_tipo_tarjeta(tipo_tarjeta):
+    """Estandarizar tipo de tarjeta usando base de datos de tipos conocidos"""
+    if not tipo_tarjeta:
+        return None
+    
+    # Limpiar el nombre de la tarjeta
+    tipo_limpio = tipo_tarjeta.strip().lower()
+    
+    # Buscar coincidencia exacta
+    tipo_existente = TipoTarjetaEstandarizado.query.filter_by(nombre_estandarizado=tipo_tarjeta).first()
+    if tipo_existente:
+        return tipo_existente.nombre_estandarizado
+    
+    # Buscar coincidencia parcial inteligente
+    tipos_conocidos = TipoTarjetaEstandarizado.query.filter(TipoTarjetaEstandarizado.activo == True).all()
+    
+    for tipo_conocido in tipos_conocidos:
+        nombre_conocido = tipo_conocido.nombre_estandarizado.lower()
+        
+        # Buscar palabras clave comunes
+        palabras_clave = [
+            "visa", "mastercard", "american express", "diners", "discover", "titanium"
+        ]
+        
+        for palabra in palabras_clave:
+            if palabra in tipo_limpio and palabra in nombre_conocido:
+                return tipo_conocido.nombre_estandarizado
+    
+    # Si no existe, crear nuevo registro
+    nuevo_tipo = TipoTarjetaEstandarizado(
+        nombre_estandarizado=tipo_tarjeta,
+        variaciones=f'["{tipo_tarjeta}"]',
+        pais="Ecuador"  # Por defecto Ecuador
+    )
+    db.session.add(nuevo_tipo)
+    db.session.commit()
+    
+    return tipo_tarjeta
+
+def inicializar_bancos_oficiales():
+    """Inicializar la base de datos con los bancos oficiales de Ecuador"""
+    bancos_oficiales = [
+        # Bancos Privados
+        {"nombre": "Banco Pichincha C.A.", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco Guayaquil S.A.", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Produbanco S.A.", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco Bolivariano C.A.", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco Internacional S.A.", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco del Austro S.A.", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco de Machala S.A.", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco Solidario S.A.", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco General Rumiñahui S.A.", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco de Loja S.A.", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco Comercial de Manabí S.A.", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco CoopNacional S.A.", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco ProCredit S.A.", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco Amazonas S.A.", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco D-MIRO S.A.", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco Finca S.A.", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco Delbank S.A.", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco VisionFund Ecuador S.A.", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco de Desarrollo (Banco FUCER)", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "LHV Bank", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Citibank N.A.", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Bank of China", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "ICBC", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Opportunity Bank", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Diners Club", "pais": "Ecuador", "tipo": "Privado"},
+        
+        # Bancos Públicos
+        {"nombre": "Banco del Pacífico S.A.", "pais": "Ecuador", "tipo": "Público"},
+        {"nombre": "Biess", "pais": "Ecuador", "tipo": "Público"},
+        {"nombre": "BanEcuador B.P.", "pais": "Ecuador", "tipo": "Público"},
+        {"nombre": "Banco de Desarrollo del Ecuador B.P.", "pais": "Ecuador", "tipo": "Público"},
+        {"nombre": "Corporación Financiera Nacional", "pais": "Ecuador", "tipo": "Público"},
+        
+        # Cooperativas (Emisoras de Tarjetas)
+        {"nombre": "Cooperativa JEP (Jardín Azuayo)", "pais": "Ecuador", "tipo": "Cooperativa"},
+        {"nombre": "Cooperativa Policía Nacional", "pais": "Ecuador", "tipo": "Cooperativa"},
+        {"nombre": "Cooperativa Alianza del Valle", "pais": "Ecuador", "tipo": "Cooperativa"},
+        {"nombre": "Cooperativa El Sagrario", "pais": "Ecuador", "tipo": "Cooperativa"},
+        {"nombre": "Cooperativa 29 de Octubre", "pais": "Ecuador", "tipo": "Cooperativa"},
+        {"nombre": "Cooprogreso", "pais": "Ecuador", "tipo": "Cooperativa"},
+    ]
+    
+    for banco_data in bancos_oficiales:
+        banco_existente = BancoEstandarizado.query.filter_by(nombre_estandarizado=banco_data["nombre"]).first()
+        if not banco_existente:
+            nuevo_banco = BancoEstandarizado(
+                nombre_estandarizado=banco_data["nombre"],
+                variaciones=f'["{banco_data["nombre"]}"]',
+                pais=banco_data["pais"],
+                tipo_banco=banco_data["tipo"]
+            )
+            db.session.add(nuevo_banco)
+    
+    db.session.commit()
+    print("Bancos oficiales de Ecuador inicializados")
+
+def inicializar_marcas_tarjetas():
+    """Inicializar la base de datos con las marcas oficiales de tarjetas"""
+    marcas_oficiales = [
+        {"nombre": "Visa", "pais": "Ecuador", "tipo": "Internacional"},
+        {"nombre": "Mastercard", "pais": "Ecuador", "tipo": "Internacional"},
+        {"nombre": "American Express", "pais": "Ecuador", "tipo": "Internacional"},
+        {"nombre": "Diners Club", "pais": "Ecuador", "tipo": "Internacional"},
+        {"nombre": "Discover", "pais": "Ecuador", "tipo": "Internacional"},
+        {"nombre": "Titanium", "pais": "Ecuador", "tipo": "Nacional"},
+    ]
+    
+    for marca_data in marcas_oficiales:
+        marca_existente = TipoTarjetaEstandarizado.query.filter_by(nombre_estandarizado=marca_data["nombre"]).first()
+        if not marca_existente:
+            nueva_marca = TipoTarjetaEstandarizado(
+                nombre_estandarizado=marca_data["nombre"],
+                variaciones=f'["{marca_data["nombre"]}"]',
+                pais=marca_data["pais"],
+                tipo_tarjeta=marca_data["tipo"]
+            )
+            db.session.add(nueva_marca)
+    
+    db.session.commit()
+    print("Marcas oficiales de tarjetas inicializadas")
+
+def guardar_estado_cuenta(usuario_id, datos_analisis, archivo_original=None, extraer_movimientos_detallados=True):
+    try:
+        # Calcular porcentaje de utilización si es posible
+        porcentaje_utilizacion = None
+        if datos_analisis.get('cupo_autorizado') and datos_analisis.get('cupo_utilizado'):
+            porcentaje_utilizacion = (datos_analisis['cupo_utilizado'] / datos_analisis['cupo_autorizado']) * 100
+        
+        # Convertir fechas string a date objects
+        fecha_corte = None
+        fecha_pago = None
+        
+        if datos_analisis.get('fecha_corte'):
+            try:
+                from datetime import datetime
+                fecha_corte = datetime.strptime(datos_analisis['fecha_corte'], '%d/%m/%Y').date()
+            except ValueError:
+                print(f"Error parseando fecha_corte: {datos_analisis['fecha_corte']}")
+        
+        if datos_analisis.get('fecha_pago'):
+            try:
+                from datetime import datetime
+                fecha_pago = datetime.strptime(datos_analisis['fecha_pago'], '%d/%m/%Y').date()
+            except ValueError:
+                print(f"Error parseando fecha_pago: {datos_analisis['fecha_pago']}")
+        
+        # Crear nuevo estado de cuenta
+        estado_cuenta = EstadosCuenta(
+            usuario_id=usuario_id,
+            fecha_corte=fecha_corte,
+            fecha_pago=fecha_pago,
+            cupo_autorizado=datos_analisis.get('cupo_autorizado') or 0.00,
+            cupo_disponible=datos_analisis.get('cupo_disponible') or 0.00,
+            cupo_utilizado=datos_analisis.get('cupo_utilizado') or 0.00,
+            deuda_anterior=datos_analisis.get('deuda_anterior') or 0.00,
+            consumos_debitos=datos_analisis.get('consumos_debitos') or 0.00,
+            otros_cargos=datos_analisis.get('otros_cargos') or 0.00,
+            consumos_cargos_totales=datos_analisis.get('consumos_cargos_totales') or 0.00,
+            pagos_creditos=datos_analisis.get('pagos_creditos') or 0.00,
+            intereses=datos_analisis.get('intereses') or 0.00,
+            deuda_total_pagar=datos_analisis.get('deuda_total_pagar') or 0.00,
+            nombre_banco=estandarizar_banco(datos_analisis.get('nombre_banco')),
+            tipo_tarjeta=estandarizar_tipo_tarjeta(datos_analisis.get('tipo_tarjeta')),
+            ultimos_digitos=datos_analisis.get('ultimos_digitos'),
+            porcentaje_utilizacion=porcentaje_utilizacion,
+            archivo_original=archivo_original
+        )
+        
+        db.session.add(estado_cuenta)
+        db.session.flush()  # Para obtener el ID del estado de cuenta
+        
+        # Guardar movimientos detallados si están disponibles
+        movimientos_guardados = 0
+        if extraer_movimientos_detallados and 'movimientos_detallados' in datos_analisis:
+            movimientos_detallados = datos_analisis['movimientos_detallados']
+            
+            for movimiento_data in movimientos_detallados:
+                try:
+                    # Convertir fecha string a date si es necesario
+                    fecha_movimiento = None
+                    if movimiento_data.get('fecha'):
+                        try:
+                            from datetime import datetime
+                            fecha_movimiento = datetime.strptime(movimiento_data['fecha'], '%d/%m/%Y').date()
+                        except ValueError:
+                            # Si no se puede parsear, dejar como None
+                            pass
+                    
+                    # Crear consumo detallado
+                    consumo_detalle = ConsumosDetalle(
+                        estado_cuenta_id=estado_cuenta.id,
+                        fecha=fecha_movimiento,
+                        descripcion=movimiento_data.get('descripcion', ''),
+                        monto=movimiento_data.get('monto', 0),
+                        categoria=movimiento_data.get('categoria', 'Otros'),
+                        tipo_transaccion=movimiento_data.get('tipo_transaccion', 'otro')
+                    )
+                    
+                    db.session.add(consumo_detalle)
+                    movimientos_guardados += 1
+                    
+                except Exception as e:
+                    print(f"Error guardando movimiento individual: {e}")
+                    continue
+        
+        db.session.commit()
+        
+        print(f"Estado de cuenta guardado: {estado_cuenta.nombre_banco} - {estado_cuenta.tipo_tarjeta}")
+        print(f"Movimientos detallados guardados: {movimientos_guardados}")
+        
+        return estado_cuenta
+        
+    except Exception as e:
+        print(f"Error guardando estado de cuenta: {e}")
+        db.session.rollback()
+        raise e
 
 @app.route('/')
 def home():
@@ -591,6 +950,98 @@ def tarjetas_credito():
     """
     return render_template('tarjetas_credito.html')
 
+@app.route('/historial-estados-cuenta')
+@login_required
+def historial_estados_cuenta():
+    """
+    Historial de estados de cuenta analizados
+    """
+    try:
+        usuario_actual = get_current_user()
+        
+        # Obtener estados de cuenta del usuario ordenados por fecha de corte (más reciente primero)
+        estados_cuenta = EstadosCuenta.query.filter_by(usuario_id=usuario_actual.id).order_by(
+            EstadosCuenta.fecha_corte.desc(),
+            EstadosCuenta.fecha_creacion.desc()
+        ).all()
+        
+        # Calcular estadísticas
+        total_estados = len(estados_cuenta)
+        bancos_unicos = len(set(estado.nombre_banco for estado in estados_cuenta if estado.nombre_banco))
+        tarjetas_unicas = len(set(f"{estado.nombre_banco} - {estado.tipo_tarjeta}" for estado in estados_cuenta if estado.nombre_banco and estado.tipo_tarjeta))
+        
+        # Calcular deuda total actual (último estado de cada tarjeta)
+        deuda_total_actual = 0
+        tarjetas_procesadas = set()
+        
+        for estado in estados_cuenta:
+            tarjeta_key = f"{estado.nombre_banco}-{estado.tipo_tarjeta}"
+            if tarjeta_key not in tarjetas_procesadas and estado.deuda_total_pagar:
+                deuda_total_actual += estado.deuda_total_pagar
+                tarjetas_procesadas.add(tarjeta_key)
+        
+        return render_template('historial_estados_cuenta.html',
+                             usuario=usuario_actual,
+                             estados_cuenta=estados_cuenta,
+                             total_estados=total_estados,
+                             bancos_unicos=bancos_unicos,
+                             tarjetas_unicas=tarjetas_unicas,
+                             deuda_total_actual=deuda_total_actual)
+    
+    except Exception as e:
+        print(f"Error en historial_estados_cuenta: {e}")
+        flash(f'Error cargando historial: {str(e)}', 'error')
+        return redirect(url_for('tarjetas_credito'))
+
+@app.route('/api/eliminar-estado-cuenta/<int:estado_id>', methods=['DELETE'])
+@login_required
+def eliminar_estado_cuenta(estado_id):
+    """Eliminar un estado de cuenta y sus consumos detallados"""
+    try:
+        usuario_actual = get_current_user()
+        
+        # Buscar el estado de cuenta
+        estado = EstadosCuenta.query.filter_by(id=estado_id, usuario_id=usuario_actual.id).first()
+        
+        if not estado:
+            return jsonify({'success': False, 'message': 'Estado de cuenta no encontrado'}), 404
+        
+        # Eliminar primero los consumos detallados
+        ConsumosDetalle.query.filter_by(estado_cuenta_id=estado_id).delete()
+        
+        # Eliminar el estado de cuenta
+        db.session.delete(estado)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Estado de cuenta eliminado correctamente'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error al eliminar: {str(e)}'}), 500
+
+@app.route('/api/limpiar-todos-estados', methods=['DELETE'])
+@login_required
+def limpiar_todos_estados():
+    """Limpiar todos los estados de cuenta del usuario (para pruebas)"""
+    try:
+        usuario_actual = get_current_user()
+        
+        # Eliminar todos los consumos detallados del usuario
+        estados_ids = [estado.id for estado in EstadosCuenta.query.filter_by(usuario_id=usuario_actual.id).all()]
+        if estados_ids:
+            ConsumosDetalle.query.filter(ConsumosDetalle.estado_cuenta_id.in_(estados_ids)).delete()
+        
+        # Eliminar todos los estados de cuenta del usuario
+        EstadosCuenta.query.filter_by(usuario_id=usuario_actual.id).delete()
+        
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Todos los estados de cuenta han sido eliminados'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error al limpiar: {str(e)}'}), 500
+
 @app.route('/analizar-pdf', methods=['GET', 'POST'])
 @login_required
 def analizar_pdf():
@@ -634,9 +1085,9 @@ def analizar_pdf():
                 temp_path = temp_file.name
             
             try:
-                # Analizar el PDF con Claude (solo método texto)
+                # Analizar el PDF con Claude (análisis completo con movimientos detallados)
                 analyzer = PDFAnalyzer()
-                resultado = analyzer.analizar_estado_cuenta(temp_path)
+                resultado = analyzer.analizar_estado_cuenta(temp_path, extraer_movimientos_detallados=True)
                 
                 # Debug: mostrar el resultado crudo
                 print(f"DEBUG - Resultado crudo: {resultado}")
@@ -803,6 +1254,50 @@ def api_track_metric_batch():
         print(f"Error en api_track_metric_batch: {e}")
         return jsonify({'status': 'error', 'message': str(e)})
 
+@app.route('/api/guardar-estado-cuenta', methods=['POST'])
+@login_required
+def api_guardar_estado_cuenta():
+    """
+    API endpoint para guardar un estado de cuenta analizado con análisis completo
+    """
+    try:
+        usuario_actual = get_current_user()
+        if not usuario_actual:
+            return jsonify({'status': 'error', 'message': 'Usuario no autenticado'})
+        
+        # Obtener datos del request
+        data = request.get_json()
+        if not data or 'datos_analisis' not in data:
+            return jsonify({'status': 'error', 'message': 'No se recibieron datos de análisis'})
+        
+        datos_analisis = data['datos_analisis']
+        archivo_original = data.get('archivo_original', None)
+        
+        # Los datos ya vienen completos del análisis inicial
+        # No necesitamos re-analizar el PDF
+        print(f"DEBUG - Guardando estado de cuenta con datos completos")
+        print(f"DEBUG - Movimientos disponibles: {len(datos_analisis.get('movimientos_detallados', []))}")
+        
+        # Guardar el estado de cuenta con movimientos detallados
+        estado_cuenta = guardar_estado_cuenta(usuario_actual.id, datos_analisis, archivo_original, extraer_movimientos_detallados=True)
+        
+        # Contar movimientos guardados
+        movimientos_count = ConsumosDetalle.query.filter_by(estado_cuenta_id=estado_cuenta.id).count()
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Estado de cuenta guardado exitosamente con {movimientos_count} movimientos detallados',
+            'estado_cuenta_id': estado_cuenta.id,
+            'banco': estado_cuenta.nombre_banco,
+            'tarjeta': estado_cuenta.tipo_tarjeta,
+            'fecha_corte': estado_cuenta.fecha_corte.isoformat() if estado_cuenta.fecha_corte else None,
+            'movimientos_guardados': movimientos_count
+        })
+        
+    except Exception as e:
+        print(f"Error en api_guardar_estado_cuenta: {e}")
+        return jsonify({'status': 'error', 'message': str(e)})
+
 @app.route('/admin/dashboard')
 @admin_required
 def admin_dashboard():
@@ -896,6 +1391,141 @@ def admin_dashboard():
         flash(f'Error cargando dashboard: {str(e)}', 'error')
         return redirect(url_for('home'))
 
+@app.route('/admin/inicializar-bancos')
+@login_required
+@admin_required
+def inicializar_bancos_admin():
+    """Inicializar bancos oficiales desde el admin"""
+    try:
+        inicializar_bancos_oficiales()
+        inicializar_marcas_tarjetas()
+        flash('✅ Bancos y marcas de tarjetas oficiales inicializados correctamente', 'success')
+    except Exception as e:
+        flash(f'❌ Error inicializando bancos: {str(e)}', 'error')
+    
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/bancos')
+@login_required
+@admin_required
+def admin_bancos():
+    """Gestión de bancos desde el admin"""
+    usuario_actual = Usuario.query.get(session['user_id'])
+    bancos = BancoEstandarizado.query.order_by(BancoEstandarizado.nombre_estandarizado).all()
+    return render_template('admin_bancos.html', usuario=usuario_actual, bancos=bancos)
+
+@app.route('/control-pagos-tarjetas')
+@login_required
+def control_pagos_tarjetas():
+    """Control de pagos de tarjetas de crédito con filtros dinámicos"""
+    usuario_actual = Usuario.query.get(session['user_id'])
+    
+    # Obtener parámetros de filtro de la URL
+    mes_filtro = request.args.get('mes', '')
+    banco_filtro = request.args.get('banco', '')
+    tarjeta_filtro = request.args.get('tarjeta', '')
+    
+    # Construir query base
+    query = EstadosCuenta.query.filter_by(usuario_id=usuario_actual.id)
+    
+    # Aplicar filtros
+    if mes_filtro:
+        # Convertir YYYY-MM a fecha de inicio y fin del mes
+        year, month = mes_filtro.split('-')
+        fecha_inicio = datetime(int(year), int(month), 1).date()
+        if int(month) == 12:
+            fecha_fin = datetime(int(year) + 1, 1, 1).date()
+        else:
+            fecha_fin = datetime(int(year), int(month) + 1, 1).date()
+        
+        query = query.filter(EstadosCuenta.fecha_corte >= fecha_inicio, EstadosCuenta.fecha_corte < fecha_fin)
+    
+    if banco_filtro:
+        query = query.filter(EstadosCuenta.nombre_banco == banco_filtro)
+    
+    if tarjeta_filtro:
+        query = query.filter(EstadosCuenta.tipo_tarjeta == tarjeta_filtro)
+    
+    # Obtener estados de cuenta filtrados
+    estados_cuenta = query.order_by(EstadosCuenta.fecha_corte.desc()).all()
+    
+    # Obtener bancos únicos para filtros (todos los disponibles)
+    bancos_unicos = db.session.query(EstadosCuenta.nombre_banco).filter_by(usuario_id=usuario_actual.id).distinct().all()
+    bancos_unicos = [banco[0] for banco in bancos_unicos if banco[0]]
+    
+    # Obtener tarjetas únicas para filtros (todas las disponibles)
+    tarjetas_unicas = db.session.query(EstadosCuenta.tipo_tarjeta).filter_by(usuario_id=usuario_actual.id).distinct().all()
+    tarjetas_unicas = [tarjeta[0] for tarjeta in tarjetas_unicas if tarjeta[0]]
+    
+    # Obtener meses únicos para filtros (todos los disponibles)
+    fechas_corte = db.session.query(EstadosCuenta.fecha_corte).filter_by(usuario_id=usuario_actual.id).distinct().order_by(EstadosCuenta.fecha_corte.desc()).all()
+    meses_corte = []
+    for fecha in fechas_corte:
+        if fecha[0]:
+            mes_anio = fecha[0].strftime('%Y-%m')
+            if mes_anio not in meses_corte:
+                meses_corte.append(mes_anio)
+    
+    # Calcular estadísticas generales (solo de los estados filtrados)
+    total_deuda = sum(estado.deuda_total_pagar for estado in estados_cuenta if estado.deuda_total_pagar)
+    total_pagos_minimos = sum(estado.deuda_total_pagar * 0.1 for estado in estados_cuenta if estado.deuda_total_pagar)  # Asumiendo 10% mínimo
+    
+    # Estadísticas por categoría (usando consumos detallados de estados filtrados)
+    categorias_stats = {}
+    for estado in estados_cuenta:
+        for consumo in estado.consumos_detalle:
+            categoria = consumo.categoria or 'Sin categoría'
+            if categoria not in categorias_stats:
+                categorias_stats[categoria] = {'total': 0, 'cantidad': 0}
+            categorias_stats[categoria]['total'] += consumo.monto or 0
+            categorias_stats[categoria]['cantidad'] += 1
+    
+    # Crear tabla pivot de movimientos detallados (solo de estados filtrados)
+    movimientos_pivot = {}
+    tarjetas_columnas = []
+    
+    # Recopilar todos los movimientos y organizarlos por descripción
+    for estado in estados_cuenta:
+        tarjeta_key = f"{estado.tipo_tarjeta}-{estado.ultimos_digitos}"
+        if tarjeta_key not in tarjetas_columnas:
+            tarjetas_columnas.append(tarjeta_key)
+        
+        for consumo in estado.consumos_detalle:
+            descripcion = consumo.descripcion or 'Sin descripción'
+            monto = consumo.monto or 0
+            
+            if descripcion not in movimientos_pivot:
+                movimientos_pivot[descripcion] = {}
+            
+            if tarjeta_key not in movimientos_pivot[descripcion]:
+                movimientos_pivot[descripcion][tarjeta_key] = 0
+            
+            movimientos_pivot[descripcion][tarjeta_key] += monto
+    
+    return render_template('control_pagos_tarjetas.html',
+                         usuario=usuario_actual,
+                         estados_cuenta=estados_cuenta,
+                         bancos_unicos=bancos_unicos,
+                         tarjetas_unicas=tarjetas_unicas,
+                         meses_corte=meses_corte,
+                         total_deuda=total_deuda,
+                         total_pagos_minimos=total_pagos_minimos,
+                         categorias_stats=categorias_stats,
+                         movimientos_pivot=movimientos_pivot,
+                         tarjetas_columnas=tarjetas_columnas,
+                         mes_filtro_actual=mes_filtro,
+                         banco_filtro_actual=banco_filtro,
+                         tarjeta_filtro_actual=tarjeta_filtro)
+
+@app.route('/admin/tarjetas')
+@login_required
+@admin_required
+def admin_tarjetas():
+    """Gestión de tarjetas desde el admin"""
+    usuario_actual = Usuario.query.get(session['user_id'])
+    tarjetas = TipoTarjetaEstandarizado.query.order_by(TipoTarjetaEstandarizado.nombre_estandarizado).all()
+    return render_template('admin_tarjetas.html', usuario=usuario_actual, tarjetas=tarjetas)
+
 @app.route('/regla-50-30-20')
 @login_required
 def regla_50_30_20():
@@ -903,6 +1533,75 @@ def regla_50_30_20():
     Planificador de flujo de caja con regla 50-30-20
     """
     return render_template('regla_50_30_20.html')
+
+@app.route('/configuracion', methods=['GET', 'POST'])
+@login_required
+def configuracion():
+    """
+    Página de configuración del usuario
+    """
+    usuario = get_current_user()
+    
+    if request.method == 'POST':
+        action = request.form.get('action', 'save')
+        
+        if action == 'send_feedback':
+            # Enviar feedback (por ahora solo flash, después se puede guardar en DB)
+            feedback = request.form.get('feedback', '')
+            if feedback:
+                flash('¡Gracias por tu feedback! Lo revisaremos pronto.', 'success')
+            else:
+                flash('Por favor, escribe tu feedback antes de enviar.', 'error')
+            return redirect(url_for('configuracion'))
+        
+        # Guardar cambios
+        try:
+            # Actualizar nombre
+            nuevo_nombre = request.form.get('nombre', '').strip()
+            if nuevo_nombre and nuevo_nombre != usuario.nombre:
+                usuario.nombre = nuevo_nombre
+            
+            # Manejar upload de avatar
+            if 'avatar' in request.files:
+                file = request.files['avatar']
+                if file and file.filename:
+                    # Validar que sea una imagen
+                    if file.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
+                        # Generar nombre único
+                        filename = secure_filename(file.filename)
+                        unique_filename = f"{uuid.uuid4()}_{filename}"
+                        
+                        # Guardar en carpeta static/uploads (crear si no existe)
+                        upload_folder = os.path.join('static', 'uploads', 'avatars')
+                        os.makedirs(upload_folder, exist_ok=True)
+                        
+                        filepath = os.path.join(upload_folder, unique_filename)
+                        file.save(filepath)
+                        
+                        # Guardar URL relativa en la base de datos
+                        usuario.avatar_url = url_for('static', filename=f'uploads/avatars/{unique_filename}')
+            
+            # Actualizar idioma (guardar en sesión y opcionalmente en DB)
+            idioma = request.form.get('idioma', 'es')
+            session['language'] = idioma
+            
+            # Guardar notificaciones (si existen campos en DB, sino solo en sesión)
+            notificaciones_email = request.form.get('notificaciones_email') == 'on'
+            resumen_semanal = request.form.get('resumen_semanal') == 'on'
+            session['notificaciones_email'] = notificaciones_email
+            session['resumen_semanal'] = resumen_semanal
+            
+            db.session.commit()
+            flash('¡Configuración guardada exitosamente!', 'success')
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error guardando configuración: {e}")
+            flash('Error al guardar la configuración. Inténtalo de nuevo.', 'error')
+        
+        return redirect(url_for('configuracion'))
+    
+    # GET - Mostrar página de configuración
+    return render_template('configuracion.html', usuario=usuario)
 
 @app.route('/add', methods=['GET', 'POST'])
 @admin_required
@@ -1374,6 +2073,46 @@ def delete_transaction(transaction_id):
             'status': 'error',
             'message': f'Error eliminando transacción: {str(e)}'
         }), 500
+
+def ensure_avatar_url_column():
+    """
+    Asegura que la columna avatar_url existe en la tabla usuario.
+    Se ejecuta automáticamente al iniciar la aplicación.
+    """
+    try:
+        with app.app_context():
+            # Verificar si la columna existe usando SQL directo
+            # Esto funciona tanto en SQLite como en PostgreSQL
+            try:
+                result = db.session.execute(text("SELECT avatar_url FROM usuario LIMIT 1"))
+                result.fetchone()
+                print("Columna avatar_url ya existe.")
+            except Exception:
+                # La columna no existe, crearla
+                print("Columna avatar_url no existe. Creándola...")
+                try:
+                    # Para PostgreSQL
+                    db.session.execute(text("ALTER TABLE usuario ADD COLUMN avatar_url VARCHAR(200)"))
+                    db.session.commit()
+                    print("Columna avatar_url creada exitosamente.")
+                except Exception as e:
+                    # Si falla, intentar con SQLite syntax
+                    try:
+                        db.session.execute(text("ALTER TABLE usuario ADD COLUMN avatar_url TEXT"))
+                        db.session.commit()
+                        print("Columna avatar_url creada exitosamente (SQLite).")
+                    except Exception as e2:
+                        print(f"Error creando columna avatar_url: {e2}")
+                        db.session.rollback()
+    except Exception as e:
+        print(f"Error verificando/creando columna avatar_url: {e}")
+        # No fallar la aplicación si hay error, solo loguear
+
+# Ejecutar al iniciar la aplicación (solo si hay contexto de aplicación)
+try:
+    ensure_avatar_url_column()
+except Exception:
+    pass  # Si no hay contexto aún, se ejecutará después
 
 if __name__ == '__main__':
     # Solo para desarrollo local

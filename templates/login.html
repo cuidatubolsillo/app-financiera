@@ -8,7 +8,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0a2e22 0%, #1e543b 50%, #7ba74e 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -40,13 +40,22 @@
         .logo-section {
             text-align: center;
             margin-bottom: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .logo-section .logo-wrapper {
+            margin-bottom: 15px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
         }
         
         .logo-section img {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            margin-bottom: 15px;
+            width: 120px;
+            height: auto;
+            object-fit: contain;
         }
         
         .logo-section h2 {
@@ -237,7 +246,9 @@
 <body>
     <div class="login-container">
         <div class="logo-section">
-            <img src="{{ url_for('static', filename='logoCB.png') }}" alt="Logo">
+            <div class="logo-wrapper">
+                <img src="{{ url_for('static', filename='logoCB.png') }}" alt="Logo">
+            </div>
             <h2>App Financiera</h2>
             <p>Control automático de tarjetas</p>
         </div>

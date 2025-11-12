@@ -4,55 +4,46 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Regla 50-30-20 - CUIDA TU BOLSILLO</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='unified-style.css') }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        /* Paleta de colores de la marca */
-        :root {
-            --brand-dark-green: #1f3d2a;
-            --brand-medium-green: #355b37;
-            --brand-light-green: #7ba753;
-            --brand-bright-green: #4caf50;
-            --brand-accent-yellow: #fdd835;
-            --brand-dark-slate: #2f4f4f;
-            --brand-light-gray: #f0f0f0;
-            --brand-medium-gray: #ababab;
-            --brand-dark-text: #06090f;
-            --brand-white: #ffffff;
-            --brand-negative-red: #b91c1c;
-        }
-
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #1b2e34;
+            background: linear-gradient(135deg, var(--gris-oscuro) 0%, var(--gris-claro) 50%, var(--blanco) 100%);
             min-height: 100vh;
         }
         
-        /* Colores originales de Gemini */
-        .text-brand-yellow { color: #ffd700; }
-        .bg-brand-dark { background-color: #ffffff; }
-        .bg-brand-green-dark { background-color: #3a5f36; }
-        .bg-brand-green-light { background-color: #7ba74e; }
-        .bg-brand-cyan { background-color: #5cc9d9; }
-        .text-brand-gold { color: #1b2e34; }
-        .border-brand-gray { border-color: #d6d6d6; }
-        .ring-brand-cyan { ring-color: #5cc9d9; }
-        .text-brand-black { color: #06090f; }
-        .text-brand-cyan { color: #5cc9d9; }
+        /* Colores de marca - usando variables del unified-style.css */
+        .text-brand-yellow { color: var(--dorado); }
+        .bg-brand-dark { background-color: var(--blanco); }
+        .bg-brand-green-dark { background-color: var(--fondo-intermedio); }
+        .bg-brand-green-light { background-color: var(--verde-vital); }
+        .bg-brand-cyan { background-color: var(--azul-util); }
+        .text-brand-gold { color: var(--texto-oscuro); }
+        .border-brand-gray { border-color: var(--gris-oscuro); }
+        .ring-brand-cyan { ring-color: var(--azul-util); }
+        .text-brand-black { color: var(--texto-oscuro); }
+        .text-brand-cyan { color: var(--azul-util); }
         
-        .back-link {
-            color: #ffd700;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 1.1em;
-            transition: color 0.3s;
-        }
-        .back-link:hover {
-            color: #ffffff;
-            text-decoration: none;
+        /* Variables específicas para regla 50-30-20 */
+        :root {
+            --brand-dark-green: var(--fondo-oscuro);
+            --brand-medium-green: var(--fondo-intermedio);
+            --brand-light-green: var(--verde-vital);
+            --brand-bright-green: #4caf50;
+            --brand-accent-yellow: var(--dorado);
+            --brand-dark-slate: #2f4f4f;
+            --brand-light-gray: var(--gris-claro);
+            --brand-medium-gray: var(--gris-oscuro);
+            --brand-dark-text: var(--texto-oscuro);
+            --brand-white: var(--blanco);
+            --brand-negative-red: #b91c1c;
         }
         
         /* ===== RESPONSIVE DESIGN PARA MÓVIL ===== */
@@ -407,12 +398,41 @@
             width: 100%;
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
+            position: relative;
         }
+        
+        /* Indicadores de scroll en móvil */
+        .table-container::before,
+        .table-container::after {
+            content: '';
+            position: sticky;
+            top: 0;
+            width: 20px;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .table-container::before {
+                left: 0;
+                background: linear-gradient(to right, rgba(255,255,255,0.9), transparent);
+                display: block;
+            }
+            .table-container::after {
+                right: 0;
+                background: linear-gradient(to left, rgba(255,255,255,0.9), transparent);
+                display: block;
+            }
+        }
+        
         table {
             width: 100%;
             border-collapse: separate;
             border-spacing: 0;
             table-layout: fixed;
+            min-width: 100%;
         }
         th, td {
             padding: 12px 16px;
@@ -426,14 +446,262 @@
             position: sticky;
             top: 0;
             z-index: 10;
+            white-space: nowrap;
+            font-size: 0.9rem;
         }
+        
+        /* Headers de meses - más visibles y con z-index bajo para que pasen por debajo */
+        th:not(.category-col) {
+            min-width: 100px;
+            text-align: center;
+            font-size: 0.85rem;
+            padding: 10px 8px;
+            z-index: 1;
+            /* Mantener position: sticky pero con z-index bajo */
+        }
+        
         .category-col {
             position: sticky;
             left: 0;
             background-color: var(--brand-white);
-            z-index: 20;
+            z-index: 9999 !important;
             font-weight: 500;
             width: 250px;
+            min-width: 250px;
+            /* Asegurar que oculte el contenido que pasa por debajo */
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+            /* Fondo completamente opaco para ocultar contenido - se hereda de las clases de fila */
+            /* Asegurar que el contenido interno no se desborde */
+            overflow: visible;
+        }
+        
+        /* Pseudo-elemento invisible que extiende el fondo para ocultar contenido */
+        .category-col::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 100%;
+            width: 30px;
+            height: 100%;
+            background: inherit;
+            z-index: 10001 !important;
+            pointer-events: none;
+        }
+        
+        /* Asegurar que el contenido interno no se desborde del ancho de la columna */
+        .category-col > * {
+            max-width: 250px;
+            overflow: visible;
+        }
+        
+        /* Headers de la columna fija también deben ocultar contenido */
+        th.category-col {
+            z-index: 10000 !important;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+            background-color: var(--brand-medium-green) !important;
+            width: 250px;
+            min-width: 250px;
+            overflow: visible;
+        }
+        
+        th.category-col::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 100%;
+            width: 30px;
+            height: 100%;
+            background: var(--brand-medium-green) !important;
+            z-index: 10002 !important;
+            pointer-events: none;
+        }
+        
+        /* Asegurar que las filas de ingresos y egresos tengan el fondo correcto */
+        .income-row .category-col {
+            background-color: rgba(123, 167, 83, 0.3) !important;
+        }
+        
+        .income-row .category-col::after {
+            background: rgba(123, 167, 83, 0.3) !important;
+        }
+        
+        .expense-row .category-col {
+            background-color: rgba(171, 171, 171, 0.3) !important;
+        }
+        
+        .expense-row .category-col::after {
+            background: rgba(171, 171, 171, 0.3) !important;
+        }
+        
+        .total-income-row .category-col {
+            background-color: var(--brand-light-green) !important;
+        }
+        
+        .total-income-row .category-col::after {
+            background: var(--brand-light-green) !important;
+        }
+        
+        .total-expense-row .category-col {
+            background-color: var(--brand-medium-gray) !important;
+        }
+        
+        .total-expense-row .category-col::after {
+            background: var(--brand-medium-gray) !important;
+        }
+        
+        .net-row .category-col {
+            background-color: var(--brand-dark-slate) !important;
+        }
+        
+        .net-row .category-col::after {
+            background: var(--brand-dark-slate) !important;
+        }
+        
+        /* Asegurar que las celdas de datos NO tengan position que cree stacking context */
+        td:not(.category-col) {
+            /* NO usar position: relative aquí porque crea stacking context */
+            z-index: auto;
+        }
+        
+        /* Asegurar que las celdas editables NO interfieran con la columna fija */
+        .editable-cell-container {
+            z-index: auto !important;
+        }
+        
+        /* El input dentro debe estar por debajo también */
+        .value-cell {
+            position: relative;
+            z-index: auto !important;
+        }
+        
+        /* Asegurar que TODAS las celdas de datos estén por debajo */
+        table td:not(.category-col),
+        table th:not(.category-col) {
+            z-index: 0 !important;
+        }
+        
+        /* Asegurar que los inputs también estén por debajo */
+        .value-cell,
+        input[type="number"] {
+            z-index: 0 !important;
+        }
+        
+        /* Asegurar que los contenedores editables también estén por debajo */
+        td:not(.category-col) .editable-cell-container {
+            z-index: 0 !important;
+        }
+        
+        /* En móvil, reducir ancho de columna fija pero mantener espacio para combobox */
+        @media (max-width: 768px) {
+            .category-col {
+                width: 160px;
+                min-width: 160px;
+                font-size: 0.85rem;
+            }
+            
+            .category-col::after {
+                width: 25px;
+            }
+            
+            .category-col > * {
+                max-width: 160px;
+            }
+            
+            th.category-col {
+                width: 160px;
+                min-width: 160px;
+            }
+            
+            th.category-col::after {
+                width: 25px;
+            }
+            
+            .category-col > div {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
+            
+            .category-col span {
+                font-size: 0.8rem;
+                line-height: 1.3;
+            }
+            
+            /* Asegurar que el combobox se vea bien */
+            .rule-selector {
+                width: 100%;
+                font-size: 0.75rem;
+                padding: 8px 24px 8px 8px;
+                min-width: 100%;
+                border: 1px solid var(--gris-oscuro);
+                border-radius: 4px;
+                background-color: var(--blanco);
+            }
+            
+            .rule-selector:focus {
+                outline: 2px solid var(--verde-vital);
+                outline-offset: 2px;
+            }
+            
+            /* Asegurar que el div del category-col tenga espacio suficiente */
+            .category-col > div {
+                min-height: 44px; /* Touch target mínimo */
+            }
+            
+            /* Headers de meses más grandes y visibles */
+            th:not(.category-col) {
+                min-width: 90px;
+                font-size: 0.9rem;
+                font-weight: 700;
+                padding: 12px 6px;
+                letter-spacing: 0.5px;
+            }
+            
+            /* Números más grandes y legibles */
+            .value-cell {
+                font-size: 1rem !important;
+                font-weight: 600;
+                padding: 10px 8px !important;
+                min-height: 2.5em !important;
+                text-align: center;
+            }
+            
+            /* Celdas de totales más grandes */
+            td[data-total] {
+                font-size: 1rem !important;
+                font-weight: 700;
+                padding: 12px 8px !important;
+                text-align: center;
+            }
+            
+            /* Ajustar padding general en móvil */
+            th, td {
+                padding: 10px 8px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .category-col {
+                width: 140px;
+                min-width: 140px;
+                font-size: 0.8rem;
+            }
+            
+            th:not(.category-col) {
+                min-width: 85px;
+                font-size: 0.85rem;
+                padding: 10px 4px;
+            }
+            
+            .value-cell {
+                font-size: 0.95rem !important;
+                padding: 8px 6px !important;
+            }
+            
+            td[data-total] {
+                font-size: 0.95rem !important;
+                padding: 10px 6px !important;
+            }
         }
         .category-col > div {
             display: flex;
@@ -455,8 +723,6 @@
         }
         .income-row { background-color: rgba(123, 167, 83, 0.15); color: var(--brand-dark-green); }
         .expense-row { background-color: rgba(171, 171, 171, 0.15); color: var(--brand-dark-text); }
-        .income-row .category-col { background-color: rgba(123, 167, 83, 0.3); }
-        .expense-row .category-col { background-color: rgba(171, 171, 171, 0.3); }
         
         .total-income-row, .total-expense-row, .net-row { font-weight: 700; }
         .total-income-row { background-color: var(--brand-light-green); color: var(--brand-white); }
@@ -539,7 +805,17 @@
             background-color: var(--brand-medium-green);
         }
 
-        .editable-cell-container { position: relative; padding: 0 !important; }
+        .editable-cell-container { 
+            position: relative; 
+            padding: 0 !important;
+            /* Asegurar que NO tenga z-index alto que interfiera */
+            z-index: 1 !important;
+        }
+        
+        /* Cuando NO está en la columna fija, asegurar z-index bajo */
+        td:not(.category-col) .editable-cell-container {
+            z-index: 1 !important;
+        }
         .value-cell { 
             padding: 12px 28px 12px 16px; 
             min-height: 2.75em; 
@@ -559,23 +835,27 @@
     </style>
 </head>
 <body class="bg-brand-dark text-white p-4 sm:p-6 md:p-8">
-    <div class="max-w-7xl mx-auto">
-        <!-- Header con logo y navegación -->
-        <div class="text-center mb-8">
-            <div class="flex justify-center items-center mb-4">
-                <img src="{{ url_for('static', filename='logoCB.png') }}" alt="CUIDA TU BOLSILLO" class="h-20 w-auto object-fit contain">
-            </div>
-            <h1 class="text-3xl md:text-4xl font-bold text-brand-gold">Regla 50-30-20</h1>
-            <p class="text-lg text-brand-black mt-2">Distribuye tus ingresos de manera inteligente: 50% necesidades, 30% deseos, 20% ahorros.</p>
-            <a href="/" class="back-link inline-block mt-4">← Volver al menú principal</a>
+    <div class="unified-container">
+        <a href="{{ url_for('home') }}" class="back-btn">
+            <i class="fas fa-arrow-left"></i>
+            Volver al Menú Principal
+        </a>
+
+        <div class="unified-header">
+            <h1>
+                <i class="fas fa-chart-pie"></i>
+                Regla 50-30-20
+            </h1>
+            <p>Distribuye tus ingresos de manera inteligente: 50% necesidades, 30% deseos, 20% ahorros</p>
         </div>
 
-        <div class="max-w-7xl mx-auto rounded-2xl shadow-lg p-6 md:p-8 main-container">
-            <header class="mb-6">
-                <h2 class="text-2xl font-bold header-title">Planificador de Flujo de Caja Futuro</h2>
-                <p class="mt-2 header-subtitle">Ordena tus finanzas y coloca los valores lo más cercano a la realidad posible. Haz clic en cualquier celda de valor para editarla.</p>
-            </header>
+        <div class="unified-content">
+            <h2 class="section-title">📊 Planificador de Flujo de Caja Futuro</h2>
+            <p class="section-description">
+                Ordena tus finanzas y coloca los valores lo más cercano a la realidad posible. Haz clic en cualquier celda de valor para editarla.
+            </p>
 
+        <div class="max-w-7xl mx-auto rounded-2xl shadow-lg p-6 md:p-8 main-container" style="background: var(--blanco); margin-top: 20px;">
         <!-- Controles de Simulación -->
         <div class="p-4 rounded-lg mb-6 controls-background">
             <div class="flex items-center justify-center gap-6 mb-4">
@@ -589,8 +869,8 @@
                 </label>
             </div>
             <div id="period-controls" class="flex items-center justify-center gap-4">
-                 <label class="font-medium text-slate-600">Mes de Inicio: <select id="start-month-select" class="rule-selector"></select></label>
-                 <label class="font-medium text-slate-600">Mes de Fin: <select id="end-month-select" class="rule-selector"></select></label>
+                 <label class="font-medium text-slate-600">Mes Inicio: <select id="start-month-select" class="rule-selector"></select></label>
+                 <label class="font-medium text-slate-600">Mes Fin: <select id="end-month-select" class="rule-selector"></select></label>
             </div>
              <div id="single-month-controls" class="hidden flex items-center justify-center gap-4">
                  <label class="font-medium text-slate-600">Seleccionar Mes: <select id="single-month-select" class="rule-selector"></select></label>
@@ -612,6 +892,7 @@
         <footer class="mt-6 text-center text-sm text-slate-400">
             <p>Una herramienta para visualizar tu salud financiera y planificar tus ahorros o inversiones.</p>
         </footer>
+        </div>
         </div>
     </div>
 
@@ -772,15 +1053,34 @@
                 }
                 
                 const numMonths = monthsToDisplay.length;
-                if (!isSingleMode && numMonths > 6) {
-                    const monthColMinWidth = 140; 
-                    table.style.width = `calc(250px + ${numMonths * monthColMinWidth}px)`;
+                
+                // Calcular ancho dinámico según número de meses y tamaño de pantalla
+                const isMobile = window.innerWidth <= 768;
+                const categoryColWidth = isMobile ? 160 : 250;
+                
+                // Ancho mínimo por columna según dispositivo
+                let monthColMinWidth;
+                if (isMobile) {
+                    monthColMinWidth = numMonths <= 3 ? 100 : (numMonths <= 6 ? 90 : 85);
+                } else {
+                    monthColMinWidth = numMonths <= 6 ? 120 : (numMonths <= 12 ? 100 : 90);
+                }
+                
+                // Calcular ancho total de la tabla
+                const totalWidth = categoryColWidth + (numMonths * monthColMinWidth);
+                const viewportWidth = window.innerWidth;
+                
+                if (totalWidth > viewportWidth || numMonths > 6) {
+                    table.style.width = `${totalWidth}px`;
                 } else {
                     table.style.width = '100%'; 
                 }
+                
+                // Aplicar ancho mínimo a cada columna de mes
+                const monthColStyle = `min-width: ${monthColMinWidth}px; width: ${monthColMinWidth}px;`;
 
                 monthsToDisplay.forEach(monthIndex => {
-                    html += `<th class="text-center">${monthNames[monthIndex].substring(0,3)}</th>`;
+                    html += `<th class="text-center" style="${monthColStyle}">${monthNames[monthIndex].substring(0,3)}</th>`;
                 });
                 html += '</tr></thead><tbody>';
 
@@ -788,12 +1088,12 @@
                 incomeCategories.forEach(cat => {
                     html += `<tr class="income-row"><td class="category-col"><div><span>${cat}</span></div></td>`;
                     monthsToDisplay.forEach(monthIndex => {
-                        html += `<td class="editable-cell-container"><input type="number" class="value-cell" data-type="income" data-col="${monthIndex}" data-row-cat="${cat}" value="0" inputmode="numeric" pattern="[0-9]*"><button class="fill-btn" title="Rellenar hacia la derecha">➔</button></td>`;
+                        html += `<td class="editable-cell-container" style="min-width: ${monthColMinWidth}px; width: ${monthColMinWidth}px;"><input type="number" class="value-cell" data-type="income" data-col="${monthIndex}" data-row-cat="${cat}" value="0" inputmode="numeric" pattern="[0-9]*"><button class="fill-btn" title="Rellenar hacia la derecha">➔</button></td>`;
                     });
                     html += '</tr>';
                 });
                 html += `<tr class="total-income-row"><td class="category-col">Total Ingresos</td>`;
-                monthsToDisplay.forEach(monthIndex => html += `<td data-total="income" data-col="${monthIndex}">${formatter.format(0)}</td>`);
+                monthsToDisplay.forEach(monthIndex => html += `<td data-total="income" data-col="${monthIndex}" style="min-width: ${monthColMinWidth}px; width: ${monthColMinWidth}px;">${formatter.format(0)}</td>`);
                 html += '</tr>';
 
                 html += `<tr><td colspan="${monthsToDisplay.length + 1}" style="background-color: var(--brand-medium-gray); color: var(--brand-dark-text);" class="font-semibold">EGRESOS</td></tr>`;
@@ -823,16 +1123,16 @@
                         html += `<td class="category-col"><div><span>${cat}</span>${ruleSelectorHtml}</div></td>`;
                     }
                     monthsToDisplay.forEach(monthIndex => {
-                         html += `<td class="editable-cell-container"><input type="number" class="value-cell" data-type="expense" data-col="${monthIndex}" data-row-cat="${cat}" value="0" inputmode="numeric" pattern="[0-9]*"><button class="fill-btn" title="Rellenar hacia la derecha">➔</button></td>`;
+                         html += `<td class="editable-cell-container" style="min-width: ${monthColMinWidth}px; width: ${monthColMinWidth}px;"><input type="number" class="value-cell" data-type="expense" data-col="${monthIndex}" data-row-cat="${cat}" value="0" inputmode="numeric" pattern="[0-9]*"><button class="fill-btn" title="Rellenar hacia la derecha">➔</button></td>`;
                     });
                     html += '</tr>';
                 });
                 html += `<tr class="total-expense-row"><td class="category-col">Total Egresos</td>`;
-                monthsToDisplay.forEach(monthIndex => html += `<td data-total="expense" data-col="${monthIndex}">${formatter.format(0)}</td>`);
+                monthsToDisplay.forEach(monthIndex => html += `<td data-total="expense" data-col="${monthIndex}" style="min-width: ${monthColMinWidth}px; width: ${monthColMinWidth}px;">${formatter.format(0)}</td>`);
                 html += '</tr>';
 
                 html += `<tr class="net-row"><td class="category-col">NETO</td>`;
-                monthsToDisplay.forEach(monthIndex => html += `<td data-total="net" data-col="${monthIndex}">${formatter.format(0)}</td>`);
+                monthsToDisplay.forEach(monthIndex => html += `<td data-total="net" data-col="${monthIndex}" style="min-width: ${monthColMinWidth}px; width: ${monthColMinWidth}px;">${formatter.format(0)}</td>`);
                 html += '</tr>';
 
                 html += '</tbody>';
@@ -1027,6 +1327,16 @@
 
             setupControls();
             render();
+            
+            // Recalcular tabla cuando cambie el tamaño de la ventana
+            let resizeTimeout;
+            window.addEventListener('resize', function() {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(function() {
+                    // Re-renderizar la tabla con nuevos anchos
+                    render();
+                }, 250);
+            });
         });
     </script>
 </body>

@@ -223,8 +223,9 @@
 
 .menu-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    background: white;
     border-color: #7ba74e;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15), 0 0 0 3px rgba(123, 167, 78, 0.1);
 }
 
 .menu-card:hover::before {
@@ -232,13 +233,41 @@
 }
 
 .menu-icon {
-    font-size: 4em;
+    font-size: 3.5em;
     margin-bottom: 20px;
     transition: transform 0.3s ease;
+    color: #0a2e22 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: float-subtle 4s ease-in-out infinite;
+}
+
+.menu-icon i {
+    font-size: 1em;
+    color: #0a2e22 !important;
+}
+
+/* Asegurar que todos los iconos tengan el color verde oscuro */
+.menu-card .menu-icon,
+.menu-card .menu-icon i,
+.menu-card .menu-icon *,
+.menu-card .menu-icon .fas,
+.menu-card .menu-icon .fa,
+.menu-icon .fas,
+.menu-icon .fa {
+    color: #0a2e22 !important;
+    fill: #0a2e22 !important;
 }
 
 .menu-card:hover .menu-icon {
-    transform: scale(1.1);
+    transform: scale(1.1) !important;
+    color: #7ba74e !important;
+    animation: none !important; /* Detener animación en hover */
+}
+
+.menu-card:hover .menu-icon i {
+    color: #7ba74e !important;
 }
 
 .menu-card h3 {
@@ -299,6 +328,14 @@
     pointer-events: none;
 }
 
+.menu-card.disabled .menu-icon {
+    color: #0a2e22 !important;
+}
+
+.menu-card.disabled .menu-icon i {
+    color: #0a2e22 !important;
+}
+
 .menu-card.disabled:hover {
     transform: none;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
@@ -310,37 +347,45 @@
     100% { transform: scale(1); }
 }
 
-/* Colores específicos para cada tarjeta */
+/* Colores específicos para cada tarjeta - Bordes eliminados, hover unificado */
 .control-gastos {
-    border-left: 5px solid #28a745;
+    /* Sin borde coloreado */
 }
 
 .control-gastos:hover {
-    background: linear-gradient(135deg, #7ba74e 0%, #4ca5b3 100%);
+    background: white;
+    border-color: #7ba74e;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15), 0 0 0 3px rgba(123, 167, 78, 0.1);
 }
 
 .presupuesto {
-    border-left: 5px solid #007bff;
+    /* Sin borde coloreado */
 }
 
 .presupuesto:hover {
-    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    background: white;
+    border-color: #7ba74e;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15), 0 0 0 3px rgba(123, 167, 78, 0.1);
 }
 
 .regla-50-30-20 {
-    border-left: 5px solid #ffc107;
+    /* Sin borde coloreado */
 }
 
 .regla-50-30-20:hover {
-    background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
+    background: white;
+    border-color: #7ba74e;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15), 0 0 0 3px rgba(123, 167, 78, 0.1);
 }
 
 .amortizacion {
-    border-left: 5px solid #dc3545;
+    /* Sin borde coloreado */
 }
 
 .amortizacion:hover {
-    background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+    background: white;
+    border-color: #7ba74e;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15), 0 0 0 3px rgba(123, 167, 78, 0.1);
 }
 
 /* Footer de la app */
@@ -815,28 +860,28 @@
 
 /* ===== ESTILOS ESPECÍFICOS PARA ANÁLISIS DE PDF ===== */
 
-/* Tarjeta de análisis de PDF */
+/* Tarjeta de análisis de PDF - Cambiada a blanco como el resto */
 .menu-card.tarjetas-credito {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: 2px solid #5a67d8;
+    background: white;
+    color: #0a2e22;
+    border: 1px solid #e0e0e0;
 }
 
 .menu-card.tarjetas-credito:hover {
-    background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
-    border-color: #4c51bf;
-    transform: translateY(-8px) scale(1.02);
-    box-shadow: 0 12px 30px rgba(102, 126, 234, 0.3);
+    background: white;
+    border-color: #7ba74e;
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15), 0 0 0 3px rgba(123, 167, 78, 0.1);
 }
 
 .menu-card.tarjetas-credito h3 {
-    color: white;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    color: #0a2e22;
+    text-shadow: none;
 }
 
 .menu-card.tarjetas-credito p {
-    color: rgba(255, 255, 255, 0.9);
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    color: #1e543b;
+    text-shadow: none;
 }
 
 /* Badge para nueva funcionalidad */
@@ -858,24 +903,38 @@
     opacity: 1;
 }
 
-/* Icono de tarjetas con animación */
+/* Icono de tarjetas - usa la animación general */
 .menu-card.tarjetas-credito .menu-icon {
-    animation: float 3s ease-in-out infinite;
+    color: #0a2e22 !important;
+    /* La animación float-subtle ya está aplicada en .menu-icon general */
 }
 
-@keyframes float {
+.menu-card.tarjetas-credito .menu-icon i {
+    color: #0a2e22 !important;
+}
+
+.menu-card.tarjetas-credito:hover .menu-icon {
+    color: #7ba74e !important;
+    animation: none !important; /* Detener animación en hover */
+}
+
+.menu-card.tarjetas-credito:hover .menu-icon i {
+    color: #7ba74e !important;
+}
+
+@keyframes float-subtle {
     0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
+    50% { transform: translateY(-4px); }
 }
 
 /* Responsive para la nueva tarjeta */
 @media (max-width: 768px) {
     .menu-card.tarjetas-credito {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: white;
     }
     
     .menu-card.tarjetas-credito:hover {
-        transform: translateY(-5px) scale(1.01);
+        transform: translateY(-5px);
     }
 }
 
@@ -963,25 +1022,15 @@
     }
 }
 
-/* Icono de administrador con efecto especial */
+/* Icono de administrador - usa la misma animación sutil que las demás */
 .menu-card.admin-dashboard .menu-icon {
-    animation: adminFloat 4s ease-in-out infinite;
+    animation: float-subtle 4s ease-in-out infinite;
     text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    color: #0a2e22 !important;
 }
 
-@keyframes adminFloat {
-    0%, 100% { 
-        transform: translateY(0px) rotate(0deg);
-    }
-    25% { 
-        transform: translateY(-8px) rotate(2deg);
-    }
-    50% { 
-        transform: translateY(-12px) rotate(0deg);
-    }
-    75% { 
-        transform: translateY(-8px) rotate(-2deg);
-    }
+.menu-card.admin-dashboard .menu-icon i {
+    color: #0a2e22 !important;
 }
 
 /* Efecto de partículas para el dashboard */
