@@ -1,0 +1,1090 @@
+================================================================================
+ESTRUCTURA DE BASE DE DATOS - SISTEMA DE TARJETAS DE CRÉDITO Y ESTADOS DE CUENTA
+================================================================================
+
+Fecha de generación: 2025-01-XX
+Sistema: App Financiera - Análisis de Estados de Cuenta con IA
+
+================================================================================
+ÍNDICE
+================================================================================
+
+1. TABLA: usuario
+2. TABLA: estados_cuenta
+3. TABLA: consumos_detalle
+4. TABLA: banco_estandarizado
+5. TABLA: tipo_tarjeta_estandarizado
+6. TABLA: transaccion
+7. TABLA: uso_ia
+8. TABLA: metricas_herramientas
+9. TABLA: metricas_ia
+10. RELACIONES ENTRE TABLAS
+11. FLUJO DE ANÁLISIS DE PDF
+12. DATOS EXTRAÍDOS DEL PDF
+
+================================================================================
+1. TABLA: usuario
+================================================================================
+
+DESCRIPCIÓN:
+Tabla principal que almacena la información de los usuarios del sistema.
+
+CAMPOS:
+--------
+- id (Integer, Primary Key)
+  Descripción: Identificador único del usuario
+  Tipo: Integer, Auto-incremento
+  Nullable: No
+
+- username (String(80), Unique)
+  Descripción: Nombre de usuario (opcional para OAuth)
+  Tipo: String, máximo 80 caracteres
+  Nullable: Sí (para usuarios OAuth)
+  Unique: Sí
+
+- email (String(120), Unique)
+  Descripción: Correo electrónico del usuario
+  Tipo: String, máximo 120 caracteres
+  Nullable: No
+  Unique: Sí
+
+- password_hash (String(120))
+  Descripción: Hash de la contraseña (opcional para OAuth)
+  Tipo: String, máximo 120 caracteres
+  Nullable: Sí (para usuarios OAuth)
+
+- nombre (String(100))
+  Descripción: Nombre completo del usuario
+  Tipo: String, máximo 100 caracteres
+  Nullable: No
+
+- fecha_registro (DateTime)
+  Descripción: Fecha y hora de registro del usuario
+  Tipo: DateTime
+  Nullable: No
+  Default: datetime.utcnow
+
+- activo (Boolean)
+  Descripción: Indica si el usuario está activo
+  Tipo: Boolean
+  Nullable: No
+  Default: True
+
+- oauth_provider (String(50))
+  Descripción: Proveedor OAuth utilizado ('google', 'microsoft', 'local')
+  Tipo: String, máximo 50 caracteres
+  Nullable: Sí
+
+- oauth_id (String(100))
+  Descripción: ID del usuario en el proveedor OAuth
+  Tipo: String, máximo 100 caracteres
+  Nullable: Sí
+
+- is_admin (Boolean)
+  Descripción: Indica si el usuario es administrador
+  Tipo: Boolean
+  Nullable: No
+  Default: False
+
+- daily_ai_limit (Integer)
+  Descripción: Límite diario de uso de IA (999999 para admin)
+  Tipo: Integer
+  Nullable: No
+  Default: 100
+
+- avatar_url (String(200))
+  Descripción: URL del avatar del usuario
+  Tipo: String, máximo 200 caracteres
+  Nullable: Sí
+
+- rol (String(20))
+  Descripción: Rol del usuario ('admin', 'usuario')
+  Tipo: String, máximo 20 caracteres
+  Nullable: No
+  Default: 'usuario'
+
+RELACIONES:
+-----------
+- estados_cuenta: Uno a muchos (un usuario tiene muchos estados de cuenta)
+- consumos_detalle: Indirecta a través de estados_cuenta
+- transacciones: Uno a muchos (un usuario tiene muchas transacciones)
+- usos_ia: Uno a muchos (un usuario tiene muchos usos de IA)
+- metricas_herramientas: Uno a muchos
+- metricas_ia: Uno a muchos
+
+================================================================================
+2. TABLA: estados_cuenta
+================================================================================
+
+DESCRIPCIÓN:
+Tabla principal que almacena los estados de cuenta analizados de tarjetas de crédito.
+Cada registro representa un estado de cuenta completo extraído de un PDF.
+
+CAMPOS:
+--------
+- id (Integer, Primary Key)
+  Descripción: Identificador único del estado de cuenta
+  Tipo: Integer, Auto-incremento
+  Nullable: No
+
+- usuario_id (Integer, Foreign Key -> usuario.id)
+  Descripción: ID del usuario propietario del estado de cuenta
+  Tipo: Integer
+  Nullable: No
+  Foreign Key: usuario.id
+
+CAMPOS EXTRAÍDOS DEL ANÁLISIS DE PDF:
+-------------------------------------
+- fecha_corte (Date)
+  Descripción: Fecha de corte del estado de cuenta
+  Tipo: Date
+  Nullable: Sí
+  Formato: DD/MM/YYYY (convertido a Date object)
+  Visible: Sí
+  Orden: 1
+  Agrupación: Grupo 1 (Fechas)
+
+- fecha_inicio_periodo (Date)
+  Descripción: Fecha de inicio del periodo del estado de cuenta (fecha "desde" o "inicio periodo")
+  Tipo: Date
+  Nullable: Sí
+  Formato: DD/MM/YYYY (convertido a Date object)
+  Visible: Sí
+  Orden: 2
+  Agrupación: Grupo 1 (Fechas)
+  Nota: Nuevo campo agregado para identificar el inicio del periodo que cubre el estado de cuenta
+
+- fecha_pago (Date)
+  Descripción: Fecha límite de pago
+  Tipo: Date
+  Nullable: Sí
+  Formato: DD/MM/YYYY (convertido a Date object)
+  Visible: Sí
+  Orden: 3
+  Agrupación: Grupo 1 (Fechas)
+
+- cupo_autorizado (Float)
+  Descripción: Cupo total autorizado de la tarjeta
+  Tipo: Float
+  Nullable: Sí
+  Ejemplo: 5000.00
+  Visible: Sí
+  Orden: 5
+  Agrupación: Grupo 2 (Cupos)
+
+- cupo_disponible (Float)
+  Descripción: Cupo disponible para usar
+  Tipo: Float
+  Nullable: Sí
+  Ejemplo: 2500.00
+  Visible: Sí
+  Orden: 6
+  Agrupación: Grupo 2 (Cupos)
+
+- cupo_utilizado (Float)
+  Descripción: Cupo utilizado actualmente
+  Tipo: Float
+  Nullable: Sí
+  Ejemplo: 2500.00
+  Visible: Sí
+  Orden: 7
+  Agrupación: Grupo 2 (Cupos)
+
+- deuda_anterior (Float)
+  Descripción: Deuda arrastrada de períodos anteriores
+  Tipo: Float
+  Nullable: Sí
+  Default: 0.00
+  Visible: Sí
+  Orden: (en Grupo 3)
+  Agrupación: Grupo 3 (Totales y Pagos)
+  Nota: Movido del Grupo 1 al Grupo 3 según nueva organización
+
+- consumos_debitos (Float)
+  Descripción: Total de consumos en el período (locales + internacionales)
+  Tipo: Float
+  Nullable: Sí
+  Default: 0.00
+  Visible: No (no se muestra en frontend)
+  Nota: Solo consumos de la sección principal, NO incluye otros cargos
+
+- otros_cargos (Float)
+  Descripción: Cargos adicionales (seguros, tarifas, cargos automáticos)
+  Tipo: Float
+  Nullable: Sí
+  Default: 0.00
+  Visible: No (no se muestra en frontend)
+  Nota: NO incluye consumos principales
+
+- consumos_cargos_totales (Float)
+  Descripción: Suma total de consumos_debitos + otros_cargos
+  Tipo: Float
+  Nullable: Sí
+  Default: 0.00
+  Fórmula: consumos_debitos + otros_cargos
+  Visible: Sí
+  Orden: 8
+  Agrupación: Grupo 3 (Totales y Pagos)
+
+- pagos_creditos (Float)
+  Descripción: Total de pagos realizados en el período
+  Tipo: Float
+  Nullable: Sí
+  Default: 0.00
+  Visible: No (no se muestra en frontend)
+
+- intereses (Float)
+  Descripción: Intereses generados en el período
+  Tipo: Float
+  Nullable: Sí
+  Default: 0.00
+  Visible: Sí
+  Orden: 9
+  Agrupación: Grupo 3 (Totales y Pagos)
+
+- minimo_a_pagar (Float)
+  Descripción: Pago mínimo requerido
+  Tipo: Float
+  Nullable: Sí
+  Default: 0.00
+  Visible: Sí
+  Orden: (después de intereses)
+  Agrupación: Grupo 3 (Totales y Pagos)
+  Nota: Nuevo campo agregado para el pago mínimo requerido
+
+- deuda_total_pagar (Float)
+  Descripción: Deuda total a pagar (incluye intereses y cargos)
+  Tipo: Float
+  Nullable: Sí
+  Default: 0.00
+  Visible: Sí
+  Orden: 10
+  Agrupación: Grupo 3 (Totales y Pagos)
+  Nota: Campo destacado visualmente (highlight)
+
+INFORMACIÓN DEL BANCO Y TARJETA:
+---------------------------------
+- nombre_banco (String(100))
+  Descripción: Nombre del banco emisor (estandarizado)
+  Tipo: String, máximo 100 caracteres
+  Nullable: Sí
+  Visible: Sí
+  Agrupación: Cabecera
+  Nota: Se estandariza usando la tabla banco_estandarizado
+  Ejemplo: "Banco Pichincha C.A."
+
+- tipo_tarjeta (String(100))
+  Descripción: Tipo de tarjeta (estandarizado)
+  Tipo: String, máximo 100 caracteres
+  Nullable: Sí
+  Visible: Sí
+  Agrupación: Cabecera
+  Nota: Se estandariza usando la tabla tipo_tarjeta_estandarizado
+  Ejemplo: "Visa", "Mastercard", "Diners Club"
+
+- ultimos_digitos (String(10))
+  Descripción: Últimos dígitos de la tarjeta
+  Tipo: String, máximo 10 caracteres
+  Nullable: Sí
+  Visible: Sí
+  Agrupación: Cabecera
+  Ejemplo: "638", "2345"
+  Nota: Se usa para generar el código de archivo_original
+
+CAMPOS CALCULADOS:
+------------------
+- porcentaje_utilizacion (Float)
+  Descripción: Porcentaje de utilización del cupo
+  Tipo: Float
+  Nullable: Sí
+  Fórmula: (cupo_utilizado / cupo_autorizado) * 100
+  Ejemplo: 50.0 (representa 50%)
+  Visible: Sí
+  Agrupación: Cabecera
+
+METADATOS:
+----------
+- fecha_creacion (DateTime)
+  Descripción: Fecha y hora de creación del registro
+  Tipo: DateTime
+  Nullable: No
+  Default: datetime.utcnow
+
+- archivo_original (String(200))
+  Descripción: Código generado automáticamente con formato DDMMAAAA-654
+  Tipo: String, máximo 200 caracteres
+  Nullable: Sí
+  Formato: fecha_corte (DDMMAAAA) + "-" + ultimos_digitos
+  Ejemplo: "15012025-638" (15 de enero de 2025, tarjeta terminada en 638)
+  Visible: No (no se muestra en frontend)
+  Nota: Si faltan fecha_corte o ultimos_digitos, se usa el nombre original del archivo como fallback
+
+RELACIONES:
+-----------
+- usuario: Muchos a uno (muchos estados de cuenta pertenecen a un usuario)
+- consumos_detalle: Uno a muchos (un estado de cuenta tiene muchos consumos detallados)
+
+================================================================================
+3. TABLA: consumos_detalle
+================================================================================
+
+DESCRIPCIÓN:
+Tabla que almacena los movimientos detallados (consumos, pagos, intereses) 
+extraídos de cada estado de cuenta. Cada registro representa un movimiento individual.
+
+CAMPOS:
+--------
+- id (Integer, Primary Key)
+  Descripción: Identificador único del consumo detallado
+  Tipo: Integer, Auto-incremento
+  Nullable: No
+
+- estado_cuenta_id (Integer, Foreign Key -> estados_cuenta.id)
+  Descripción: ID del estado de cuenta al que pertenece este movimiento
+  Tipo: Integer
+  Nullable: No
+  Foreign Key: estados_cuenta.id
+
+- fecha (Date)
+  Descripción: Fecha del movimiento
+  Tipo: Date
+  Nullable: Sí
+  Formato: DD/MM/YYYY (convertido a Date object)
+  Nota: Si no hay fecha específica, se usa la fecha de corte
+
+- descripcion (String(200))
+  Descripción: Descripción completa del movimiento (exacta del documento)
+  Tipo: String, máximo 200 caracteres
+  Nullable: Sí
+  Ejemplo: "SUPERMERCADO WALMART 1234", "RENOVACION PLAN RECOMPENSA"
+  Nota: Se mantiene la descripción original con mayúsculas, minúsculas y caracteres especiales
+
+- monto (Float)
+  Descripción: Monto del movimiento (siempre positivo)
+  Tipo: Float
+  Nullable: Sí
+  Default: 0.00
+  Nota: Se usa abs() si es necesario para asegurar que sea positivo
+
+- categoria (String(50))
+  Descripción: Categoría del movimiento
+  Tipo: String, máximo 50 caracteres
+  Nullable: Sí
+  Default: "Otros"
+  Valores posibles:
+    - "Alimentación": restaurantes, supermercados, comida rápida, cafeterías
+    - "Transporte": gasolina, taxi, uber, transporte público, peajes
+    - "Entretenimiento": cine, streaming, juegos, deportes
+    - "Salud": farmacias, médicos, hospitales, seguros médicos
+    - "Servicios": servicios públicos, internet, teléfono, seguros
+    - "Compras": tiendas, ropa, electrónicos, hogar
+    - "Otros": todo lo que no encaje en las categorías anteriores
+
+- tipo_transaccion (String(50))
+  Descripción: Tipo de transacción
+  Tipo: String, máximo 50 caracteres
+  Nullable: Sí
+  Valores posibles:
+    - "consumo": Consumos normales
+    - "pago": Pagos realizados
+    - "interes": Intereses generados
+    - "cargo": Cargos adicionales
+    - "otro": Otros tipos de transacciones
+
+- fecha_creacion (DateTime)
+  Descripción: Fecha y hora de creación del registro
+  Tipo: DateTime
+  Nullable: No
+  Default: datetime.utcnow
+
+RELACIONES:
+-----------
+- estado_cuenta: Muchos a uno (muchos consumos detallados pertenecen a un estado de cuenta)
+
+NOTAS IMPORTANTES:
+------------------
+- Se extraen TODOS los movimientos del PDF, sin excepción
+- Se incluyen movimientos duplicados si aparecen en el documento
+- La descripción se mantiene exacta al documento original
+- Los montos siempre son positivos (se usa tipo_transaccion para distinguir pagos de consumos)
+
+================================================================================
+4. TABLA: banco_estandarizado
+================================================================================
+
+DESCRIPCIÓN:
+Tabla de catálogo que almacena los nombres estandarizados de bancos y sus variaciones.
+Se usa para normalizar los nombres de bancos extraídos de los PDFs.
+
+CAMPOS:
+--------
+- id (Integer, Primary Key)
+  Descripción: Identificador único del banco
+  Tipo: Integer, Auto-incremento
+  Nullable: No
+
+- nombre_estandarizado (String(100), Unique)
+  Descripción: Nombre oficial estandarizado del banco
+  Tipo: String, máximo 100 caracteres
+  Nullable: No
+  Unique: Sí
+  Ejemplo: "Banco Pichincha C.A."
+
+- variaciones (Text)
+  Descripción: JSON con variaciones del nombre encontradas en los PDFs
+  Tipo: Text (JSON)
+  Nullable: Sí
+  Ejemplo: '["BANCO PICHINCHA", "Pichincha", "Banco Pichincha"]'
+
+- pais (String(50))
+  Descripción: País del banco
+  Tipo: String, máximo 50 caracteres
+  Nullable: Sí
+  Default: "Ecuador"
+
+- tipo_banco (String(20))
+  Descripción: Tipo de banco
+  Tipo: String, máximo 20 caracteres
+  Nullable: Sí
+  Valores posibles:
+    - "Privado"
+    - "Público"
+    - "Cooperativa"
+
+- fecha_creacion (DateTime)
+  Descripción: Fecha y hora de creación del registro
+  Tipo: DateTime
+  Nullable: No
+  Default: datetime.utcnow
+
+- activo (Boolean)
+  Descripción: Indica si el banco está activo
+  Tipo: Boolean
+  Nullable: No
+  Default: True
+
+BANCOS OFICIALES INICIALIZADOS (Ecuador):
+-----------------------------------------
+Bancos Privados:
+- Banco Pichincha C.A.
+- Banco Guayaquil S.A.
+- Produbanco S.A.
+- Banco Bolivariano C.A.
+- Banco Internacional S.A.
+- Banco del Austro S.A.
+- Banco de Machala S.A.
+- Banco Solidario S.A.
+- Banco General Rumiñahui S.A.
+- Banco de Loja S.A.
+- Banco Comercial de Manabí S.A.
+- Banco CoopNacional S.A.
+- Banco ProCredit S.A.
+- Banco Amazonas S.A.
+- Banco D-MIRO S.A.
+- Banco Finca S.A.
+- Banco Delbank S.A.
+- Banco VisionFund Ecuador S.A.
+- Banco de Desarrollo (Banco FUCER)
+- LHV Bank
+- Citibank N.A.
+- Bank of China
+- ICBC
+- Opportunity Bank
+- Diners Club
+
+Bancos Públicos:
+- Banco del Pacífico S.A.
+- Biess
+- BanEcuador B.P.
+- Banco de Desarrollo del Ecuador B.P.
+- Corporación Financiera Nacional
+
+Cooperativas:
+- Cooperativa JEP (Jardín Azuayo)
+- Cooperativa Policía Nacional
+- Cooperativa Alianza del Valle
+- Cooperativa El Sagrario
+- Cooperativa 29 de Octubre
+- Cooprogreso
+
+FUNCIÓN DE ESTANDARIZACIÓN:
+----------------------------
+La función estandarizar_banco() busca coincidencias inteligentes usando palabras clave
+comunes y normaliza los nombres de bancos extraídos de los PDFs.
+
+================================================================================
+5. TABLA: tipo_tarjeta_estandarizado
+================================================================================
+
+DESCRIPCIÓN:
+Tabla de catálogo que almacena los tipos estandarizados de tarjetas y sus variaciones.
+Se usa para normalizar los tipos de tarjeta extraídos de los PDFs.
+
+CAMPOS:
+--------
+- id (Integer, Primary Key)
+  Descripción: Identificador único del tipo de tarjeta
+  Tipo: Integer, Auto-incremento
+  Nullable: No
+
+- nombre_estandarizado (String(100), Unique)
+  Descripción: Nombre oficial estandarizado del tipo de tarjeta
+  Tipo: String, máximo 100 caracteres
+  Nullable: No
+  Unique: Sí
+  Ejemplo: "Visa", "Mastercard", "Diners Club"
+
+- variaciones (Text)
+  Descripción: JSON con variaciones del nombre encontradas en los PDFs
+  Tipo: Text (JSON)
+  Nullable: Sí
+  Ejemplo: '["VISA", "visa", "Visa Gold"]'
+
+- pais (String(50))
+  Descripción: País de la marca de tarjeta
+  Tipo: String, máximo 50 caracteres
+  Nullable: Sí
+  Default: "Ecuador"
+
+- tipo_tarjeta (String(20))
+  Descripción: Tipo de tarjeta
+  Tipo: String, máximo 20 caracteres
+  Nullable: Sí
+  Valores posibles:
+    - "Internacional"
+    - "Nacional"
+
+- fecha_creacion (DateTime)
+  Descripción: Fecha y hora de creación del registro
+  Tipo: DateTime
+  Nullable: No
+  Default: datetime.utcnow
+
+- activo (Boolean)
+  Descripción: Indica si el tipo de tarjeta está activo
+  Tipo: Boolean
+  Nullable: No
+  Default: True
+
+MARCAS OFICIALES INICIALIZADAS:
+-------------------------------
+- Visa (Internacional)
+- Mastercard (Internacional)
+- American Express (Internacional)
+- Diners Club (Internacional)
+- Discover (Internacional)
+- Titanium (Nacional)
+
+FUNCIÓN DE ESTANDARIZACIÓN:
+---------------------------
+La función estandarizar_tipo_tarjeta() busca coincidencias inteligentes usando palabras clave
+comunes y normaliza los tipos de tarjeta extraídos de los PDFs.
+
+================================================================================
+6. TABLA: transaccion
+================================================================================
+
+DESCRIPCIÓN:
+Tabla que almacena transacciones financieras generales (no relacionadas directamente
+con estados de cuenta de tarjetas de crédito, pero puede incluir datos de tarjetas).
+
+CAMPOS:
+--------
+- id (Integer, Primary Key)
+  Descripción: Identificador único de la transacción
+  Tipo: Integer, Auto-incremento
+  Nullable: No
+
+- fecha (DateTime)
+  Descripción: Fecha de la transacción
+  Tipo: DateTime
+  Nullable: No
+  Default: datetime.utcnow
+
+- descripcion (String(200))
+  Descripción: Descripción de la transacción
+  Tipo: String, máximo 200 caracteres
+  Nullable: No
+
+- monto (Float)
+  Descripción: Monto de la transacción
+  Tipo: Float
+  Nullable: No
+
+- categoria (String(50))
+  Descripción: Categoría de la transacción
+  Tipo: String, máximo 50 caracteres
+  Nullable: No
+
+- tarjeta (String(50))
+  Descripción: Tarjeta utilizada
+  Tipo: String, máximo 50 caracteres
+  Nullable: No
+
+- banco (String(100))
+  Descripción: Banco emisor
+  Tipo: String, máximo 100 caracteres
+  Nullable: No
+
+- dueno (String(100))
+  Descripción: Dueño de la tarjeta
+  Tipo: String, máximo 100 caracteres
+  Nullable: No
+
+- usuario_id (Integer, Foreign Key -> usuario.id)
+  Descripción: ID del usuario propietario de la transacción
+  Tipo: Integer
+  Nullable: No
+  Foreign Key: usuario.id
+
+RELACIONES:
+-----------
+- usuario: Muchos a uno (muchas transacciones pertenecen a un usuario)
+
+================================================================================
+7. TABLA: uso_ia
+================================================================================
+
+DESCRIPCIÓN:
+Tabla que rastrea el uso de IA por usuario para control de límites.
+
+CAMPOS:
+--------
+- id (Integer, Primary Key)
+  Descripción: Identificador único del uso de IA
+  Tipo: Integer, Auto-incremento
+  Nullable: No
+
+- usuario_id (Integer, Foreign Key -> usuario.id)
+  Descripción: ID del usuario que usó la IA
+  Tipo: Integer
+  Nullable: No
+  Foreign Key: usuario.id
+
+- fecha (Date)
+  Descripción: Fecha del uso de IA
+  Tipo: Date
+  Nullable: No
+  Default: datetime.utcnow().date
+
+- tipo_uso (String(50))
+  Descripción: Tipo de uso de IA
+  Tipo: String, máximo 50 caracteres
+  Nullable: No
+  Valores posibles:
+    - "analisis_pdf": Análisis de PDF de estado de cuenta
+    - "otro_tipo": Otros tipos de uso
+
+- timestamp (DateTime)
+  Descripción: Fecha y hora exacta del uso
+  Tipo: DateTime
+  Nullable: No
+  Default: datetime.utcnow
+
+RELACIONES:
+-----------
+- usuario: Muchos a uno (muchos usos de IA pertenecen a un usuario)
+
+LÍMITES:
+--------
+- Usuarios normales: 50 usos por mes
+- Administradores: Sin límite (999999)
+
+================================================================================
+8. TABLA: metricas_herramientas
+================================================================================
+
+DESCRIPCIÓN:
+Tabla que almacena métricas de usabilidad de las herramientas del sistema.
+
+CAMPOS:
+--------
+- id (Integer, Primary Key)
+  Descripción: Identificador único de la métrica
+  Tipo: Integer, Auto-incremento
+  Nullable: No
+
+- usuario_id (Integer, Foreign Key -> usuario.id)
+  Descripción: ID del usuario que utilizó la herramienta
+  Tipo: Integer
+  Nullable: No
+  Foreign Key: usuario.id
+
+- herramienta (String(50))
+  Descripción: Nombre de la herramienta utilizada
+  Tipo: String, máximo 50 caracteres
+  Nullable: No
+  Ejemplos: "analisis_pdf", "control_gastos", "historial_estados_cuenta"
+
+- accion (String(50))
+  Descripción: Acción realizada
+  Tipo: String, máximo 50 caracteres
+  Nullable: No
+  Valores posibles:
+    - "click": Click en la herramienta
+    - "ejecutar": Ejecución de la herramienta
+    - "completar": Completado exitoso
+    - "abandonar": Abandono de la herramienta
+
+- timestamp (DateTime)
+  Descripción: Fecha y hora de la acción
+  Tipo: DateTime
+  Nullable: No
+  Default: datetime.utcnow
+
+- metadatos (Text)
+  Descripción: JSON con detalles adicionales de la acción
+  Tipo: Text (JSON)
+  Nullable: Sí
+  Ejemplo: '{"tiempo_carga": 2.5, "archivo_tamaño": 1024}'
+
+RELACIONES:
+-----------
+- usuario: Muchos a uno (muchas métricas pertenecen a un usuario)
+
+================================================================================
+9. TABLA: metricas_ia
+================================================================================
+
+DESCRIPCIÓN:
+Tabla que almacena métricas detalladas del uso de IA, incluyendo tokens consumidos,
+costos estimados y duración de operaciones.
+
+CAMPOS:
+--------
+- id (Integer, Primary Key)
+  Descripción: Identificador único de la métrica de IA
+  Tipo: Integer, Auto-incremento
+  Nullable: No
+
+- usuario_id (Integer, Foreign Key -> usuario.id)
+  Descripción: ID del usuario que usó la IA
+  Tipo: Integer
+  Nullable: No
+  Foreign Key: usuario.id
+
+- modelo_ia (String(50))
+  Descripción: Modelo de IA utilizado
+  Tipo: String, máximo 50 caracteres
+  Nullable: No
+  Valores posibles:
+    - "claude-haiku-4-5": Claude Haiku 4.5 (modelo actual)
+    - "claude-sonnet-4-5": Claude Sonnet 4.5 (futuro)
+
+- tipo_operacion (String(50))
+  Descripción: Tipo de operación de IA realizada
+  Tipo: String, máximo 50 caracteres
+  Nullable: No
+  Valores posibles:
+    - "analisis_pdf": Análisis de PDF de estado de cuenta
+    - "clasificacion_gastos": Clasificación de gastos
+
+- tokens_consumidos (Integer)
+  Descripción: Número de tokens consumidos en la operación
+  Tipo: Integer
+  Nullable: No
+  Default: 0
+  Nota: Se estima basado en el texto de entrada y salida
+
+- costo_estimado (Float)
+  Descripción: Costo estimado de la operación en USD
+  Tipo: Float
+  Nullable: No
+  Default: 0.0
+  Cálculo: tokens_consumidos * precio_por_token
+  Precio actual: $0.25 por 1 MILLÓN de tokens (Claude Haiku)
+
+- duracion_segundos (Float)
+  Descripción: Duración de la operación en segundos
+  Tipo: Float
+  Nullable: No
+  Default: 0.0
+  Ejemplo: 2.5 segundos
+
+- timestamp (DateTime)
+  Descripción: Fecha y hora de la operación
+  Tipo: DateTime
+  Nullable: No
+  Default: datetime.utcnow
+
+RELACIONES:
+-----------
+- usuario: Muchos a uno (muchas métricas de IA pertenecen a un usuario)
+
+================================================================================
+10. RELACIONES ENTRE TABLAS
+================================================================================
+
+DIAGRAMA DE RELACIONES:
+-----------------------
+
+usuario (1) ----< (N) estados_cuenta
+usuario (1) ----< (N) consumos_detalle (a través de estados_cuenta)
+usuario (1) ----< (N) transaccion
+usuario (1) ----< (N) uso_ia
+usuario (1) ----< (N) metricas_herramientas
+usuario (1) ----< (N) metricas_ia
+
+estados_cuenta (1) ----< (N) consumos_detalle
+
+banco_estandarizado (catálogo, sin relaciones directas)
+tipo_tarjeta_estandarizado (catálogo, sin relaciones directas)
+
+RELACIONES DETALLADAS:
+----------------------
+
+1. usuario -> estados_cuenta
+   - Un usuario puede tener muchos estados de cuenta
+   - Un estado de cuenta pertenece a un solo usuario
+   - Relación: Foreign Key en estados_cuenta.usuario_id
+
+2. usuario -> consumos_detalle (indirecta)
+   - Un usuario tiene consumos detallados a través de sus estados de cuenta
+   - Relación: usuario -> estados_cuenta -> consumos_detalle
+
+3. estados_cuenta -> consumos_detalle
+   - Un estado de cuenta puede tener muchos consumos detallados
+   - Un consumo detallado pertenece a un solo estado de cuenta
+   - Relación: Foreign Key en consumos_detalle.estado_cuenta_id
+
+4. banco_estandarizado
+   - Tabla de catálogo, no tiene relaciones directas
+   - Se usa para estandarizar nombres de bancos en estados_cuenta.nombre_banco
+
+5. tipo_tarjeta_estandarizado
+   - Tabla de catálogo, no tiene relaciones directas
+   - Se usa para estandarizar tipos de tarjeta en estados_cuenta.tipo_tarjeta
+
+================================================================================
+11. FLUJO DE ANÁLISIS DE PDF
+================================================================================
+
+PROCESO COMPLETO:
+-----------------
+
+1. USUARIO SUBE PDF
+   - El usuario sube un archivo PDF de estado de cuenta
+   - El archivo se guarda temporalmente
+   - Se valida que sea un PDF válido
+
+2. EXTRACCIÓN DE TEXTO
+   - Se extrae el texto del PDF usando PyMuPDF (método principal)
+   - Si falla, se intenta con PyPDF2 (método alternativo)
+   - Se obtiene el texto completo del documento
+
+3. ANÁLISIS CON IA (Claude Haiku 4.5)
+   - Se envía el texto a Claude Haiku 4.5
+   - Se usa un prompt estructurado para extraer datos
+   - Se puede extraer solo datos básicos o datos completos con movimientos
+
+4. EXTRACCIÓN DE DATOS
+   - Se extraen los siguientes datos del PDF:
+     * Fechas (corte, inicio_periodo, pago)
+     * Información de cupo (autorizado, disponible, utilizado)
+     * Deudas y saldos (anterior, total a pagar)
+     * Consumos y cargos (totales)
+     * Pagos realizados
+     * Intereses
+     * Mínimo a pagar (nuevo campo)
+     * Información del banco y tarjeta
+     * Movimientos detallados (siempre se extraen)
+
+5. ESTANDARIZACIÓN
+   - Se estandariza el nombre del banco usando banco_estandarizado
+   - Se estandariza el tipo de tarjeta usando tipo_tarjeta_estandarizado
+   - Se normalizan los datos para consistencia
+
+6. GUARDADO EN BASE DE DATOS
+   - Se crea un registro en estados_cuenta
+   - Se crean registros en consumos_detalle (uno por cada movimiento)
+   - Se registra el uso de IA en uso_ia
+   - Se registran métricas detalladas en metricas_ia
+
+7. RESPUESTA AL USUARIO
+   - Se devuelve un JSON con los datos extraídos
+   - Se muestra en la interfaz web
+   - El usuario puede guardar o descartar
+
+FUNCIONES PRINCIPALES:
+----------------------
+
+- PDFAnalyzer.extraer_texto_pdf(pdf_path)
+  Extrae texto del PDF usando múltiples métodos
+
+- PDFAnalyzer.analizar_estado_cuenta(pdf_path, extraer_movimientos_detallados)
+  Analiza el PDF y extrae datos estructurados usando IA
+
+- guardar_estado_cuenta(usuario_id, datos_analisis, archivo_original, extraer_movimientos_detallados)
+  Guarda el estado de cuenta y sus consumos detallados en la base de datos
+
+- estandarizar_banco(nombre_banco)
+  Estandariza el nombre del banco usando la tabla de catálogo
+
+- estandarizar_tipo_tarjeta(tipo_tarjeta)
+  Estandariza el tipo de tarjeta usando la tabla de catálogo
+
+================================================================================
+12. DATOS EXTRAÍDOS DEL PDF
+================================================================================
+
+DATOS BÁSICOS (SIEMPRE EXTRAÍDOS):
+-----------------------------------
+
+1. Fechas:
+   - fecha_corte: Fecha de corte del estado de cuenta
+   - fecha_inicio_periodo: Fecha de inicio del periodo (nuevo campo)
+   - fecha_pago: Fecha límite de pago
+
+2. Información de Cupo:
+   - cupo_autorizado: Cupo total autorizado
+   - cupo_disponible: Cupo disponible para usar
+   - cupo_utilizado: Cupo utilizado actualmente
+
+3. Deudas y Saldos:
+   - deuda_anterior: Deuda arrastrada de períodos anteriores
+   - deuda_total_pagar: Deuda total a pagar (incluye intereses)
+
+4. Consumos y Cargos:
+   - consumos_debitos: Total de consumos (locales + internacionales) - NO visible
+   - otros_cargos: Cargos adicionales (seguros, tarifas, etc.) - NO visible
+   - consumos_cargos_totales: Suma de consumos + otros cargos
+
+5. Pagos e Intereses:
+   - pagos_creditos: Total de pagos realizados - NO visible
+   - intereses: Intereses generados en el período
+   - minimo_a_pagar: Pago mínimo requerido (nuevo campo)
+
+6. Información del Banco y Tarjeta:
+   - nombre_banco: Nombre del banco emisor
+   - tipo_tarjeta: Tipo de tarjeta (Visa, Mastercard, etc.)
+   - ultimos_digitos: Últimos dígitos de la tarjeta
+
+DATOS DETALLADOS (SIEMPRE EXTRAÍDOS):
+--------------------------------------
+
+Movimientos Detallados (movimientos_detallados):
+- Array de objetos, cada uno representa un movimiento individual
+- Campos de cada movimiento:
+  * fecha: Fecha del movimiento (DD/MM/YYYY)
+  * descripcion: Descripción completa (exacta del documento)
+  * monto: Monto del movimiento (siempre positivo)
+  * categoria: Categoría del movimiento
+  * tipo_transaccion: Tipo de transacción (consumo, pago, interes, cargo, otro)
+
+INSTRUCCIONES PARA LA IA:
+-------------------------
+
+La IA debe:
+1. Extraer TODOS los movimientos, sin excepción
+2. Incluir movimientos duplicados si aparecen en el documento
+3. Mantener las descripciones exactas del documento
+4. Usar montos siempre positivos
+5. Categorizar automáticamente los movimientos
+6. Buscar en todas las secciones del documento:
+   - Sección de consumos locales
+   - Sección de consumos internacionales
+   - Sección de cargos automáticos
+   - Sección de intereses y comisiones
+   - Sección de pagos realizados
+   - Cualquier otra sección con movimientos
+
+FORMATO DE RESPUESTA:
+---------------------
+
+La IA devuelve un JSON con la siguiente estructura:
+
+{
+    "fecha_corte": "DD/MM/YYYY",
+    "fecha_inicio_periodo": "DD/MM/YYYY",
+    "fecha_pago": "DD/MM/YYYY",
+    "cupo_autorizado": 0.00,
+    "cupo_disponible": 0.00,
+    "cupo_utilizado": 0.00,
+    "deuda_anterior": 0.00,
+    "consumos_debitos": 0.00,
+    "otros_cargos": 0.00,
+    "consumos_cargos_totales": 0.00,
+    "pagos_creditos": 0.00,
+    "intereses": 0.00,
+    "minimo_a_pagar": 0.00,
+    "deuda_total_pagar": 0.00,
+    "nombre_banco": "NOMBRE_BANCO",
+    "tipo_tarjeta": "TIPO_TARJETA",
+    "ultimos_digitos": "XXX",
+    "movimientos_detallados": [
+        {
+            "fecha": "DD/MM/YYYY",
+            "descripcion": "DESCRIPCION_COMPLETA",
+            "monto": 0.00,
+            "categoria": "CATEGORIA",
+            "tipo_transaccion": "consumo|pago|interes|cargo|otro"
+        }
+    ]
+}
+
+================================================================================
+13. ORGANIZACIÓN VISUAL EN FRONTEND
+================================================================================
+
+AGRUPACIÓN DE CAMPOS:
+---------------------
+
+Los campos se organizan visualmente en grupos usando cards:
+
+GRUPO 1 - FECHAS DEL PERIODO (Azul):
+- Orden 1: fecha_corte
+- Orden 2: fecha_inicio_periodo (nuevo)
+- Orden 3: fecha_pago
+
+GRUPO 2 - INFORMACIÓN DE CUPO (Verde):
+- Orden 5: cupo_autorizado
+- Orden 6: cupo_disponible
+- Orden 7: cupo_utilizado
+
+GRUPO 3 - TOTALES Y PAGOS (Naranja):
+- deuda_anterior (movido del Grupo 1)
+- Orden 8: consumos_cargos_totales
+- Orden 9: intereses
+- minimo_a_pagar (nuevo campo)
+- Orden 10: deuda_total_pagar (destacado visualmente)
+
+CABECERA (Morado):
+- nombre_banco
+- tipo_tarjeta
+- ultimos_digitos
+- porcentaje_utilizacion
+
+CAMPOS NO VISIBLES (pero presentes en BD):
+- id
+- usuario_id
+- consumos_debitos
+- otros_cargos
+- pagos_creditos
+- fecha_creacion
+- archivo_original (ahora es código DDMMAAAA-654)
+
+FORMATO DE ARCHIVO_ORIGINAL:
+----------------------------
+- Formato: DDMMAAAA-654
+- Ejemplo: "15012025-638"
+- Generación: fecha_corte.strftime('%d%m%Y') + '-' + ultimos_digitos
+- Fallback: Si faltan datos, se usa el nombre original del archivo
+
+================================================================================
+14. NOTAS FINALES
+================================================================================
+
+- Todas las fechas se almacenan como objetos Date/DateTime en la base de datos
+- Los montos se almacenan como Float
+- Los porcentajes se almacenan como Float (ej: 50.0 para 50%)
+- Las descripciones se mantienen exactas al documento original
+- Los nombres de bancos y tarjetas se estandarizan automáticamente
+- Se rastrea el uso de IA para control de límites
+- Se registran métricas detalladas de cada operación de IA
+- El frontend usa cards agrupados visualmente (no tablas)
+- Los campos no visibles permanecen en la BD pero no se muestran en el frontend
+
+================================================================================
+FIN DEL DOCUMENTO
+================================================================================
+

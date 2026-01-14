@@ -1,0 +1,153 @@
+warning: in the working copy of 'pdf_analyzer.py', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/pdf_analyzer.py b/pdf_analyzer.py[m
+[1mindex 15eab9a..e396e1d 100644[m
+[1m--- a/pdf_analyzer.py[m
+[1m+++ b/pdf_analyzer.py[m
+[36m@@ -23,15 +23,28 @@[m [mclass PDFAnalyzer:[m
+         self.api_key = os.environ.get('ANTHROPIC_API_KEY')[m
+         [m
+         if not self.api_key:[m
+[31m-            raise ValueError("ANTHROPIC_API_KEY no está configurado")[m
+[32m+[m[32m            print("ERROR en PDFAnalyzer.__init__: ANTHROPIC_API_KEY no está configurado")[m
+[32m+[m[32m            print(f"Variables de entorno disponibles: {list(os.environ.keys())}")[m
+[32m+[m[32m            raise ValueError("ANTHROPIC_API_KEY no está configurado. Verifica las variables de entorno en Render.")[m
+         [m
+[31m-        self.client = Anthropic(api_key=self.api_key)[m
+[32m+[m[32m        try:[m
+[32m+[m[32m            self.client = Anthropic(api_key=self.api_key)[m
+[32m+[m[32m            print("DEBUG - Cliente Anthropic inicializado correctamente")[m
+[32m+[m[32m        except Exception as e:[m
+[32m+[m[32m            print(f"ERROR inicializando cliente Anthropic: {str(e)}")[m
+[32m+[m[32m            raise[m
+     [m
+     def extraer_texto_pdf(self, pdf_path):[m
+         """[m
+         Extrae texto del PDF usando múltiples métodos (más robusto)[m
+         """[m
+         try:[m
+[32m+[m[32m            # Verificar que el archivo existe[m
+[32m+[m[32m            if not os.path.exists(pdf_path):[m
+[32m+[m[32m                raise Exception(f"El archivo temporal no existe: {pdf_path}")[m
+[32m+[m[41m            [m
+[32m+[m[32m            print(f"DEBUG - Intentando extraer texto de: {pdf_path} (tamaño: {os.path.getsize(pdf_path)} bytes)")[m
+[32m+[m[41m            [m
+             # Método 1: PyMuPDF (más robusto)[m
+             try:[m
+                 doc = fitz.open(pdf_path)[m
+[36m@@ -79,12 +92,13 @@[m [mclass PDFAnalyzer:[m
+         except Exception as e:[m
+             raise Exception(f"Error extrayendo texto del PDF: {str(e)}")[m
+     [m
+[31m-    def analizar_estado_cuenta(self, pdf_path):[m
+[32m+[m[32m    def analizar_estado_cuenta(self, pdf_path, extraer_movimientos_detallados=False):[m
+         """[m
+         Analiza un PDF de estado de cuenta usando Claude Haiku 4.5 (método texto)[m
+         [m
+         Args:[m
+             pdf_path (str): Ruta al archivo PDF[m
+[32m+[m[32m            extraer_movimientos_detallados (bool): Si True, extrae todos los movimientos detallados[m
+             [m
+         Returns:[m
+             dict: Diccionario con los datos extraídos del estado de cuenta[m
+[36m@@ -97,8 +111,91 @@[m [mclass PDFAnalyzer:[m
+             print(f"DEBUG - Texto extraído (primeros 500 chars): {texto_pdf[:500]}")[m
+             print(f"DEBUG - Longitud total del texto: {len(texto_pdf)}")[m
+             [m
+[31m-            # Prompt específico para extraer datos de estado de cuenta[m
+[31m-            prompt = f"""Analiza este texto de estado de cuenta bancario y extrae EXACTAMENTE los siguientes campos en formato JSON:[m
+[32m+[m[32m            if extraer_movimientos_detallados:[m
+[32m+[m[32m                # Prompt COMPLETO para extraer datos básicos + todos los movimientos[m
+[32m+[m[32m                prompt = f"""Analiza este texto de estado de cuenta bancario y extrae EXACTAMENTE los siguientes campos en formato JSON:[m
+[32m+[m
+[32m+[m[32m{{[m
+[32m+[m[32m    "fecha_corte": "DD/MM/YYYY",[m
+[32m+[m[32m    "fecha_pago": "DD/MM/YYYY",[m[41m [m
+[32m+[m[32m    "cupo_autorizado": 0.00,[m
+[32m+[m[32m    "cupo_disponible": 0.00,[m
+[32m+[m[32m    "cupo_utilizado": 0.00,[m
+[32m+[m[32m    "deuda_anterior": 0.00,[m
+[32m+[m[32m    "consumos_debitos": 0.00,[m
+[32m+[m[32m    "otros_cargos": 0.00,[m
+[32m+[m[32m    "consumos_cargos_totales": 0.00,[m
+[32m+[m[32m    "pagos_creditos": 0.00,[m
+[32m+[m[32m    "intereses": 0.00,[m
+[32m+[m[32m    "deuda_total_pagar": 0.00,[m
+[32m+[m[32m    "nombre_banco": "NOMBRE_BANCO",[m
+[32m+[m[32m    "tipo_tarjeta": "TIPO_TARJETA",[m
+[32m+[m[32m    "ultimos_digitos": "XXX",[m
+[32m+[m[32m    "movimientos_detallados": [[m
+[32m+[m[32m        {{[m
+[32m+[m[32m            "fecha": "DD/MM/YYYY",[m
+[32m+[m[32m            "descripcion": "DESCRIPCION_COMPLETA",[m
+[32m+[m[32m            "monto": 0.00,[m
+[32m+[m[32m            "categoria": "CATEGORIA",[m
+[32m+[m[32m            "tipo_transaccion": "consumo|pago|interes|cargo|otro"[m
+[32m+[m[32m        }}[m
+[32m+[m[32m    ][m
+[32m+[m[32m}}[m
+[32m+[m
+[32m+[m[32m🔍 **INSTRUCCIONES CRÍTICAS PARA MOVIMIENTOS DETALLADOS:**[m
+[32m+[m
+[32m+[m[32m**EXTRACCIÓN EXHAUSTIVA:**[m
+[32m+[m[32m- Incluye TODOS los movimientos, sin excepción[m
+[32m+[m[32m- Si ves "renovacion plan recompensa" 2 veces, incluye ambas[m
+[32m+[m[32m- Si hay movimientos similares o duplicados, inclúyelos TODOS[m
+[32m+[m[32m- NO omitas ningún movimiento por pequeño que sea[m
+[32m+[m
+[32m+[m[32m**FORMATO DE DESCRIPCIÓN:**[m
+[32m+[m[32m- Usa la descripción EXACTA del documento[m
+[32m+[m[32m- Mantén mayúsculas, minúsculas y caracteres especiales[m
+[32m+[m[32m- No modifiques ni resumas las descripciones[m
+[32m+[m
+[32m+[m[32m**MONTO:**[m
+[32m+[m[32m- SIEMPRE positivo (usar abs() si es necesario)[m
+[32m+[m[32m- Usar tipo_transaccion para distinguir pagos de consumos[m
+[32m+[m
+[32m+[m[32m**FECHA:**[m
+[32m+[m[32m- Formato exacto DD/MM/YYYY[m
+[32m+[m[32m- Si no hay fecha específica, usar fecha de corte[m
+[32m+[m
+[32m+[m[32m**CATEGORIZACIÓN:**[m
+[32m+[m[32m- "Alimentación": restaurantes, supermercados, comida rápida, cafeterías[m
+[32m+[m[32m- "Transporte": gasolina, taxi, uber, transporte público, peajes[m
+[32m+[m[32m- "Entretenimiento": cine, streaming, juegos, deportes[m
+[32m+[m[32m- "Salud": farmacias, médicos, hospitales, seguros médicos[m
+[32m+[m[32m- "Servicios": servicios públicos, internet, teléfono, seguros[m
+[32m+[m[32m- "Compras": tiendas, ropa, electrónicos, hogar[m
+[32m+[m[32m- "Otros": todo lo que no encaje en las categorías anteriores[m
+[32m+[m
+[32m+[m[32m⚠️ **VERIFICACIÓN OBLIGATORIA:**[m
+[32m+[m[32m- Cuenta manualmente los movimientos antes de incluir[m
+[32m+[m[32m- Si encuentras 10 movimientos, el array debe tener 10 elementos[m
+[32m+[m[32m- Si encuentras 25 movimientos, el array debe tener 25 elementos[m
+[32m+[m[32m- NO omitas movimientos duplicados o similares[m
+[32m+[m
+[32m+[m[32m5. BUSCAR EN TODAS LAS SECCIONES:[m
+[32m+[m[32m   - Sección de consumos locales[m
+[32m+[m[32m   - Sección de consumos internacionales[m[41m  [m
+[32m+[m[32m   - Sección de cargos automáticos[m
+[32m+[m[32m   - Sección de intereses y comisiones[m
+[32m+[m[32m   - Sección de pagos realizados[m
+[32m+[m[32m   - Cualquier otra sección con movimientos[m
+[32m+[m
+[32m+[m[32m6. FORMATO DE DESCRIPCIÓN:[m
+[32m+[m[32m   - Mantén la descripción original del establecimiento[m
+[32m+[m[32m   - Si hay códigos o números, inclúyelos[m
+[32m+[m[32m   - Ejemplo: "SUPERMERCADO WALMART 1234" en lugar de solo "WALMART"[m
+[32m+[m
+[32m+[m[32mTEXTO COMPLETO DEL ESTADO DE CUENTA:[m
+[32m+[m[32m{texto_pdf}"""[m
+[32m+[m[32m            else:[m
+[32m+[m[32m                # Prompt BÁSICO para solo datos resumidos (análisis rápido)[m
+[32m+[m[32m                prompt = f"""Analiza este texto de estado de cuenta bancario y extrae EXACTAMENTE los siguientes campos en formato JSON:[m
+ [m
+ {{[m
+     "fecha_corte": "DD/MM/YYYY",[m
+[36m@@ -154,12 +251,15 @@[m [mINSTRUCCIONES IMPORTANTES:[m
+     - Es normal que haya diferencias entre cupo_utilizado y consumos_cargos_totales[m
+ [m
+ TEXTO DEL ESTADO DE CUENTA:[m
+[31m-{texto_pdf[:3000]}"""[m
+[32m+[m[32m{texto_pdf[:6000]}"""[m
+[32m+[m[41m            [m
+[32m+[m[32m            # Ajustar max_tokens según el tipo de análisis[m

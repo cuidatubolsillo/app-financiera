@@ -9,6 +9,14 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         /* Estilos específicos adicionales para tarjetas de crédito */
+        .content-section {
+            display: none;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
         .feature-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -59,6 +67,648 @@
         .coming-soon p {
             color: #b7950b;
         }
+
+        /* ===== ESTILOS DEL CARRUSEL CON DRAG-TO-SCROLL ===== */
+        .unified-slider {
+            position: relative;
+        }
+        
+        .slider-container {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            gap: 15px;
+            overflow-x: auto;
+            overflow-y: visible;
+            scroll-behavior: smooth;
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE and Edge */
+            width: 100%;
+            align-items: center;
+            padding: 10px 5px;
+            margin: 0;
+            box-sizing: border-box;
+            position: relative;
+            justify-content: flex-start;
+            min-height: 90px;
+            cursor: grab;
+            user-select: none;
+            -webkit-overflow-scrolling: touch; /* Scroll suave en iOS */
+        }
+        
+        .slider-container:active {
+            cursor: grabbing;
+        }
+        
+        /* ===== INDICADOR DE SCROLL (GRADIENTE + FLECHA) ===== */
+        .scroll-indicator {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 60px;
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            z-index: 10;
+            transition: opacity 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .scroll-indicator:hover {
+            opacity: 1;
+        }
+        
+        .scroll-indicator-right {
+            right: 0;
+            background: linear-gradient(to right, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.95) 100%);
+            justify-content: flex-end;
+            padding-right: 10px;
+        }
+        
+        .scroll-indicator-left {
+            left: 0;
+            background: linear-gradient(to left, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.95) 100%);
+            justify-content: flex-start;
+            padding-left: 10px;
+        }
+        
+        .scroll-indicator.hidden {
+            opacity: 0;
+            display: none;
+        }
+        
+        .scroll-indicator-arrow {
+            color: var(--verde-vital);
+            font-size: 1.5rem;
+            animation: pulse-arrow 1.5s ease-in-out infinite;
+            transition: transform 0.2s ease, color 0.2s ease;
+        }
+        
+        .scroll-indicator-left .scroll-indicator-arrow {
+            animation: pulse-arrow-left 1.5s ease-in-out infinite;
+        }
+        
+        .scroll-indicator:hover .scroll-indicator-arrow {
+            color: var(--azul-util);
+            transform: scale(1.2);
+        }
+        
+        .scroll-indicator:active .scroll-indicator-arrow {
+            transform: scale(0.95);
+        }
+        
+        @keyframes pulse-arrow {
+            0%, 100% {
+                opacity: 0.6;
+                transform: translateX(0);
+            }
+            50% {
+                opacity: 1;
+                transform: translateX(-5px);
+            }
+        }
+        
+        @keyframes pulse-arrow-left {
+            0%, 100% {
+                opacity: 0.6;
+                transform: translateX(0);
+            }
+            50% {
+                opacity: 1;
+                transform: translateX(5px);
+            }
+        }
+        
+        /* Ajustar tamaño de flecha en desktop */
+        @media (min-width: 769px) {
+            .scroll-indicator {
+                width: 80px;
+            }
+            .scroll-indicator-arrow {
+                font-size: 2rem;
+            }
+        }
+
+        .slider-container::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
+        }
+
+        .slider-btn {
+            flex: 0 0 auto;
+            min-width: 250px;
+            /* width removido para permitir flexibilidad según contenido */
+            white-space: nowrap;
+            display: inline-flex !important;
+            margin: 0;
+            box-sizing: border-box;
+            padding: 20px 30px !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 12px !important;
+            font-size: 1.1rem !important;
+            font-weight: 600 !important;
+            height: auto;
+            min-height: 60px;
+            text-align: center;
+            user-select: none; /* Evitar selección de texto al arrastrar */
+            pointer-events: auto; /* Permitir clicks en los botones */
+        }
+        
+        .slider-btn:first-child {
+            margin-left: 0;
+        }
+
+
+        @media (max-width: 768px) {
+            .slider-container {
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
+                padding: 10px 5px;
+            }
+            
+            .slider-btn {
+                min-width: 200px;
+            }
+        }
+
+        /* ===== ESTILOS PARA EL FORMULARIO DE ANÁLISIS DE PDF ===== */
+        .upload-area {
+            border: 3px dashed var(--verde-vital);
+            border-radius: 15px;
+            padding: 50px 40px;
+            text-align: center;
+            background: linear-gradient(135deg, rgba(123, 167, 78, 0.05) 0%, rgba(76, 165, 179, 0.05) 100%);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-top: 40px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(123, 167, 78, 0.1);
+        }
+        
+        .upload-area:hover {
+            border-color: var(--fondo-intermedio);
+            background: linear-gradient(135deg, rgba(123, 167, 78, 0.1) 0%, rgba(76, 165, 179, 0.1) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(123, 167, 78, 0.2);
+        }
+        
+        .upload-area.dragover {
+            border-color: var(--verde-vital);
+            background: linear-gradient(135deg, rgba(123, 167, 78, 0.15) 0%, rgba(76, 165, 179, 0.15) 100%);
+            transform: scale(1.02);
+        }
+        
+        .upload-icon {
+            font-size: 64px;
+            color: var(--verde-vital);
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+        
+        .upload-text {
+            font-size: 1.2rem;
+            color: var(--texto-oscuro);
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .upload-subtext {
+            font-size: 0.95rem;
+            color: var(--gris-oscuro);
+            margin-bottom: 20px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .btn-upload {
+            background: linear-gradient(135deg, var(--verde-vital) 0%, var(--azul-util) 100%);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-top: 15px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(123, 167, 78, 0.3);
+        }
+        
+        .btn-upload:hover {
+            background: linear-gradient(135deg, var(--fondo-intermedio) 0%, var(--verde-vital) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(123, 167, 78, 0.4);
+        }
+        
+        .btn-analyze {
+            background: linear-gradient(135deg, var(--verde-vital) 0%, var(--azul-util) 100%);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-top: 15px;
+            display: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(123, 167, 78, 0.3);
+        }
+        
+        .btn-analyze:hover {
+            background: linear-gradient(135deg, var(--fondo-intermedio) 0%, var(--verde-vital) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(123, 167, 78, 0.4);
+        }
+        
+        .btn-analyze:disabled {
+            background: linear-gradient(135deg, var(--gris-claro) 0%, var(--gris-oscuro) 100%);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .file-info {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            display: none;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border: 2px solid var(--verde-vital);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 50px 20px;
+            display: none;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            margin: 30px 0;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .loading.active {
+            display: block;
+        }
+        
+        .spinner-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .spinner {
+            border: 5px solid rgba(123, 167, 78, 0.2);
+            border-top: 5px solid var(--verde-vital);
+            border-right: 5px solid var(--azul-util);
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+        }
+        
+        .loading p {
+            font-size: 1.2rem;
+            color: var(--texto-oscuro);
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .loading p small {
+            font-size: 0.9rem;
+            color: var(--gris-oscuro);
+            font-weight: 400;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .loading .spinner {
+            animation: spin 1s linear infinite, pulse 2s ease-in-out infinite;
+        }
+        
+        .results-container {
+            display: none;
+        }
+        
+        .results-container.active {
+            display: block;
+        }
+        
+        /* Estilos para grupos de detalles */
+        .details-group {
+            margin-bottom: 25px;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .details-group:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+        }
+        
+        .group-title {
+            margin: 0 0 20px 0;
+            color: var(--texto-oscuro);
+            font-size: 1.3em;
+            font-weight: 700;
+            padding-bottom: 12px;
+            border-bottom: 3px solid var(--gris-claro);
+        }
+        
+        .grupo-cabecera {
+            border-left: 5px solid var(--azul-util);
+        }
+        
+        .grupo-1 {
+            border-left: 5px solid var(--azul-util);
+        }
+        
+        .grupo-2 {
+            border-left: 5px solid var(--verde-vital);
+        }
+        
+        .grupo-3 {
+            border-left: 5px solid var(--dorado);
+        }
+        
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .detail-card {
+            background: linear-gradient(135deg, rgba(123, 167, 78, 0.05) 0%, rgba(76, 165, 179, 0.05) 100%);
+            padding: 18px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            border: 2px solid rgba(123, 167, 78, 0.2);
+        }
+        
+        .detail-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(123, 167, 78, 0.2);
+            border-color: var(--verde-vital);
+            background: linear-gradient(135deg, rgba(123, 167, 78, 0.1) 0%, rgba(76, 165, 179, 0.1) 100%);
+        }
+        
+        .detail-card.highlight {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 0%, rgba(255, 215, 0, 0.2) 100%);
+            border: 2px solid var(--dorado);
+        }
+        
+        .detail-label {
+            font-size: 0.85em;
+            color: var(--gris-oscuro);
+            margin-bottom: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+        
+        .detail-value {
+            font-weight: 700;
+            color: var(--texto-oscuro);
+            font-size: 1.2em;
+        }
+        
+        .detail-value.currency {
+            color: var(--azul-util);
+            font-size: 1.3em;
+        }
+        
+        .detail-value.highlight-value {
+            color: #d32f2f;
+            font-size: 1.5em;
+            font-weight: 800;
+        }
+        
+        .detail-value.date {
+            color: var(--azul-util);
+        }
+        
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .success-message {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        /* Modal para guardar estado de cuenta */
+        .save-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+        
+        .save-modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .save-modal h3 {
+            color: #2c5530;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .save-modal p {
+            color: #666;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .save-benefits {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            border-left: 4px solid #28a745;
+        }
+        
+        .save-benefits p {
+            margin: 0 0 10px 0;
+            color: #495057;
+            text-align: left;
+        }
+        
+        .save-benefits ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #6c757d;
+        }
+        
+        .save-benefits li {
+            margin: 5px 0;
+        }
+        
+        .save-modal-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+        
+        .btn-save {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        
+        .btn-save:hover {
+            background: #1e7e34;
+        }
+        
+        .btn-cancel {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .duplicate-modal-content {
+            max-width: 600px;
+        }
+        
+        .duplicate-warning {
+            background-color: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .duplicate-warning p {
+            margin: 10px 0;
+            color: #856404;
+            text-align: left;
+        }
+        
+        .duplicate-info {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .duplicate-info p {
+            margin: 8px 0;
+            color: #495057;
+        }
+        
+        .duplicate-info strong {
+            color: #856404;
+        }
+        
+        .duplicate-question {
+            font-weight: 600;
+            color: #856404 !important;
+            margin-top: 15px !important;
+            text-align: center !important;
+        }
+        
+        .btn-overwrite {
+            background: #ffc107;
+            color: #856404;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        
+        .btn-overwrite:hover {
+            background: #e0a800;
+            transition: background 0.3s;
+        }
+        
+        .btn-cancel:hover {
+            background: #5a6268;
+        }
+        
+        /* Botón de guardar grande en la parte inferior */
+        .save-button-container {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            border: 2px dashed #dee2e6;
+        }
+        
+        .btn-save-large {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+        }
+        
+        .btn-save-large:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(40, 167, 69, 0.4);
+        }
+        
+        .btn-save:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -78,7 +728,7 @@
 
         <!-- ===== SLIDER DE OPCIONES ===== -->
         <div class="unified-slider">
-            <div class="slider-container">
+            <div class="slider-container" id="sliderContainer">
                 <button class="slider-btn active" data-option="analizar">
                     <i class="fas fa-file-pdf"></i>
                     Analizar Estado de Cuenta
@@ -87,10 +737,26 @@
                     <i class="fas fa-history"></i>
                     Historial de Estados
                 </button>
+                <button class="slider-btn" data-option="control">
+                    <i class="fas fa-credit-card"></i>
+                    Control de Pagos
+                </button>
                 <button class="slider-btn" data-option="simulador">
                     <i class="fas fa-calculator"></i>
                     Simulador de Pagos
                 </button>
+                <button class="slider-btn" data-option="clasificacion">
+                    <i class="fas fa-balance-scale"></i>
+                    Clasificación 50-30-20
+                </button>
+            </div>
+            <!-- Indicador de scroll derecho (solo visible en móvil) -->
+            <div class="scroll-indicator scroll-indicator-right" id="scrollIndicatorRight">
+                <i class="fas fa-chevron-right scroll-indicator-arrow"></i>
+            </div>
+            <!-- Indicador de scroll izquierdo (solo visible en móvil) -->
+            <div class="scroll-indicator scroll-indicator-left hidden" id="scrollIndicatorLeft">
+                <i class="fas fa-chevron-left scroll-indicator-arrow"></i>
             </div>
         </div>
 
@@ -103,26 +769,55 @@
                     Sube tu estado de cuenta en PDF y obtén un análisis completo con inteligencia artificial
                 </p>
                 
+                <!-- Tarjetas informativas -->
                 <div class="feature-grid">
                     <div class="feature-card">
                         <h3><i class="fas fa-robot"></i> Análisis con IA</h3>
-                        <p>Extracción automática de datos clave usando Claude Haiku</p>
+                        <p>Extracción automática de datos utilizando Inteligencia artificial</p>
                     </div>
                     <div class="feature-card">
                         <h3><i class="fas fa-chart-line"></i> Datos Completos</h3>
                         <p>Fecha de corte, cupos, consumos, pagos y más información relevante</p>
                     </div>
-                    <div class="feature-card">
-                        <h3><i class="fas fa-shield-alt"></i> Seguro y Privado</h3>
-                        <p>Tu información se procesa de forma segura y no se almacena</p>
                     </div>
+                
+                <!-- Área de subida de archivos -->
+                <div class="upload-area" id="analizar-uploadArea">
+                    <div class="upload-icon">📄</div>
+                    <div class="upload-text">Arrastra tu PDF aquí o haz clic para seleccionar</div>
+                    <div class="upload-subtext">Formatos soportados: PDF</div>
+                    <button class="btn-upload" type="button" onclick="document.getElementById('analizar-fileInput').click()">
+                        Seleccionar Archivo
+                    </button>
+                    <input type="file" id="analizar-fileInput" class="file-input" accept=".pdf">
                 </div>
 
-                <div style="text-align: center; margin-top: 30px;">
-                    <a href="{{ url_for('analizar_pdf') }}" class="slider-btn" style="text-decoration: none; display: inline-flex;">
-                        <i class="fas fa-play"></i>
-                        Comenzar Análisis
-                    </a>
+                <!-- Información del archivo seleccionado -->
+                <div class="file-info" id="analizar-fileInfo">
+                    <h4>Archivo seleccionado:</h4>
+                    <p id="analizar-fileName"></p>
+                    <button class="btn-analyze" id="analizar-analyzeBtn" onclick="analizarAnalyzePDF()">
+                        🔍 Analizar con IA
+                    </button>
+                </div>
+                
+                <!-- Mensajes de estado -->
+                <div class="error-message" id="analizar-errorMessage"></div>
+                <div class="success-message" id="analizar-successMessage"></div>
+                
+                <!-- Loading -->
+                <div class="loading" id="analizar-loading">
+                    <div class="spinner-container">
+                        <div class="spinner"></div>
+                        <p>Analizando tu estado de cuenta...</p>
+                        <p><small>Por favor espera, esto puede tomar unos momentos</small></p>
+                    </div>
+                </div>
+                
+                <!-- Resultados -->
+                <div class="results-container" id="analizar-resultsContainer">
+                    <h2 class="section-title">📊 Resultados del Análisis</h2>
+                    <!-- Los resultados se mostrarán aquí con grupos de cards -->
                 </div>
             </div>
 
@@ -149,13 +844,39 @@
                 </div>
 
         <div style="text-align: center; margin-top: 30px;">
-            <a href="{{ url_for('historial_estados_cuenta') }}" class="slider-btn" style="text-decoration: none; display: inline-flex; margin-right: 15px;">
+                    <a href="{{ url_for('historial_estados_cuenta') }}" class="slider-btn" style="text-decoration: none; display: inline-flex;">
                 <i class="fas fa-history"></i>
                 Ver Historial Completo
             </a>
+                </div>
+            </div>
+
+            <!-- Control de Pagos -->
+            <div class="content-section" id="control-content">
+                <h2 class="section-title">💳 Control de Pagos</h2>
+                <p class="section-description">
+                    Gestiona tus pagos de tarjetas de crédito de manera inteligente
+                </p>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h3><i class="fas fa-chart-pie"></i> Dashboard de Resumen</h3>
+                        <p>Visualiza tu deuda total, pagos mínimos y estados de cuenta</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3><i class="fas fa-filter"></i> Filtros Avanzados</h3>
+                        <p>Filtra por banco, tipo de tarjeta, fecha de corte y más</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3><i class="fas fa-calendar-check"></i> Gestión de Pagos</h3>
+                        <p>Organiza y planifica tus pagos de manera eficiente</p>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 30px;">
             <a href="{{ url_for('control_pagos_tarjetas') }}" class="slider-btn" style="text-decoration: none; display: inline-flex; background: var(--verde-vital);">
                 <i class="fas fa-credit-card"></i>
-                Control de Pagos
+                        Ir a Control de Pagos
             </a>
         </div>
             </div>
@@ -187,17 +908,162 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Clasificación 50-30-20 -->
+            <div class="content-section" id="clasificacion-content">
+                <h2 class="section-title">📊 Clasificación 50-30-20</h2>
+                <p class="section-description">
+                    Visualiza tus consumos clasificados según la regla 50-30-20: Necesidades, Deseos e Inversión
+                </p>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h3><i class="fas fa-chart-pie"></i> Visualización Interactiva</h3>
+                        <p>Gráficos dinámicos que muestran la distribución de tus consumos</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3><i class="fas fa-filter"></i> Filtros Avanzados</h3>
+                        <p>Filtra por año, mes y tarjeta para análisis detallados</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3><i class="fas fa-search"></i> Drill-Down</h3>
+                        <p>Haz clic en las secciones del gráfico para ver el detalle por categorías</p>
+                    </div>
+                </div>
+
+                <!-- Contenedor para la visualización -->
+                <div id="clasificacion-container" style="margin-top: 30px;">
+                    <p style="text-align: center; color: #666; padding: 40px;">
+                        <i class="fas fa-spinner fa-spin"></i> Cargando visualización...
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para guardar estado de cuenta -->
+    <div id="analizar-saveModal" class="save-modal">
+        <div class="save-modal-content">
+            <h3>💾 Guardar Análisis</h3>
+            <p>¿Desea guardar este análisis en su historial de estados de cuenta?</p>
+            <div class="save-benefits">
+                <p><strong>✅ Beneficios de guardar:</strong></p>
+                <ul>
+                    <li>Acceso rápido desde el historial</li>
+                    <li>Comparación con estados anteriores</li>
+                    <li>Control de pagos de tarjeta</li>
+                </ul>
+            </div>
+            <div class="save-modal-buttons">
+                <button class="btn-save" id="analizar-btnSave" onclick="analizarGuardarEstadoCuenta()">
+                    💾 Guardar en Historial
+                </button>
+                <button class="btn-cancel" onclick="analizarCerrarModalGuardar()">
+                    ❌ No Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para alerta de duplicado -->
+    <div id="analizar-duplicateModal" class="save-modal">
+        <div class="save-modal-content duplicate-modal-content">
+            <h3>⚠️ Estado de Cuenta Duplicado</h3>
+            <div class="duplicate-warning">
+                <p><strong>Estimado usuario,</strong></p>
+                <p>El estado de cuenta que intenta guardar ya existe en su historial:</p>
+                <div class="duplicate-info">
+                    <p><strong>Banco:</strong> <span id="analizar-duplicate-banco"></span></p>
+                    <p><strong>Tarjeta:</strong> <span id="analizar-duplicate-tarjeta"></span></p>
+                    <p><strong>Fecha de Corte:</strong> <span id="analizar-duplicate-fecha-corte"></span></p>
+                    <p><strong>Últimos Dígitos:</strong> <span id="analizar-duplicate-digitos"></span></p>
+                    <p><strong>Guardado el:</strong> <span id="analizar-duplicate-fecha-creacion"></span></p>
+                </div>
+                <p class="duplicate-question">¿Desea sobrescribir el estado de cuenta existente?</p>
+            </div>
+            <div class="save-modal-buttons">
+                <button class="btn-overwrite" id="analizar-btnOverwrite" onclick="analizarSobrescribirEstadoCuenta()">
+                    ✅ Sí, Sobrescribir
+                </button>
+                <button class="btn-cancel" onclick="analizarCerrarModalDuplicado()">
+                    ❌ Cancelar
+                </button>
+            </div>
         </div>
     </div>
 
     <script>
-        // ===== FUNCIONALIDAD DEL SLIDER =====
+        // ===== FUNCIONALIDAD DEL CARRUSEL CON DRAG-TO-SCROLL =====
         document.addEventListener('DOMContentLoaded', function() {
+            const sliderContainer = document.getElementById('sliderContainer');
             const sliderBtns = document.querySelectorAll('.slider-btn[data-option]');
             const contentSections = document.querySelectorAll('.content-section');
             
+            // Variables para drag-to-scroll
+            let isDown = false;
+            let startX;
+            let scrollLeft;
+            let hasDragged = false;
+            
+            // ===== DRAG-TO-SCROLL PARA MOUSE (DESKTOP) =====
+            sliderContainer.addEventListener('mousedown', (e) => {
+                isDown = true;
+                sliderContainer.style.cursor = 'grabbing';
+                startX = e.pageX - sliderContainer.offsetLeft;
+                scrollLeft = sliderContainer.scrollLeft;
+                hasDragged = false;
+            });
+            
+            sliderContainer.addEventListener('mouseleave', () => {
+                isDown = false;
+                sliderContainer.style.cursor = 'grab';
+            });
+            
+            sliderContainer.addEventListener('mouseup', () => {
+                isDown = false;
+                sliderContainer.style.cursor = 'grab';
+            });
+            
+            sliderContainer.addEventListener('mousemove', (e) => {
+                if (!isDown) return;
+                e.preventDefault();
+                hasDragged = true;
+                const x = e.pageX - sliderContainer.offsetLeft;
+                const walk = (x - startX) * 2; // Velocidad del scroll (ajustable)
+                sliderContainer.scrollLeft = scrollLeft - walk;
+            });
+            
+            // ===== DRAG-TO-SCROLL PARA TOUCH (MÓVIL) =====
+            let touchStartX = 0;
+            let touchScrollLeft = 0;
+            
+            sliderContainer.addEventListener('touchstart', (e) => {
+                touchStartX = e.touches[0].pageX;
+                touchScrollLeft = sliderContainer.scrollLeft;
+                hasDragged = false;
+            }, { passive: true });
+            
+            sliderContainer.addEventListener('touchmove', (e) => {
+                if (!touchStartX) return;
+                const touchX = e.touches[0].pageX;
+                const diff = touchStartX - touchX;
+                sliderContainer.scrollLeft = touchScrollLeft + diff;
+                hasDragged = Math.abs(diff) > 5; // Considerar drag si se movió más de 5px
+            }, { passive: true });
+            
+            sliderContainer.addEventListener('touchend', () => {
+                touchStartX = 0;
+            });
+            
+            // ===== EVENT LISTENERS PARA LOS BOTONES =====
             sliderBtns.forEach(btn => {
-                btn.addEventListener('click', function() {
+                btn.addEventListener('click', function(e) {
+                    // Solo activar si no hubo drag
+                    if (hasDragged) {
+                        hasDragged = false;
+                        return;
+                    }
+                    
                     // Remover clase active de todos los botones
                     sliderBtns.forEach(b => b.classList.remove('active'));
                     // Agregar clase active al botón clickeado
@@ -220,9 +1086,573 @@
                 const targetSection = document.getElementById(`${option}-content`);
                 if (targetSection) {
                     targetSection.classList.add('active');
+                    
+                    // Si es la sección de clasificación, cargar la visualización
+                    if (option === 'clasificacion') {
+                        cargarClasificacion503020();
+                    }
                 }
             }
+            
+            // Asegurar que el scroll inicial esté en 0
+            setTimeout(() => {
+                sliderContainer.scrollLeft = 0;
+                updateScrollIndicator();
+            }, 100);
+            
+            // ===== INDICADOR DE SCROLL (UX) =====
+            const scrollIndicatorRight = document.getElementById('scrollIndicatorRight');
+            const scrollIndicatorLeft = document.getElementById('scrollIndicatorLeft');
+            
+            function updateScrollIndicator() {
+                // Verificar si hay más contenido
+                const isScrollable = sliderContainer.scrollWidth > sliderContainer.clientWidth;
+                const isAtStart = sliderContainer.scrollLeft <= 10;
+                const isAtEnd = sliderContainer.scrollLeft + sliderContainer.clientWidth >= sliderContainer.scrollWidth - 10;
+                
+                // Indicador derecho (más opciones a la derecha) - visible en desktop y móvil
+                if (scrollIndicatorRight) {
+                    if (isScrollable && !isAtEnd) {
+                        scrollIndicatorRight.classList.remove('hidden');
+                    } else {
+                        scrollIndicatorRight.classList.add('hidden');
+                    }
+                }
+                
+                // Indicador izquierdo (más opciones a la izquierda) - visible en desktop y móvil
+                if (scrollIndicatorLeft) {
+                    if (isScrollable && !isAtStart) {
+                        scrollIndicatorLeft.classList.remove('hidden');
+                    } else {
+                        scrollIndicatorLeft.classList.add('hidden');
+                    }
+                }
+            }
+            
+            // ===== FUNCIONALIDAD DE CLIC EN FLECHAS =====
+            // Desplazar hacia la derecha
+            if (scrollIndicatorRight) {
+                scrollIndicatorRight.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const scrollAmount = sliderContainer.clientWidth * 0.8; // Desplazar 80% del ancho visible
+                    sliderContainer.scrollBy({
+                        left: scrollAmount,
+                        behavior: 'smooth'
+                    });
+                });
+            }
+            
+            // Desplazar hacia la izquierda
+            if (scrollIndicatorLeft) {
+                scrollIndicatorLeft.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const scrollAmount = sliderContainer.clientWidth * 0.8; // Desplazar 80% del ancho visible
+                    sliderContainer.scrollBy({
+                        left: -scrollAmount,
+                        behavior: 'smooth'
+                    });
+                });
+            }
+            
+            // Actualizar indicador al desplazar
+            sliderContainer.addEventListener('scroll', updateScrollIndicator);
+            
+            // Actualizar indicador al redimensionar
+            window.addEventListener('resize', updateScrollIndicator);
+            
+            // Ocultar indicadores temporalmente cuando se inicia el drag (solo en móvil)
+            let hideTimeout;
+            const isMobile = window.innerWidth <= 768;
+            
+            if (isMobile) {
+                sliderContainer.addEventListener('mousedown', () => {
+                    if (scrollIndicatorRight) scrollIndicatorRight.classList.add('hidden');
+                    if (scrollIndicatorLeft) scrollIndicatorLeft.classList.add('hidden');
+                });
+                
+                sliderContainer.addEventListener('touchstart', () => {
+                    if (scrollIndicatorRight) scrollIndicatorRight.classList.add('hidden');
+                    if (scrollIndicatorLeft) scrollIndicatorLeft.classList.add('hidden');
+                });
+            }
+            
+            // Mostrar indicadores nuevamente después de un momento si es necesario
+            sliderContainer.addEventListener('scroll', () => {
+                clearTimeout(hideTimeout);
+                hideTimeout = setTimeout(() => {
+                    updateScrollIndicator();
+                }, 300);
+            });
         });
+
+        // ===== FUNCIONALIDAD DE ANÁLISIS DE PDF =====
+        let analizarSelectedFile = null;
+        let analizarCurrentAnalysisData = null;
+        let analizarEstadoCuentaDuplicadoId = null;
+        
+        // Inicializar funcionalidad de análisis cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', function() {
+            // Elementos del DOM para análisis
+            const analizarUploadArea = document.getElementById('analizar-uploadArea');
+            const analizarFileInput = document.getElementById('analizar-fileInput');
+            
+            // Inicializar eventos si los elementos existen
+            if (analizarUploadArea && analizarFileInput) {
+                // Event listeners para drag & drop
+                analizarUploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    analizarUploadArea.classList.add('dragover');
+                });
+                
+                analizarUploadArea.addEventListener('dragleave', () => {
+                    analizarUploadArea.classList.remove('dragover');
+                });
+                
+                analizarUploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    analizarUploadArea.classList.remove('dragover');
+                    
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        analizarHandleFile(files[0]);
+                    }
+                });
+                
+                // Click en el área de subida (solo si no es el botón)
+                analizarUploadArea.addEventListener('click', (e) => {
+                    if (e.target.tagName !== 'BUTTON') {
+                        analizarFileInput.click();
+                    }
+                });
+                
+                // Cambio en el input de archivo
+                analizarFileInput.addEventListener('change', (e) => {
+                    if (e.target.files.length > 0) {
+                        analizarHandleFile(e.target.files[0]);
+                    }
+                });
+            }
+            
+            // Cerrar modal al hacer clic fuera
+            const saveModal = document.getElementById('analizar-saveModal');
+            if (saveModal) {
+                saveModal.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        analizarCerrarModalGuardar();
+                    }
+                });
+            }
+            
+            // Cerrar modal de duplicado al hacer clic fuera
+            const duplicateModal = document.getElementById('analizar-duplicateModal');
+            if (duplicateModal) {
+                duplicateModal.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        analizarCerrarModalDuplicado();
+                    }
+                });
+            }
+        });
+        
+        function analizarHandleFile(file) {
+            // Validar que sea PDF
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                analizarShowError('Por favor selecciona un archivo PDF válido');
+                return;
+            }
+            
+            // Validar tamaño (máximo 10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                analizarShowError('El archivo es demasiado grande. Máximo 10MB');
+                return;
+            }
+            
+            // Obtener elementos del DOM
+            const analizarResultsContainer = document.getElementById('analizar-resultsContainer');
+            const analizarFileName = document.getElementById('analizar-fileName');
+            const analizarFileInfo = document.getElementById('analizar-fileInfo');
+            const analizarAnalyzeBtn = document.getElementById('analizar-analyzeBtn');
+            
+            // Limpiar resultados anteriores al seleccionar un nuevo archivo
+            if (analizarResultsContainer) {
+                analizarResultsContainer.innerHTML = '';
+                analizarResultsContainer.classList.remove('active');
+            }
+            analizarCurrentAnalysisData = null;
+            
+            analizarSelectedFile = file;
+            if (analizarFileName) analizarFileName.textContent = file.name;
+            if (analizarFileInfo) analizarFileInfo.style.display = 'block';
+            if (analizarAnalyzeBtn) analizarAnalyzeBtn.style.display = 'inline-block';
+            analizarHideMessages();
+        }
+        
+        async function analizarAnalyzePDF() {
+            if (!analizarSelectedFile) {
+                analizarShowError('Por favor selecciona un archivo primero');
+                return;
+            }
+            
+            // Obtener elementos del DOM
+            const analizarResultsContainer = document.getElementById('analizar-resultsContainer');
+            const analizarLoading = document.getElementById('analizar-loading');
+            const analizarAnalyzeBtn = document.getElementById('analizar-analyzeBtn');
+            
+            // Limpiar resultados anteriores
+            if (analizarResultsContainer) {
+                analizarResultsContainer.innerHTML = '';
+                analizarResultsContainer.classList.remove('active');
+            }
+            analizarCurrentAnalysisData = null;
+            
+            // Mostrar loading
+            if (analizarLoading) analizarLoading.classList.add('active');
+            if (analizarAnalyzeBtn) {
+                analizarAnalyzeBtn.disabled = true;
+                analizarAnalyzeBtn.textContent = 'Analizando...';
+            }
+            analizarHideMessages();
+            
+            // Crear FormData
+            const formData = new FormData();
+            formData.append('pdf_file', analizarSelectedFile);
+            
+            try {
+                const response = await fetch('/analizar-pdf', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const responseText = await response.text();
+                
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                } catch (e) {
+                    console.error('Error parsing JSON:', e);
+                    analizarShowError('Error: El servidor devolvió una respuesta inválida');
+                    return;
+                }
+                
+                if (result.status === 'success') {
+                    analizarShowResults(result.data, 'texto');
+                    analizarShowSuccess('✅ Estado de cuenta analizado exitosamente');
+                } else if (result.fecha_corte) {
+                    // Si no hay status pero hay datos, mostrar directamente
+                    analizarShowResults(result, 'texto');
+                    analizarShowSuccess('✅ Estado de cuenta analizado exitosamente');
+                } else {
+                    analizarShowError(result.message || 'Error analizando el PDF');
+                }
+                
+            } catch (error) {
+                console.error('Fetch error:', error);
+                analizarShowError('Error de conexión: ' + error.message);
+            } finally {
+                const analizarLoading = document.getElementById('analizar-loading');
+                const analizarAnalyzeBtn = document.getElementById('analizar-analyzeBtn');
+                if (analizarLoading) analizarLoading.classList.remove('active');
+                if (analizarAnalyzeBtn) {
+                    analizarAnalyzeBtn.disabled = false;
+                    analizarAnalyzeBtn.textContent = '🔍 Analizar con IA';
+                }
+            }
+        }
+        
+        function analizarShowResults(data, method) {
+            // Guardar los datos del análisis para poder guardarlos después
+            analizarCurrentAnalysisData = data;
+            
+            const analizarResultsContainer = document.getElementById('analizar-resultsContainer');
+            if (!analizarResultsContainer) return;
+            
+            analizarResultsContainer.classList.add('active');
+            analizarResultsContainer.innerHTML = ''; // Limpiar contenedor
+            
+            // Grupo 1: Fechas
+            const grupo1Fields = [
+                { key: 'fecha_inicio_periodo', label: 'Fecha Inicio Periodo', type: 'date' },
+                { key: 'fecha_corte', label: 'Fecha de Corte', type: 'date' },
+                { key: 'fecha_pago', label: 'Fecha de Pago', type: 'date' }
+            ];
+            
+            // Grupo 2: Cupos
+            const grupo2Fields = [
+                { key: 'cupo_autorizado', label: 'Cupo Autorizado', type: 'currency' },
+                { key: 'cupo_disponible', label: 'Cupo Disponible', type: 'currency' },
+                { key: 'cupo_utilizado', label: 'Cupo Utilizado', type: 'currency' }
+            ];
+            
+            // Grupo 3: Totales y Deudas
+            const grupo3Fields = [
+                { key: 'deuda_anterior', label: 'Deuda Anterior', type: 'currency' },
+                { key: 'consumos_cargos_totales', label: 'Consumos y Cargos', type: 'currency' },
+                { key: 'pagos_creditos', label: 'Pagos y Créditos', type: 'currency' },
+                { key: 'intereses', label: 'Intereses', type: 'currency' },
+                { key: 'minimo_a_pagar', label: 'Mínimo a Pagar', type: 'currency' },
+                { key: 'deuda_total_pagar', label: 'Deuda Total a Pagar', type: 'currency', highlight: true }
+            ];
+            
+            // Cabecera (siempre visible)
+            const cabeceraFields = [
+                { key: 'nombre_banco', label: 'Nombre del Banco', type: 'text' },
+                { key: 'tipo_tarjeta', label: 'Tipo de Tarjeta', type: 'text' },
+                { key: 'ultimos_digitos', label: 'Últimos Dígitos', type: 'text' }
+            ];
+            
+            // Agregar porcentaje de utilización a la cabecera si está disponible
+            if (data.porcentaje_utilizacion !== undefined && data.porcentaje_utilizacion !== null) {
+                cabeceraFields.push({ 
+                    key: 'porcentaje_utilizacion', 
+                    label: 'Porcentaje de Utilización', 
+                    type: 'text',
+                    displayValue: data.porcentaje_utilizacion + '%'
+                });
+            }
+            
+            // Función para crear cards de un grupo
+            function createGroupCards(fields, groupTitle, groupClass) {
+                const groupDiv = document.createElement('div');
+                groupDiv.className = `details-group ${groupClass}`;
+                groupDiv.innerHTML = `<h4 class="group-title">${groupTitle}</h4><div class="details-grid"></div>`;
+                const grid = groupDiv.querySelector('.details-grid');
+                
+                fields.forEach(field => {
+                    let value = data[field.key];
+                    if (field.displayValue !== undefined) {
+                        value = field.displayValue;
+                    }
+                    
+                    if (value !== undefined && value !== null && value !== '') {
+                        const card = document.createElement('div');
+                        card.className = field.highlight ? 'detail-card highlight' : 'detail-card';
+                        
+                        let displayValue = value;
+                        let valueClass = 'detail-value';
+                        
+                        if (field.type === 'currency') {
+                            displayValue = `$${parseFloat(value).toLocaleString('es-ES', {minimumFractionDigits: 2})}`;
+                            valueClass += ' currency';
+                            if (field.highlight) {
+                                valueClass += ' highlight-value';
+                            }
+                        } else if (field.type === 'date') {
+                            valueClass += ' date';
+                        }
+                        
+                        card.innerHTML = `
+                            <div class="detail-label">${field.label}</div>
+                            <div class="${valueClass}">${displayValue}</div>
+                        `;
+                        
+                        grid.appendChild(card);
+                    }
+                });
+                
+                if (grid.children.length > 0) {
+                    analizarResultsContainer.appendChild(groupDiv);
+                }
+            }
+            
+            // Crear grupos
+            createGroupCards(cabeceraFields, '🏦 Información de la Tarjeta', 'grupo-cabecera');
+            createGroupCards(grupo1Fields, '📅 Fechas del Periodo', 'grupo-1');
+            createGroupCards(grupo2Fields, '💳 Información de Cupo', 'grupo-2');
+            createGroupCards(grupo3Fields, '💰 Totales y Pagos', 'grupo-3');
+            
+            // Agregar botón de guardar en la parte inferior
+            const saveButtonContainer = document.createElement('div');
+            saveButtonContainer.className = 'save-button-container';
+            saveButtonContainer.innerHTML = `
+                <button class="btn-save-large" onclick="analizarMostrarModalGuardar()">
+                    💾 Guardar Estado de Cuenta
+                </button>
+            `;
+            analizarResultsContainer.appendChild(saveButtonContainer);
+        }
+        
+        function analizarShowError(message) {
+            const analizarErrorMessage = document.getElementById('analizar-errorMessage');
+            const analizarSuccessMessage = document.getElementById('analizar-successMessage');
+            if (analizarErrorMessage) {
+                analizarErrorMessage.textContent = message;
+                analizarErrorMessage.style.display = 'block';
+            }
+            if (analizarSuccessMessage) analizarSuccessMessage.style.display = 'none';
+        }
+        
+        function analizarShowSuccess(message) {
+            const analizarSuccessMessage = document.getElementById('analizar-successMessage');
+            const analizarErrorMessage = document.getElementById('analizar-errorMessage');
+            if (analizarSuccessMessage) {
+                analizarSuccessMessage.textContent = message;
+                analizarSuccessMessage.style.display = 'block';
+            }
+            if (analizarErrorMessage) analizarErrorMessage.style.display = 'none';
+        }
+        
+        function analizarHideMessages() {
+            const analizarErrorMessage = document.getElementById('analizar-errorMessage');
+            const analizarSuccessMessage = document.getElementById('analizar-successMessage');
+            if (analizarErrorMessage) analizarErrorMessage.style.display = 'none';
+            if (analizarSuccessMessage) analizarSuccessMessage.style.display = 'none';
+        }
+        
+        // ===== FUNCIONES DEL MODAL DE GUARDAR =====
+        
+        function analizarMostrarModalGuardar() {
+            document.getElementById('analizar-saveModal').style.display = 'block';
+        }
+        
+        function analizarCerrarModalGuardar() {
+            document.getElementById('analizar-saveModal').style.display = 'none';
+        }
+        
+        async function analizarGuardarEstadoCuenta() {
+            if (!analizarCurrentAnalysisData) {
+                analizarShowError('No hay datos de análisis para guardar');
+                return;
+            }
+            
+            const btnSave = document.getElementById('analizar-btnSave');
+            btnSave.disabled = true;
+            btnSave.textContent = '💾 Guardando...';
+            
+            try {
+                const response = await fetch('/api/guardar-estado-cuenta', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        datos_analisis: analizarCurrentAnalysisData,
+                        archivo_original: analizarSelectedFile ? analizarSelectedFile.name : null
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    analizarShowSuccess('✅ Estado de cuenta guardado exitosamente en tu historial');
+                    analizarCerrarModalGuardar();
+                } else if (result.status === 'duplicate') {
+                    // Estado de cuenta duplicado - mostrar modal de confirmación
+                    analizarEstadoCuentaDuplicadoId = result.estado_cuenta_existente.id;
+                    analizarMostrarModalDuplicado(result.estado_cuenta_existente);
+                } else {
+                    analizarShowError('Error guardando estado de cuenta: ' + result.message);
+                }
+                
+            } catch (error) {
+                console.error('Error guardando estado:', error);
+                analizarShowError('Error de conexión al guardar: ' + error.message);
+            } finally {
+                btnSave.disabled = false;
+                btnSave.textContent = '💾 Guardar';
+            }
+        }
+        
+        function analizarMostrarModalDuplicado(estadoExistente) {
+            // Cerrar modal de guardar
+            analizarCerrarModalGuardar();
+            
+            // Llenar información del estado existente
+            document.getElementById('analizar-duplicate-banco').textContent = estadoExistente.banco || 'N/A';
+            document.getElementById('analizar-duplicate-tarjeta').textContent = estadoExistente.tarjeta || 'N/A';
+            document.getElementById('analizar-duplicate-fecha-corte').textContent = estadoExistente.fecha_corte || 'N/A';
+            document.getElementById('analizar-duplicate-digitos').textContent = estadoExistente.ultimos_digitos || 'N/A';
+            document.getElementById('analizar-duplicate-fecha-creacion').textContent = estadoExistente.fecha_creacion || 'N/A';
+            
+            // Mostrar modal de duplicado
+            document.getElementById('analizar-duplicateModal').style.display = 'block';
+        }
+        
+        function analizarCerrarModalDuplicado() {
+            document.getElementById('analizar-duplicateModal').style.display = 'none';
+            analizarEstadoCuentaDuplicadoId = null;
+        }
+        
+        // ===== FUNCIÓN PARA CARGAR CLASIFICACIÓN 50-30-20 =====
+        function cargarClasificacion503020() {
+            const container = document.getElementById('clasificacion-container');
+            if (!container) return;
+            
+            container.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;"><i class="fas fa-spinner fa-spin"></i> Cargando visualización...</p>';
+            
+            // Cargar el contenido desde la ruta
+            fetch('/api/visualizacion-503020?partial=true', {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+                .then(response => response.text())
+                .then(html => {
+                    container.innerHTML = html;
+                    // Ejecutar scripts que puedan estar en el HTML cargado
+                    const scripts = container.querySelectorAll('script');
+                    scripts.forEach(oldScript => {
+                        const newScript = document.createElement('script');
+                        Array.from(oldScript.attributes).forEach(attr => {
+                            newScript.setAttribute(attr.name, attr.value);
+                        });
+                        newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                        oldScript.parentNode.replaceChild(newScript, oldScript);
+                    });
+                    // Forzar ejecución de la inicialización después de cargar scripts
+                    setTimeout(function() {
+                        if (typeof inicializarVisualizacion === 'function') {
+                            inicializarVisualizacion();
+                        }
+                    }, 100);
+                })
+                .catch(error => {
+                    console.error('Error cargando visualización:', error);
+                    container.innerHTML = '<p style="text-align: center; color: #dc3545; padding: 40px;">Error al cargar la visualización. Por favor, recarga la página.</p>';
+                });
+        }
+        
+        async function analizarSobrescribirEstadoCuenta() {
+            if (!analizarCurrentAnalysisData || !analizarEstadoCuentaDuplicadoId) {
+                analizarShowError('No hay datos para sobrescribir');
+                return;
+            }
+            
+            const btnOverwrite = document.getElementById('analizar-btnOverwrite');
+            btnOverwrite.disabled = true;
+            btnOverwrite.textContent = '⏳ Sobrescribiendo...';
+            
+            try {
+                const response = await fetch('/api/guardar-estado-cuenta', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        datos_analisis: analizarCurrentAnalysisData,
+                        archivo_original: analizarSelectedFile ? analizarSelectedFile.name : null,
+                        sobrescribir: true,
+                        estado_cuenta_id_sobrescribir: analizarEstadoCuentaDuplicadoId
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    analizarShowSuccess('✅ Estado de cuenta actualizado exitosamente');
+                    analizarCerrarModalDuplicado();
+                } else {
+                    analizarShowError('Error sobrescribiendo estado de cuenta: ' + result.message);
+                }
+                
+            } catch (error) {
+                console.error('Error sobrescribiendo estado:', error);
+                analizarShowError('Error de conexión al sobrescribir: ' + error.message);
+            } finally {
+                btnOverwrite.disabled = false;
+                btnOverwrite.textContent = '✅ Sí, Sobrescribir';
+            }
+        }
+        
     </script>
 </body>
 </html>

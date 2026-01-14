@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 import uuid
 from functools import wraps
 from authlib.integrations.flask_client import OAuth
-from sqlalchemy import text
+from sqlalchemy import text, extract
 from sqlalchemy import inspect as sqlalchemy_inspect
 import tempfile
 import os
@@ -209,6 +209,7 @@ class EstadosCuenta(db.Model):
     
     # Campos extraídos del análisis de PDF
     fecha_corte = db.Column(db.Date, nullable=True)
+    fecha_inicio_periodo = db.Column(db.Date, nullable=True)  # Fecha de inicio del periodo del estado de cuenta
     fecha_pago = db.Column(db.Date, nullable=True)
     cupo_autorizado = db.Column(db.Float, nullable=True)
     cupo_disponible = db.Column(db.Float, nullable=True)
@@ -219,6 +220,7 @@ class EstadosCuenta(db.Model):
     consumos_cargos_totales = db.Column(db.Float, nullable=True)
     pagos_creditos = db.Column(db.Float, nullable=True)
     intereses = db.Column(db.Float, nullable=True)
+    minimo_a_pagar = db.Column(db.Float, nullable=True)  # Pago mínimo requerido
     deuda_total_pagar = db.Column(db.Float, nullable=True)
     
     # Información del banco y tarjeta
@@ -231,7 +233,7 @@ class EstadosCuenta(db.Model):
     
     # Metadatos
     fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    archivo_original = db.Column(db.String(200), nullable=True)  # Nombre del archivo PDF original
+    archivo_original = db.Column(db.String(200), nullable=True)  # Código: DDMMAAAA-654 (fecha_corte + últimos 3 dígitos)
     
     # Relaciones
     usuario = db.relationship('Usuario', backref=db.backref('estados_cuenta', lazy=True))
@@ -247,6 +249,7 @@ class ConsumosDetalle(db.Model):
     descripcion = db.Column(db.String(200), nullable=True)
     monto = db.Column(db.Float, nullable=True)
     categoria = db.Column(db.String(50), nullable=True)
+    categoria_503020 = db.Column(db.String(20), nullable=True)  # Necesidad, Deseo, Inversión
     tipo_transaccion = db.Column(db.String(50), nullable=True)  # 'consumo', 'pago', 'interes', etc.
     fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     
@@ -260,9 +263,10 @@ class ConsumosDetalle(db.Model):
 class BancoEstandarizado(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre_estandarizado = db.Column(db.String(100), nullable=False, unique=True)
+    abreviacion = db.Column(db.String(50), nullable=True)  # Nombre abreviado para mostrar
     variaciones = db.Column(db.Text, nullable=True)  # JSON con variaciones encontradas
     pais = db.Column(db.String(50), nullable=True)  # País del banco
-    tipo_banco = db.Column(db.String(20), nullable=True)  # Privado/Público
+    tipo_banco = db.Column(db.String(20), nullable=True)  # Privado/Público/Cooperativa/Casa Comercial
     fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     activo = db.Column(db.Boolean, nullable=False, default=True)
     
@@ -273,6 +277,7 @@ class BancoEstandarizado(db.Model):
 class TipoTarjetaEstandarizado(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre_estandarizado = db.Column(db.String(100), nullable=False, unique=True)
+    abreviacion = db.Column(db.String(50), nullable=True)  # Nombre abreviado para mostrar
     variaciones = db.Column(db.Text, nullable=True)  # JSON con variaciones encontradas
     pais = db.Column(db.String(50), nullable=True)  # País de la marca
     tipo_tarjeta = db.Column(db.String(20), nullable=True)  # Internacional/Nacional
@@ -441,7 +446,7 @@ def registrar_metrica_ia(usuario_id, modelo_ia, tipo_operacion, tokens_consumido
     return metrica
 
 def estandarizar_banco(nombre_banco):
-    """Estandarizar nombre de banco usando base de datos de bancos conocidos"""
+    """Estandarizar nombre de banco usando base de datos de bancos conocidos. Retorna la abreviación si existe."""
     if not nombre_banco:
         return None
     
@@ -451,7 +456,8 @@ def estandarizar_banco(nombre_banco):
     # Buscar coincidencia exacta
     banco_existente = BancoEstandarizado.query.filter_by(nombre_estandarizado=nombre_banco).first()
     if banco_existente:
-        return banco_existente.nombre_estandarizado
+        # Retornar abreviación si existe, sino el nombre estandarizado
+        return banco_existente.abreviacion if banco_existente.abreviacion else banco_existente.nombre_estandarizado
     
     # Buscar coincidencia parcial inteligente
     bancos_conocidos = BancoEstandarizado.query.filter(BancoEstandarizado.activo == True).all()
@@ -467,16 +473,19 @@ def estandarizar_banco(nombre_banco):
             "visionfund", "fucer", "lhv", "citibank", "china", "icbc", "opportunity",
             "diners", "pacífico", "biess", "banecuador", "desarrollo", "cfn",
             "jep", "jardín", "azuayo", "policía", "nacional", "alianza", "valle",
-            "sagrario", "octubre", "cooprogreso"
+            "sagrario", "octubre", "cooprogreso", "atlántida", "de prati", "pycca",
+            "comandato", "ganga", "tventas", "rm", "sukasa", "todohogar"
         ]
         
         for palabra in palabras_clave:
             if palabra in nombre_limpio and palabra in nombre_conocido:
-                return banco_conocido.nombre_estandarizado
+                # Retornar abreviación si existe, sino el nombre estandarizado
+                return banco_conocido.abreviacion if banco_conocido.abreviacion else banco_conocido.nombre_estandarizado
     
     # Si no existe, crear nuevo registro
     nuevo_banco = BancoEstandarizado(
         nombre_estandarizado=nombre_banco,
+        abreviacion=nombre_banco,  # Por defecto usar el nombre completo
         variaciones=f'["{nombre_banco}"]',
         pais="Ecuador"  # Por defecto Ecuador
     )
@@ -486,7 +495,7 @@ def estandarizar_banco(nombre_banco):
     return nombre_banco
 
 def estandarizar_tipo_tarjeta(tipo_tarjeta):
-    """Estandarizar tipo de tarjeta usando base de datos de tipos conocidos"""
+    """Estandarizar tipo de tarjeta usando base de datos de tipos conocidos. Retorna la abreviación si existe."""
     if not tipo_tarjeta:
         return None
     
@@ -496,7 +505,8 @@ def estandarizar_tipo_tarjeta(tipo_tarjeta):
     # Buscar coincidencia exacta
     tipo_existente = TipoTarjetaEstandarizado.query.filter_by(nombre_estandarizado=tipo_tarjeta).first()
     if tipo_existente:
-        return tipo_existente.nombre_estandarizado
+        # Retornar abreviación si existe, sino el nombre estandarizado
+        return tipo_existente.abreviacion if tipo_existente.abreviacion else tipo_existente.nombre_estandarizado
     
     # Buscar coincidencia parcial inteligente
     tipos_conocidos = TipoTarjetaEstandarizado.query.filter(TipoTarjetaEstandarizado.activo == True).all()
@@ -506,16 +516,20 @@ def estandarizar_tipo_tarjeta(tipo_tarjeta):
         
         # Buscar palabras clave comunes
         palabras_clave = [
-            "visa", "mastercard", "american express", "diners", "discover", "titanium"
+            "visa", "mastercard", "american express", "diners", "discover", "titanium",
+            "esfera", "amex", "crédito de prati", "club pycca", "comandato", "ganga",
+            "tventas", "rm", "sukasa", "todohogar"
         ]
         
         for palabra in palabras_clave:
             if palabra in tipo_limpio and palabra in nombre_conocido:
-                return tipo_conocido.nombre_estandarizado
+                # Retornar abreviación si existe, sino el nombre estandarizado
+                return tipo_conocido.abreviacion if tipo_conocido.abreviacion else tipo_conocido.nombre_estandarizado
     
     # Si no existe, crear nuevo registro
     nuevo_tipo = TipoTarjetaEstandarizado(
         nombre_estandarizado=tipo_tarjeta,
+        abreviacion=tipo_tarjeta,  # Por defecto usar el nombre completo
         variaciones=f'["{tipo_tarjeta}"]',
         pais="Ecuador"  # Por defecto Ecuador
     )
@@ -528,53 +542,69 @@ def inicializar_bancos_oficiales():
     """Inicializar la base de datos con los bancos oficiales de Ecuador"""
     bancos_oficiales = [
         # Bancos Privados
-        {"nombre": "Banco Pichincha C.A.", "pais": "Ecuador", "tipo": "Privado"},
-        {"nombre": "Banco Guayaquil S.A.", "pais": "Ecuador", "tipo": "Privado"},
-        {"nombre": "Produbanco S.A.", "pais": "Ecuador", "tipo": "Privado"},
-        {"nombre": "Banco Bolivariano C.A.", "pais": "Ecuador", "tipo": "Privado"},
-        {"nombre": "Banco Internacional S.A.", "pais": "Ecuador", "tipo": "Privado"},
-        {"nombre": "Banco del Austro S.A.", "pais": "Ecuador", "tipo": "Privado"},
-        {"nombre": "Banco de Machala S.A.", "pais": "Ecuador", "tipo": "Privado"},
-        {"nombre": "Banco Solidario S.A.", "pais": "Ecuador", "tipo": "Privado"},
-        {"nombre": "Banco General Rumiñahui S.A.", "pais": "Ecuador", "tipo": "Privado"},
-        {"nombre": "Banco de Loja S.A.", "pais": "Ecuador", "tipo": "Privado"},
-        {"nombre": "Banco Comercial de Manabí S.A.", "pais": "Ecuador", "tipo": "Privado"},
-        {"nombre": "Banco CoopNacional S.A.", "pais": "Ecuador", "tipo": "Privado"},
-        {"nombre": "Banco ProCredit S.A.", "pais": "Ecuador", "tipo": "Privado"},
-        {"nombre": "Banco Amazonas S.A.", "pais": "Ecuador", "tipo": "Privado"},
-        {"nombre": "Banco D-MIRO S.A.", "pais": "Ecuador", "tipo": "Privado"},
-        {"nombre": "Banco Finca S.A.", "pais": "Ecuador", "tipo": "Privado"},
-        {"nombre": "Banco Delbank S.A.", "pais": "Ecuador", "tipo": "Privado"},
-        {"nombre": "Banco VisionFund Ecuador S.A.", "pais": "Ecuador", "tipo": "Privado"},
-        {"nombre": "Banco de Desarrollo (Banco FUCER)", "pais": "Ecuador", "tipo": "Privado"},
-        {"nombre": "LHV Bank", "pais": "Ecuador", "tipo": "Privado"},
-        {"nombre": "Citibank N.A.", "pais": "Ecuador", "tipo": "Privado"},
-        {"nombre": "Bank of China", "pais": "Ecuador", "tipo": "Privado"},
-        {"nombre": "ICBC", "pais": "Ecuador", "tipo": "Privado"},
-        {"nombre": "Opportunity Bank", "pais": "Ecuador", "tipo": "Privado"},
-        {"nombre": "Diners Club", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco Pichincha C.A.", "abreviacion": "Pichincha", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco Guayaquil S.A.", "abreviacion": "Guayaquil", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Produbanco S.A.", "abreviacion": "Produbanco", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco Bolivariano C.A.", "abreviacion": "Bolivariano", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco Internacional S.A.", "abreviacion": "Internacional", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco del Austro S.A.", "abreviacion": "Austro", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco de Machala S.A.", "abreviacion": "Machala", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco Solidario S.A.", "abreviacion": "Solidario", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco General Rumiñahui S.A.", "abreviacion": "BGR", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco de Loja S.A.", "abreviacion": "Loja", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco Comercial de Manabí S.A.", "abreviacion": "B. de Manabí", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco CoopNacional S.A.", "abreviacion": "CoopNacional", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco ProCredit S.A.", "abreviacion": "ProCredit", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco Amazonas S.A.", "abreviacion": "Amazonas", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco D-MIRO S.A.", "abreviacion": "D-MIRO", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco Finca S.A.", "abreviacion": "Finca", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco Delbank S.A.", "abreviacion": "Delbank", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco VisionFund Ecuador S.A.", "abreviacion": "VisionFund", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco de Desarrollo (Banco FUCER)", "abreviacion": "FUCER", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "LHV Bank", "abreviacion": "LHV Bank", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Citibank N.A.", "abreviacion": "Citibank", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Bank of China", "abreviacion": "Bank of China", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "ICBC", "abreviacion": "ICBC", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Opportunity Bank", "abreviacion": "Opportunity", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Diners Club", "abreviacion": "Diners Club", "pais": "Ecuador", "tipo": "Privado"},
+        {"nombre": "Banco Atlántida", "abreviacion": "Atlántida", "pais": "Ecuador", "tipo": "Privado"},
         
         # Bancos Públicos
-        {"nombre": "Banco del Pacífico S.A.", "pais": "Ecuador", "tipo": "Público"},
-        {"nombre": "Biess", "pais": "Ecuador", "tipo": "Público"},
-        {"nombre": "BanEcuador B.P.", "pais": "Ecuador", "tipo": "Público"},
-        {"nombre": "Banco de Desarrollo del Ecuador B.P.", "pais": "Ecuador", "tipo": "Público"},
-        {"nombre": "Corporación Financiera Nacional", "pais": "Ecuador", "tipo": "Público"},
+        {"nombre": "Banco del Pacífico S.A.", "abreviacion": "Pacífico", "pais": "Ecuador", "tipo": "Público"},
+        {"nombre": "Biess", "abreviacion": "Biess", "pais": "Ecuador", "tipo": "Público"},
+        {"nombre": "BanEcuador B.P.", "abreviacion": "BanEcuador", "pais": "Ecuador", "tipo": "Público"},
+        {"nombre": "Banco de Desarrollo del Ecuador B.P.", "abreviacion": "BDE", "pais": "Ecuador", "tipo": "Público"},
+        {"nombre": "Corporación Financiera Nacional", "abreviacion": "CFN", "pais": "Ecuador", "tipo": "Público"},
         
         # Cooperativas (Emisoras de Tarjetas)
-        {"nombre": "Cooperativa JEP (Jardín Azuayo)", "pais": "Ecuador", "tipo": "Cooperativa"},
-        {"nombre": "Cooperativa Policía Nacional", "pais": "Ecuador", "tipo": "Cooperativa"},
-        {"nombre": "Cooperativa Alianza del Valle", "pais": "Ecuador", "tipo": "Cooperativa"},
-        {"nombre": "Cooperativa El Sagrario", "pais": "Ecuador", "tipo": "Cooperativa"},
-        {"nombre": "Cooperativa 29 de Octubre", "pais": "Ecuador", "tipo": "Cooperativa"},
-        {"nombre": "Cooprogreso", "pais": "Ecuador", "tipo": "Cooperativa"},
+        {"nombre": "Cooperativa JEP (Jardín Azuayo)", "abreviacion": "JEP", "pais": "Ecuador", "tipo": "Cooperativa"},
+        {"nombre": "Cooperativa Policía Nacional", "abreviacion": "Policía Nacional", "pais": "Ecuador", "tipo": "Cooperativa"},
+        {"nombre": "Cooperativa Alianza del Valle", "abreviacion": "Alianza del Valle", "pais": "Ecuador", "tipo": "Cooperativa"},
+        {"nombre": "Cooperativa El Sagrario", "abreviacion": "El Sagrario", "pais": "Ecuador", "tipo": "Cooperativa"},
+        {"nombre": "Cooperativa 29 de Octubre", "abreviacion": "29 de Octubre", "pais": "Ecuador", "tipo": "Cooperativa"},
+        {"nombre": "Cooprogreso", "abreviacion": "Cooprogreso", "pais": "Ecuador", "tipo": "Cooperativa"},
+        
+        # Casas Comerciales
+        {"nombre": "De Prati", "abreviacion": "De Prati", "pais": "Ecuador", "tipo": "Casa Comercial"},
+        {"nombre": "Pycca", "abreviacion": "Pycca", "pais": "Ecuador", "tipo": "Casa Comercial"},
+        {"nombre": "Comandato", "abreviacion": "Comandato", "pais": "Ecuador", "tipo": "Casa Comercial"},
+        {"nombre": "La Ganga", "abreviacion": "La Ganga", "pais": "Ecuador", "tipo": "Casa Comercial"},
+        {"nombre": "TVentas", "abreviacion": "TVentas", "pais": "Ecuador", "tipo": "Casa Comercial"},
+        {"nombre": "Almacenes RM", "abreviacion": "Almacenes RM", "pais": "Ecuador", "tipo": "Casa Comercial"},
+        {"nombre": "Sukasa / TodoHogar", "abreviacion": "Sukasa", "pais": "Ecuador", "tipo": "Casa Comercial"},
     ]
     
     for banco_data in bancos_oficiales:
         banco_existente = BancoEstandarizado.query.filter_by(nombre_estandarizado=banco_data["nombre"]).first()
-        if not banco_existente:
+        if banco_existente:
+            # Actualizar abreviación si no existe o es diferente
+            if not banco_existente.abreviacion or banco_existente.abreviacion != banco_data["abreviacion"]:
+                banco_existente.abreviacion = banco_data["abreviacion"]
+                banco_existente.tipo_banco = banco_data["tipo"]
+        else:
             nuevo_banco = BancoEstandarizado(
                 nombre_estandarizado=banco_data["nombre"],
+                abreviacion=banco_data["abreviacion"],
                 variaciones=f'["{banco_data["nombre"]}"]',
                 pais=banco_data["pais"],
                 tipo_banco=banco_data["tipo"]
@@ -587,19 +617,35 @@ def inicializar_bancos_oficiales():
 def inicializar_marcas_tarjetas():
     """Inicializar la base de datos con las marcas oficiales de tarjetas"""
     marcas_oficiales = [
-        {"nombre": "Visa", "pais": "Ecuador", "tipo": "Internacional"},
-        {"nombre": "Mastercard", "pais": "Ecuador", "tipo": "Internacional"},
-        {"nombre": "American Express", "pais": "Ecuador", "tipo": "Internacional"},
-        {"nombre": "Diners Club", "pais": "Ecuador", "tipo": "Internacional"},
-        {"nombre": "Discover", "pais": "Ecuador", "tipo": "Internacional"},
-        {"nombre": "Titanium", "pais": "Ecuador", "tipo": "Nacional"},
+        # Tarjetas Internacionales
+        {"nombre": "Visa (Internacional)", "abreviacion": "Visa", "pais": "Ecuador", "tipo": "Internacional"},
+        {"nombre": "Mastercard (Internacional)", "abreviacion": "Mastercard", "pais": "Ecuador", "tipo": "Internacional"},
+        {"nombre": "American Express (Internacional)", "abreviacion": "Amex", "pais": "Ecuador", "tipo": "Internacional"},
+        {"nombre": "Diners Club (Internacional)", "abreviacion": "Diners", "pais": "Ecuador", "tipo": "Internacional"},
+        {"nombre": "Discover (Internacional)", "abreviacion": "Discover", "pais": "Ecuador", "tipo": "Internacional"},
+        {"nombre": "Titanium (Nacional)", "abreviacion": "Titanium", "pais": "Ecuador", "tipo": "Nacional"},
+        
+        # Casas Comerciales - Créditos
+        {"nombre": "Crédito De Prati", "abreviacion": "Crédito De Prati", "pais": "Ecuador", "tipo": "Nacional"},
+        {"nombre": "Club Pycca", "abreviacion": "Club Pycca", "pais": "Ecuador", "tipo": "Nacional"},
+        {"nombre": "Crédito Directo Comandato", "abreviacion": "Crédito Directo Comandato", "pais": "Ecuador", "tipo": "Nacional"},
+        {"nombre": "Crédito Directo La Ganga", "abreviacion": "Crédito Directo La Ganga", "pais": "Ecuador", "tipo": "Nacional"},
+        {"nombre": "CrediTVentas", "abreviacion": "CrediTVentas", "pais": "Ecuador", "tipo": "Nacional"},
+        {"nombre": "Crédito Directo RM", "abreviacion": "Crédito Directo RM", "pais": "Ecuador", "tipo": "Nacional"},
+        {"nombre": "Club Sukasa (Crédito)", "abreviacion": "Club Sukasa (Crédito)", "pais": "Ecuador", "tipo": "Nacional"},
     ]
     
     for marca_data in marcas_oficiales:
         marca_existente = TipoTarjetaEstandarizado.query.filter_by(nombre_estandarizado=marca_data["nombre"]).first()
-        if not marca_existente:
+        if marca_existente:
+            # Actualizar abreviación si no existe o es diferente
+            if not marca_existente.abreviacion or marca_existente.abreviacion != marca_data["abreviacion"]:
+                marca_existente.abreviacion = marca_data["abreviacion"]
+                marca_existente.tipo_tarjeta = marca_data["tipo"]
+        else:
             nueva_marca = TipoTarjetaEstandarizado(
                 nombre_estandarizado=marca_data["nombre"],
+                abreviacion=marca_data["abreviacion"],
                 variaciones=f'["{marca_data["nombre"]}"]',
                 pais=marca_data["pais"],
                 tipo_tarjeta=marca_data["tipo"]
@@ -609,7 +655,14 @@ def inicializar_marcas_tarjetas():
     db.session.commit()
     print("Marcas oficiales de tarjetas inicializadas")
 
-def guardar_estado_cuenta(usuario_id, datos_analisis, archivo_original=None, extraer_movimientos_detallados=True):
+# Excepción personalizada para estados de cuenta duplicados
+class EstadoCuentaDuplicadoException(Exception):
+    def __init__(self, estado_cuenta_existente, mensaje="Estado de cuenta duplicado"):
+        self.estado_cuenta_existente = estado_cuenta_existente
+        self.mensaje = mensaje
+        super().__init__(self.mensaje)
+
+def guardar_estado_cuenta(usuario_id, datos_analisis, archivo_original=None, extraer_movimientos_detallados=True, sobrescribir=False, estado_cuenta_id_sobrescribir=None):
     try:
         # Calcular porcentaje de utilización si es posible
         porcentaje_utilizacion = None
@@ -618,6 +671,7 @@ def guardar_estado_cuenta(usuario_id, datos_analisis, archivo_original=None, ext
         
         # Convertir fechas string a date objects
         fecha_corte = None
+        fecha_inicio_periodo = None
         fecha_pago = None
         
         if datos_analisis.get('fecha_corte'):
@@ -627,6 +681,13 @@ def guardar_estado_cuenta(usuario_id, datos_analisis, archivo_original=None, ext
             except ValueError:
                 print(f"Error parseando fecha_corte: {datos_analisis['fecha_corte']}")
         
+        if datos_analisis.get('fecha_inicio_periodo'):
+            try:
+                from datetime import datetime
+                fecha_inicio_periodo = datetime.strptime(datos_analisis['fecha_inicio_periodo'], '%d/%m/%Y').date()
+            except ValueError:
+                print(f"Error parseando fecha_inicio_periodo: {datos_analisis['fecha_inicio_periodo']}")
+        
         if datos_analisis.get('fecha_pago'):
             try:
                 from datetime import datetime
@@ -634,30 +695,102 @@ def guardar_estado_cuenta(usuario_id, datos_analisis, archivo_original=None, ext
             except ValueError:
                 print(f"Error parseando fecha_pago: {datos_analisis['fecha_pago']}")
         
-        # Crear nuevo estado de cuenta
-        estado_cuenta = EstadosCuenta(
-            usuario_id=usuario_id,
-            fecha_corte=fecha_corte,
-            fecha_pago=fecha_pago,
-            cupo_autorizado=datos_analisis.get('cupo_autorizado') or 0.00,
-            cupo_disponible=datos_analisis.get('cupo_disponible') or 0.00,
-            cupo_utilizado=datos_analisis.get('cupo_utilizado') or 0.00,
-            deuda_anterior=datos_analisis.get('deuda_anterior') or 0.00,
-            consumos_debitos=datos_analisis.get('consumos_debitos') or 0.00,
-            otros_cargos=datos_analisis.get('otros_cargos') or 0.00,
-            consumos_cargos_totales=datos_analisis.get('consumos_cargos_totales') or 0.00,
-            pagos_creditos=datos_analisis.get('pagos_creditos') or 0.00,
-            intereses=datos_analisis.get('intereses') or 0.00,
-            deuda_total_pagar=datos_analisis.get('deuda_total_pagar') or 0.00,
-            nombre_banco=estandarizar_banco(datos_analisis.get('nombre_banco')),
-            tipo_tarjeta=estandarizar_tipo_tarjeta(datos_analisis.get('tipo_tarjeta')),
-            ultimos_digitos=datos_analisis.get('ultimos_digitos'),
-            porcentaje_utilizacion=porcentaje_utilizacion,
-            archivo_original=archivo_original
-        )
+        # Generar código de archivo: DDMMAAAA-654 (fecha_corte + últimos 3 dígitos)
+        codigo_archivo = archivo_original  # Fallback al nombre original
+        ultimos_digitos = datos_analisis.get('ultimos_digitos', '')
+        if fecha_corte and ultimos_digitos:
+            try:
+                # Formato: DDMMAAAA-654
+                codigo_archivo = fecha_corte.strftime('%d%m%Y') + '-' + ultimos_digitos
+            except Exception as e:
+                print(f"Error generando código de archivo: {e}")
+                codigo_archivo = archivo_original  # Fallback al nombre original
         
-        db.session.add(estado_cuenta)
-        db.session.flush()  # Para obtener el ID del estado de cuenta
+        # Verificar duplicados solo si tenemos un código válido generado (no fallback) y no estamos sobrescribiendo
+        codigo_generado = None
+        if fecha_corte and ultimos_digitos:
+            try:
+                codigo_generado = fecha_corte.strftime('%d%m%Y') + '-' + ultimos_digitos
+            except Exception:
+                pass
+        
+        if codigo_generado and codigo_generado == codigo_archivo and not sobrescribir:
+            estado_existente = EstadosCuenta.query.filter_by(
+                usuario_id=usuario_id,
+                archivo_original=codigo_generado
+            ).first()
+            
+            if estado_existente:
+                # Lanzar excepción con información del estado existente
+                raise EstadoCuentaDuplicadoException(
+                    estado_existente,
+                    f"Ya existe un estado de cuenta con fecha de corte {fecha_corte.strftime('%d/%m/%Y') if fecha_corte else 'N/A'} para la tarjeta terminada en {ultimos_digitos}"
+                )
+        
+        # Si estamos sobrescribiendo, obtener el estado existente y eliminar sus movimientos
+        estado_cuenta = None
+        if sobrescribir and estado_cuenta_id_sobrescribir:
+            estado_cuenta = EstadosCuenta.query.filter_by(
+                id=estado_cuenta_id_sobrescribir,
+                usuario_id=usuario_id
+            ).first()
+            
+            if not estado_cuenta:
+                raise ValueError(f"No se encontró el estado de cuenta con ID {estado_cuenta_id_sobrescribir} para sobrescribir")
+            
+            # Eliminar movimientos detallados existentes
+            ConsumosDetalle.query.filter_by(estado_cuenta_id=estado_cuenta.id).delete()
+            
+            # Actualizar campos del estado existente
+            estado_cuenta.fecha_corte = fecha_corte
+            estado_cuenta.fecha_inicio_periodo = fecha_inicio_periodo
+            estado_cuenta.fecha_pago = fecha_pago
+            estado_cuenta.cupo_autorizado = datos_analisis.get('cupo_autorizado') or 0.00
+            estado_cuenta.cupo_disponible = datos_analisis.get('cupo_disponible') or 0.00
+            estado_cuenta.cupo_utilizado = datos_analisis.get('cupo_utilizado') or 0.00
+            estado_cuenta.deuda_anterior = datos_analisis.get('deuda_anterior') or 0.00
+            estado_cuenta.consumos_debitos = datos_analisis.get('consumos_debitos') or 0.00
+            estado_cuenta.otros_cargos = datos_analisis.get('otros_cargos') or 0.00
+            estado_cuenta.consumos_cargos_totales = datos_analisis.get('consumos_cargos_totales') or 0.00
+            estado_cuenta.pagos_creditos = datos_analisis.get('pagos_creditos') or 0.00
+            estado_cuenta.intereses = datos_analisis.get('intereses') or 0.00
+            estado_cuenta.minimo_a_pagar = datos_analisis.get('minimo_a_pagar') or 0.00
+            estado_cuenta.deuda_total_pagar = datos_analisis.get('deuda_total_pagar') or 0.00
+            estado_cuenta.nombre_banco = estandarizar_banco(datos_analisis.get('nombre_banco'))
+            estado_cuenta.tipo_tarjeta = estandarizar_tipo_tarjeta(datos_analisis.get('tipo_tarjeta'))
+            estado_cuenta.ultimos_digitos = ultimos_digitos
+            estado_cuenta.porcentaje_utilizacion = porcentaje_utilizacion
+            estado_cuenta.archivo_original = codigo_archivo
+            estado_cuenta.fecha_creacion = datetime.utcnow()  # Actualizar fecha de creación
+            
+            db.session.flush()  # Para obtener el ID actualizado
+        else:
+            # Crear nuevo estado de cuenta
+            estado_cuenta = EstadosCuenta(
+                usuario_id=usuario_id,
+                fecha_corte=fecha_corte,
+                fecha_inicio_periodo=fecha_inicio_periodo,
+                fecha_pago=fecha_pago,
+                cupo_autorizado=datos_analisis.get('cupo_autorizado') or 0.00,
+                cupo_disponible=datos_analisis.get('cupo_disponible') or 0.00,
+                cupo_utilizado=datos_analisis.get('cupo_utilizado') or 0.00,
+                deuda_anterior=datos_analisis.get('deuda_anterior') or 0.00,
+                consumos_debitos=datos_analisis.get('consumos_debitos') or 0.00,
+                otros_cargos=datos_analisis.get('otros_cargos') or 0.00,
+                consumos_cargos_totales=datos_analisis.get('consumos_cargos_totales') or 0.00,
+                pagos_creditos=datos_analisis.get('pagos_creditos') or 0.00,
+                intereses=datos_analisis.get('intereses') or 0.00,
+                minimo_a_pagar=datos_analisis.get('minimo_a_pagar') or 0.00,
+                deuda_total_pagar=datos_analisis.get('deuda_total_pagar') or 0.00,
+                nombre_banco=estandarizar_banco(datos_analisis.get('nombre_banco')),
+                tipo_tarjeta=estandarizar_tipo_tarjeta(datos_analisis.get('tipo_tarjeta')),
+                ultimos_digitos=ultimos_digitos,
+                porcentaje_utilizacion=porcentaje_utilizacion,
+                archivo_original=codigo_archivo
+            )
+            
+            db.session.add(estado_cuenta)
+            db.session.flush()  # Para obtener el ID del estado de cuenta
         
         # Guardar movimientos detallados si están disponibles
         movimientos_guardados = 0
@@ -677,13 +810,24 @@ def guardar_estado_cuenta(usuario_id, datos_analisis, archivo_original=None, ext
                             pass
                     
                     # Crear consumo detallado
+                    categoria = movimiento_data.get('categoria', 'Otros')
+                    tipo_transaccion = movimiento_data.get('tipo_transaccion', 'otro')
+                    monto = movimiento_data.get('monto', 0)
+                    
+                    # Solo asignar categoria_503020 a consumos (cargos positivos)
+                    # Los pagos, notas de crédito y otros movimientos NO deben tener esta clasificación
+                    categoria_503020 = None
+                    if tipo_transaccion == 'consumo' and monto > 0:
+                        categoria_503020 = mapear_categoria_a_503020(categoria)
+                    
                     consumo_detalle = ConsumosDetalle(
                         estado_cuenta_id=estado_cuenta.id,
                         fecha=fecha_movimiento,
                         descripcion=movimiento_data.get('descripcion', ''),
-                        monto=movimiento_data.get('monto', 0),
-                        categoria=movimiento_data.get('categoria', 'Otros'),
-                        tipo_transaccion=movimiento_data.get('tipo_transaccion', 'otro')
+                        monto=monto,
+                        categoria=categoria,
+                        categoria_503020=categoria_503020,  # Solo para consumos positivos
+                        tipo_transaccion=tipo_transaccion
                     )
                     
                     db.session.add(consumo_detalle)
@@ -697,6 +841,9 @@ def guardar_estado_cuenta(usuario_id, datos_analisis, archivo_original=None, ext
         
         print(f"Estado de cuenta guardado: {estado_cuenta.nombre_banco} - {estado_cuenta.tipo_tarjeta}")
         print(f"Movimientos detallados guardados: {movimientos_guardados}")
+        
+        # Post-procesamiento: relacionar cargos de IVA/retenciones con consumos
+        relacionar_cargos_iva_con_consumos(estado_cuenta.id)
         
         return estado_cuenta
         
@@ -1130,6 +1277,14 @@ def analizar_pdf():
                 # Debug: mostrar el resultado crudo
                 print(f"DEBUG - Resultado crudo: {resultado}")
                 
+                # Estandarizar nombres de banco y tipo de tarjeta ANTES de formatear
+                if resultado.get('status') == 'success' and 'data' in resultado:
+                    datos = resultado['data']
+                    if 'nombre_banco' in datos and datos['nombre_banco']:
+                        datos['nombre_banco'] = estandarizar_banco(datos['nombre_banco']) or datos['nombre_banco']
+                    if 'tipo_tarjeta' in datos and datos['tipo_tarjeta']:
+                        datos['tipo_tarjeta'] = estandarizar_tipo_tarjeta(datos['tipo_tarjeta']) or datos['tipo_tarjeta']
+                
                 # Formatear resultados
                 resultado_formateado = analyzer.formatear_resultados(resultado)
                 
@@ -1319,21 +1474,35 @@ def api_guardar_estado_cuenta():
         
         datos_analisis = data['datos_analisis']
         archivo_original = data.get('archivo_original', None)
+        sobrescribir = data.get('sobrescribir', False)
+        estado_cuenta_id_sobrescribir = data.get('estado_cuenta_id_sobrescribir', None)
         
         # Los datos ya vienen completos del análisis inicial
         # No necesitamos re-analizar el PDF
         print(f"DEBUG - Guardando estado de cuenta con datos completos")
         print(f"DEBUG - Movimientos disponibles: {len(datos_analisis.get('movimientos_detallados', []))}")
+        print(f"DEBUG - Sobrescribir: {sobrescribir}, ID: {estado_cuenta_id_sobrescribir}")
         
         # Guardar el estado de cuenta con movimientos detallados
-        estado_cuenta = guardar_estado_cuenta(usuario_actual.id, datos_analisis, archivo_original, extraer_movimientos_detallados=True)
+        estado_cuenta = guardar_estado_cuenta(
+            usuario_actual.id, 
+            datos_analisis, 
+            archivo_original, 
+            extraer_movimientos_detallados=True,
+            sobrescribir=sobrescribir,
+            estado_cuenta_id_sobrescribir=estado_cuenta_id_sobrescribir
+        )
         
         # Contar movimientos guardados
         movimientos_count = ConsumosDetalle.query.filter_by(estado_cuenta_id=estado_cuenta.id).count()
         
+        mensaje = f'Estado de cuenta guardado exitosamente con {movimientos_count} movimientos detallados'
+        if sobrescribir:
+            mensaje = f'Estado de cuenta actualizado exitosamente con {movimientos_count} movimientos detallados'
+        
         return jsonify({
             'status': 'success',
-            'message': f'Estado de cuenta guardado exitosamente con {movimientos_count} movimientos detallados',
+            'message': mensaje,
             'estado_cuenta_id': estado_cuenta.id,
             'banco': estado_cuenta.nombre_banco,
             'tarjeta': estado_cuenta.tipo_tarjeta,
@@ -1341,8 +1510,27 @@ def api_guardar_estado_cuenta():
             'movimientos_guardados': movimientos_count
         })
         
+    except EstadoCuentaDuplicadoException as e:
+        # Estado de cuenta duplicado - retornar información del existente
+        estado_existente = e.estado_cuenta_existente
+        return jsonify({
+            'status': 'duplicate',
+            'message': e.mensaje,
+            'estado_cuenta_existente': {
+                'id': estado_existente.id,
+                'banco': estado_existente.nombre_banco,
+                'tarjeta': estado_existente.tipo_tarjeta,
+                'fecha_corte': estado_existente.fecha_corte.strftime('%d/%m/%Y') if estado_existente.fecha_corte else None,
+                'fecha_inicio_periodo': estado_existente.fecha_inicio_periodo.strftime('%d/%m/%Y') if estado_existente.fecha_inicio_periodo else None,
+                'ultimos_digitos': estado_existente.ultimos_digitos,
+                'fecha_creacion': estado_existente.fecha_creacion.strftime('%d/%m/%Y %H:%M') if estado_existente.fecha_creacion else None
+            }
+        })
+        
     except Exception as e:
         print(f"Error en api_guardar_estado_cuenta: {e}")
+        import traceback
+        print(traceback.format_exc())
         return jsonify({'status': 'error', 'message': str(e)})
 
 @app.route('/admin/dashboard')
@@ -1528,7 +1716,9 @@ def control_pagos_tarjetas():
             categorias_stats[categoria]['cantidad'] += 1
     
     # Crear tabla pivot de movimientos detallados (solo de estados filtrados)
-    movimientos_pivot = {}
+    # Separar movimientos en consumos y pagos
+    consumos_pivot = {}
+    pagos_pivot = {}
     tarjetas_columnas = []
     
     # Recopilar todos los movimientos y organizarlos por descripción
@@ -1540,14 +1730,72 @@ def control_pagos_tarjetas():
         for consumo in estado.consumos_detalle:
             descripcion = consumo.descripcion or 'Sin descripción'
             monto = consumo.monto or 0
+            tipo_transaccion = consumo.tipo_transaccion or 'otro'
             
-            if descripcion not in movimientos_pivot:
-                movimientos_pivot[descripcion] = {}
+            # Determinar si es consumo o pago
+            es_pago = tipo_transaccion.lower() in ['pago', 'pagos', 'abono', 'abonos', 'nota de crédito', 'notas de crédito']
             
-            if tarjeta_key not in movimientos_pivot[descripcion]:
-                movimientos_pivot[descripcion][tarjeta_key] = 0
+            # Seleccionar el diccionario apropiado
+            pivot_dict = pagos_pivot if es_pago else consumos_pivot
             
-            movimientos_pivot[descripcion][tarjeta_key] += monto
+            if descripcion not in pivot_dict:
+                pivot_dict[descripcion] = {}
+            
+            if tarjeta_key not in pivot_dict[descripcion]:
+                pivot_dict[descripcion][tarjeta_key] = 0
+            
+            pivot_dict[descripcion][tarjeta_key] += monto
+    
+    # Mantener compatibilidad con código anterior
+    movimientos_pivot = {**consumos_pivot, **pagos_pivot}
+    
+    # Calcular totales por tarjeta para consumos y pagos
+    totales_consumos_por_tarjeta = {}
+    totales_pagos_por_tarjeta = {}
+    total_general_consumos = 0
+    total_general_pagos = 0
+    
+    # Calcular deuda anterior por tarjeta primero
+    deuda_anterior_por_tarjeta = {}
+    total_deuda_anterior = 0
+    
+    for estado in estados_cuenta:
+        tarjeta_key = f"{estado.tipo_tarjeta}-{estado.ultimos_digitos}"
+        deuda_anterior = estado.deuda_anterior or 0
+        
+        if tarjeta_key not in deuda_anterior_por_tarjeta:
+            deuda_anterior_por_tarjeta[tarjeta_key] = 0
+        
+        deuda_anterior_por_tarjeta[tarjeta_key] += deuda_anterior
+        total_deuda_anterior += deuda_anterior
+    
+    # Calcular totales por tarjeta (incluyendo deuda anterior en consumos)
+    for tarjeta in tarjetas_columnas:
+        total_consumos_tarjeta = 0
+        total_pagos_tarjeta = 0
+        
+        # Sumar consumos por tarjeta
+        for descripcion, montos in consumos_pivot.items():
+            total_consumos_tarjeta += montos.get(tarjeta, 0)
+        
+        # Sumar pagos por tarjeta
+        for descripcion, montos in pagos_pivot.items():
+            total_pagos_tarjeta += montos.get(tarjeta, 0)
+        
+        # Incluir deuda anterior en los consumos
+        total_consumos_tarjeta += deuda_anterior_por_tarjeta.get(tarjeta, 0)
+        
+        totales_consumos_por_tarjeta[tarjeta] = total_consumos_tarjeta
+        totales_pagos_por_tarjeta[tarjeta] = total_pagos_tarjeta
+        total_general_consumos += total_consumos_tarjeta
+        total_general_pagos += total_pagos_tarjeta
+    
+    # Calcular diferencia (consumos - pagos)
+    diferencia_por_tarjeta = {}
+    diferencia_general = total_general_consumos - total_general_pagos
+    
+    for tarjeta in tarjetas_columnas:
+        diferencia_por_tarjeta[tarjeta] = totales_consumos_por_tarjeta.get(tarjeta, 0) - totales_pagos_por_tarjeta.get(tarjeta, 0)
     
     return render_template('control_pagos_tarjetas.html',
                          usuario=usuario_actual,
@@ -1559,7 +1807,17 @@ def control_pagos_tarjetas():
                          total_pagos_minimos=total_pagos_minimos,
                          categorias_stats=categorias_stats,
                          movimientos_pivot=movimientos_pivot,
+                         consumos_pivot=consumos_pivot,
+                         pagos_pivot=pagos_pivot,
                          tarjetas_columnas=tarjetas_columnas,
+                         totales_consumos_por_tarjeta=totales_consumos_por_tarjeta,
+                         totales_pagos_por_tarjeta=totales_pagos_por_tarjeta,
+                         total_general_consumos=total_general_consumos,
+                         total_general_pagos=total_general_pagos,
+                         deuda_anterior_por_tarjeta=deuda_anterior_por_tarjeta,
+                         total_deuda_anterior=total_deuda_anterior,
+                         diferencia_por_tarjeta=diferencia_por_tarjeta,
+                         diferencia_general=diferencia_general,
                          mes_filtro_actual=mes_filtro,
                          banco_filtro_actual=banco_filtro,
                          tarjeta_filtro_actual=tarjeta_filtro)
@@ -1573,6 +1831,269 @@ def admin_tarjetas():
     tarjetas = TipoTarjetaEstandarizado.query.order_by(TipoTarjetaEstandarizado.nombre_estandarizado).all()
     return render_template('admin_tarjetas.html', usuario=usuario_actual, tarjetas=tarjetas)
 
+@app.route('/debug/diners-club')
+@login_required
+def debug_diners_club():
+    """
+    Ruta temporal para revisar datos de Diners Club
+    """
+    try:
+        usuario_actual = Usuario.query.get(session['user_id'])
+        if not usuario_actual:
+            return "Usuario no encontrado", 401
+        
+        # Buscar estados de cuenta de Diners Club
+        estados_diners = EstadosCuenta.query.filter_by(
+            usuario_id=usuario_actual.id
+        ).filter(
+            db.or_(
+                EstadosCuenta.nombre_banco.ilike('%diners%'),
+                EstadosCuenta.tipo_tarjeta.ilike('%diners%')
+            )
+        ).order_by(EstadosCuenta.fecha_corte.desc()).all()
+        
+        resultado = []
+        
+        for estado in estados_diners:
+            # Obtener consumos detallados
+            consumos = ConsumosDetalle.query.filter_by(
+                estado_cuenta_id=estado.id
+            ).order_by(ConsumosDetalle.fecha.desc()).all()
+            
+            estado_info = {
+                'estado_cuenta': {
+                    'id': estado.id,
+                    'nombre_banco': estado.nombre_banco,
+                    'tipo_tarjeta': estado.tipo_tarjeta,
+                    'ultimos_digitos': estado.ultimos_digitos,
+                    'fecha_corte': estado.fecha_corte.strftime('%d/%m/%Y') if estado.fecha_corte else None,
+                    'fecha_inicio_periodo': estado.fecha_inicio_periodo.strftime('%d/%m/%Y') if estado.fecha_inicio_periodo else None,
+                    'fecha_pago': estado.fecha_pago.strftime('%d/%m/%Y') if estado.fecha_pago else None,
+                    'cupo_autorizado': estado.cupo_autorizado,
+                    'cupo_disponible': estado.cupo_disponible,
+                    'cupo_utilizado': estado.cupo_utilizado,
+                    'deuda_total_pagar': estado.deuda_total_pagar,
+                    'minimo_a_pagar': estado.minimo_a_pagar,
+                    'fecha_creacion': estado.fecha_creacion.strftime('%d/%m/%Y %H:%M:%S') if estado.fecha_creacion else None,
+                    'archivo_original': estado.archivo_original
+                },
+                'consumos': []
+            }
+            
+            for consumo in consumos:
+                consumo_info = {
+                    'id': consumo.id,
+                    'fecha': consumo.fecha.strftime('%d/%m/%Y') if consumo.fecha else None,
+                    'descripcion': consumo.descripcion,
+                    'monto': consumo.monto,
+                    'categoria': consumo.categoria,
+                    'categoria_503020': consumo.categoria_503020,
+                    'tipo_transaccion': consumo.tipo_transaccion,
+                    'fecha_creacion': consumo.fecha_creacion.strftime('%d/%m/%Y %H:%M:%S') if consumo.fecha_creacion else None
+                }
+                estado_info['consumos'].append(consumo_info)
+            
+            resultado.append(estado_info)
+        
+        # Formatear para mostrar en HTML
+        html = f"""
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Debug - Diners Club</title>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    padding: 20px;
+                    background: #f5f5f5;
+                }}
+                .estado-container {{
+                    background: white;
+                    margin: 20px 0;
+                    padding: 20px;
+                    border-radius: 10px;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                }}
+                .estado-header {{
+                    background: #2c5530;
+                    color: white;
+                    padding: 15px;
+                    border-radius: 5px;
+                    margin-bottom: 15px;
+                }}
+                .estado-header h2 {{
+                    margin: 0;
+                }}
+                .estado-info {{
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                    gap: 10px;
+                    margin-bottom: 20px;
+                }}
+                .info-item {{
+                    padding: 10px;
+                    background: #f8f9fa;
+                    border-radius: 5px;
+                }}
+                .info-label {{
+                    font-weight: bold;
+                    color: #666;
+                    font-size: 0.9em;
+                }}
+                .info-value {{
+                    color: #2c5530;
+                    font-size: 1.1em;
+                    margin-top: 5px;
+                }}
+                table {{
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-top: 15px;
+                }}
+                th {{
+                    background: #4a7c59;
+                    color: white;
+                    padding: 12px;
+                    text-align: left;
+                }}
+                td {{
+                    padding: 10px;
+                    border-bottom: 1px solid #ddd;
+                }}
+                tr:hover {{
+                    background: #f8f9fa;
+                }}
+                .total-consumos {{
+                    background: #e8f5e9;
+                    font-weight: bold;
+                    padding: 10px;
+                    margin-top: 10px;
+                    border-radius: 5px;
+                }}
+            </style>
+        </head>
+        <body>
+            <h1>🔍 Debug - Estados de Cuenta Diners Club</h1>
+            <p><strong>Total de estados encontrados:</strong> {len(resultado)}</p>
+        """
+        
+        for idx, estado_data in enumerate(resultado, 1):
+            estado = estado_data['estado_cuenta']
+            consumos = estado_data['consumos']
+            total_consumos = sum(c['monto'] or 0 for c in consumos)
+            
+            html += f"""
+            <div class="estado-container">
+                <div class="estado-header">
+                    <h2>Estado de Cuenta #{idx} - ID: {estado['id']}</h2>
+                </div>
+                
+                <div class="estado-info">
+                    <div class="info-item">
+                        <div class="info-label">Banco</div>
+                        <div class="info-value">{estado['nombre_banco'] or 'N/A'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Tipo de Tarjeta</div>
+                        <div class="info-value">{estado['tipo_tarjeta'] or 'N/A'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Últimos Dígitos</div>
+                        <div class="info-value">{estado['ultimos_digitos'] or 'N/A'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Fecha de Corte</div>
+                        <div class="info-value">{estado['fecha_corte'] or 'N/A'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Fecha Inicio Período</div>
+                        <div class="info-value">{estado['fecha_inicio_periodo'] or 'N/A'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Fecha de Pago</div>
+                        <div class="info-value">{estado['fecha_pago'] or 'N/A'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Cupo Autorizado</div>
+                        <div class="info-value">${estado['cupo_autorizado'] or 0:.2f}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Cupo Utilizado</div>
+                        <div class="info-value">${estado['cupo_utilizado'] or 0:.2f}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Deuda Total a Pagar</div>
+                        <div class="info-value">${estado['deuda_total_pagar'] or 0:.2f}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Mínimo a Pagar</div>
+                        <div class="info-value">${estado['minimo_a_pagar'] or 0:.2f}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Fecha de Creación</div>
+                        <div class="info-value">{estado['fecha_creacion'] or 'N/A'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Archivo Original</div>
+                        <div class="info-value">{estado['archivo_original'] or 'N/A'}</div>
+                    </div>
+                </div>
+                
+                <h3>Consumos Detallados (Total: {len(consumos)} movimientos)</h3>
+                <div class="total-consumos">
+                    Total de Consumos: ${total_consumos:.2f}
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Fecha</th>
+                            <th>Descripción</th>
+                            <th>Monto</th>
+                            <th>Categoría</th>
+                            <th>Categoría 50-30-20</th>
+                            <th>Tipo Transacción</th>
+                            <th>Fecha Creación</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            """
+            
+            for consumo in consumos:
+                html += f"""
+                        <tr>
+                            <td>{consumo['id']}</td>
+                            <td>{consumo['fecha'] or 'N/A'}</td>
+                            <td>{consumo['descripcion'] or 'N/A'}</td>
+                            <td>${consumo['monto'] or 0:.2f}</td>
+                            <td>{consumo['categoria'] or 'N/A'}</td>
+                            <td><strong>{consumo['categoria_503020'] or 'N/A'}</strong></td>
+                            <td>{consumo['tipo_transaccion'] or 'N/A'}</td>
+                            <td>{consumo['fecha_creacion'] or 'N/A'}</td>
+                        </tr>
+                """
+            
+            html += """
+                    </tbody>
+                </table>
+            </div>
+            """
+        
+        html += """
+        </body>
+        </html>
+        """
+        
+        return html
+    
+    except Exception as e:
+        import traceback
+        error_msg = f"Error: {str(e)}\n\n{traceback.format_exc()}"
+        return f"<pre>{error_msg}</pre>", 500
+
 @app.route('/regla-50-30-20')
 @login_required
 def regla_50_30_20():
@@ -1580,6 +2101,152 @@ def regla_50_30_20():
     Planificador de flujo de caja con regla 50-30-20
     """
     return render_template('regla_50_30_20.html')
+
+@app.route('/api/visualizacion-503020', methods=['GET'])
+@login_required
+def api_visualizacion_503020():
+    """
+    API para obtener el HTML de visualización 50-30-20 (para cargar dentro de otra página)
+    """
+    try:
+        usuario_actual = Usuario.query.get(session['user_id'])
+        if not usuario_actual:
+            return jsonify({'error': 'Usuario no encontrado'}), 401
+        
+        # Obtener todos los estados de cuenta del usuario
+        estados_cuenta = EstadosCuenta.query.filter_by(usuario_id=usuario_actual.id).all()
+        
+        # Obtener todos los consumos (solo tipo_transaccion='consumo')
+        consumos = ConsumosDetalle.query.join(EstadosCuenta).filter(
+            EstadosCuenta.usuario_id == usuario_actual.id,
+            ConsumosDetalle.tipo_transaccion == 'consumo'
+        ).all()
+        
+        # Obtener años únicos disponibles
+        años = set()
+        for estado in estados_cuenta:
+            if estado.fecha_corte:
+                años.add(estado.fecha_corte.year)
+        años = sorted(list(años), reverse=True) if años else [datetime.now().year]
+        
+        # Obtener tarjetas únicas
+        tarjetas = set()
+        for estado in estados_cuenta:
+            if estado.nombre_banco and estado.tipo_tarjeta:
+                tarjeta = f"{estado.nombre_banco} - {estado.tipo_tarjeta}"
+                tarjetas.add(tarjeta)
+        tarjetas = sorted(list(tarjetas))
+        
+        # Calcular datos agregados para el gráfico inicial
+        total_necesidad = 0
+        total_deseo = 0
+        total_inversion = 0
+        
+        categorias_necesidad = {}
+        categorias_deseo = {}
+        
+        for consumo in consumos:
+            if consumo.monto and consumo.categoria_503020:
+                if consumo.categoria_503020 == 'Necesidad':
+                    total_necesidad += consumo.monto or 0
+                    categoria = consumo.categoria or 'Sin categoría'
+                    categorias_necesidad[categoria] = categorias_necesidad.get(categoria, 0) + (consumo.monto or 0)
+                elif consumo.categoria_503020 == 'Deseo':
+                    total_deseo += consumo.monto or 0
+                    categoria = consumo.categoria or 'Sin categoría'
+                    categorias_deseo[categoria] = categorias_deseo.get(categoria, 0) + (consumo.monto or 0)
+        
+        total_general = total_necesidad + total_deseo + total_inversion
+        
+        # Retornar solo el HTML del contenido (sin layout base)
+        return render_template('visualizacion_503020_partial.html',
+                             años=años,
+                             tarjetas=tarjetas,
+                             total_necesidad=total_necesidad,
+                             total_deseo=total_deseo,
+                             total_inversion=total_inversion,
+                             total_general=total_general,
+                             categorias_necesidad=categorias_necesidad,
+                             categorias_deseo=categorias_deseo)
+    
+    except Exception as e:
+        print(f"Error en api_visualizacion_503020: {e}")
+        return f'<p style="text-align: center; color: #dc3545; padding: 40px;">Error al cargar la visualización: {str(e)}</p>', 500
+
+@app.route('/api/consumos-503020', methods=['GET'])
+@login_required
+def api_consumos_503020():
+    """
+    API para obtener datos de consumos 50-30-20 filtrados
+    """
+    try:
+        usuario_actual = Usuario.query.get(session['user_id'])
+        if not usuario_actual:
+            return jsonify({'error': 'Usuario no encontrado'}), 401
+        
+        # Obtener parámetros de filtro
+        año = request.args.get('año', type=int)
+        mes = request.args.get('mes', type=int)
+        tarjeta = request.args.get('tarjeta', type=str)
+        
+        # Construir query base
+        query = ConsumosDetalle.query.join(EstadosCuenta).filter(
+            EstadosCuenta.usuario_id == usuario_actual.id,
+            ConsumosDetalle.tipo_transaccion == 'consumo'
+        )
+        
+        # Aplicar filtros
+        if año:
+            query = query.filter(extract('year', EstadosCuenta.fecha_corte) == año)
+        
+        if mes:
+            query = query.filter(extract('month', EstadosCuenta.fecha_corte) == mes)
+        
+        if tarjeta and tarjeta != 'Todas':
+            # Separar banco y tipo de tarjeta
+            partes = tarjeta.split(' - ', 1)
+            if len(partes) == 2:
+                banco, tipo = partes
+                query = query.filter(
+                    EstadosCuenta.nombre_banco == banco,
+                    EstadosCuenta.tipo_tarjeta == tipo
+                )
+        
+        consumos = query.all()
+        
+        # Calcular totales
+        total_necesidad = 0
+        total_deseo = 0
+        total_inversion = 0
+        
+        categorias_necesidad = {}
+        categorias_deseo = {}
+        
+        for consumo in consumos:
+            if consumo.monto and consumo.categoria_503020:
+                if consumo.categoria_503020 == 'Necesidad':
+                    total_necesidad += consumo.monto or 0
+                    categoria = consumo.categoria or 'Sin categoría'
+                    categorias_necesidad[categoria] = categorias_necesidad.get(categoria, 0) + (consumo.monto or 0)
+                elif consumo.categoria_503020 == 'Deseo':
+                    total_deseo += consumo.monto or 0
+                    categoria = consumo.categoria or 'Sin categoría'
+                    categorias_deseo[categoria] = categorias_deseo.get(categoria, 0) + (consumo.monto or 0)
+        
+        total_general = total_necesidad + total_deseo + total_inversion
+        
+        return jsonify({
+            'total_necesidad': round(total_necesidad, 2),
+            'total_deseo': round(total_deseo, 2),
+            'total_inversion': round(total_inversion, 2),
+            'total_general': round(total_general, 2),
+            'categorias_necesidad': {k: round(v, 2) for k, v in categorias_necesidad.items()},
+            'categorias_deseo': {k: round(v, 2) for k, v in categorias_deseo.items()}
+        })
+    
+    except Exception as e:
+        print(f"Error en api_consumos_503020: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/configuracion', methods=['GET', 'POST'])
 @login_required
@@ -2000,6 +2667,10 @@ def init_db():
         # Crear todas las tablas - Forzar actualización de esquema en producción
         db.create_all()
         
+        # Inicializar bancos y tipos de tarjetas con abreviaciones
+        inicializar_bancos_oficiales()
+        inicializar_marcas_tarjetas()
+        
         # FORZAR CONFIGURACIÓN DE ADMIN - SIEMPRE verificar y configurar
         # Buscar por email específico (Google OAuth)
         admin_user = Usuario.query.filter_by(email='cuidatubolsillo20@gmail.com').first()
@@ -2155,9 +2826,444 @@ def ensure_avatar_url_column():
         print(f"Error verificando/creando columna avatar_url: {e}")
         # No fallar la aplicación si hay error, solo loguear
 
+def ensure_estados_cuenta_columns():
+    """
+    Asegura que las nuevas columnas existen en la tabla estados_cuenta.
+    Se ejecuta automáticamente al iniciar la aplicación.
+    """
+    try:
+        with app.app_context():
+            # Verificar y agregar fecha_inicio_periodo
+            try:
+                result = db.session.execute(text("SELECT fecha_inicio_periodo FROM estados_cuenta LIMIT 1"))
+                result.fetchone()
+                print("Columna fecha_inicio_periodo ya existe.")
+            except Exception:
+                print("Columna fecha_inicio_periodo no existe. Creándola...")
+                try:
+                    # Para PostgreSQL
+                    db.session.execute(text("ALTER TABLE estados_cuenta ADD COLUMN fecha_inicio_periodo DATE"))
+                    db.session.commit()
+                    print("Columna fecha_inicio_periodo creada exitosamente.")
+                except Exception as e:
+                    # Si falla, intentar con SQLite syntax
+                    try:
+                        db.session.execute(text("ALTER TABLE estados_cuenta ADD COLUMN fecha_inicio_periodo DATE"))
+                        db.session.commit()
+                        print("Columna fecha_inicio_periodo creada exitosamente (SQLite).")
+                    except Exception as e2:
+                        print(f"Error creando columna fecha_inicio_periodo: {e2}")
+                        db.session.rollback()
+            
+            # Verificar y agregar minimo_a_pagar
+            try:
+                result = db.session.execute(text("SELECT minimo_a_pagar FROM estados_cuenta LIMIT 1"))
+                result.fetchone()
+                print("Columna minimo_a_pagar ya existe.")
+            except Exception:
+                print("Columna minimo_a_pagar no existe. Creándola...")
+                try:
+                    # Para PostgreSQL
+                    db.session.execute(text("ALTER TABLE estados_cuenta ADD COLUMN minimo_a_pagar FLOAT"))
+                    db.session.commit()
+                    print("Columna minimo_a_pagar creada exitosamente.")
+                except Exception as e:
+                    # Si falla, intentar con SQLite syntax
+                    try:
+                        db.session.execute(text("ALTER TABLE estados_cuenta ADD COLUMN minimo_a_pagar REAL"))
+                        db.session.commit()
+                        print("Columna minimo_a_pagar creada exitosamente (SQLite).")
+                    except Exception as e2:
+                        print(f"Error creando columna minimo_a_pagar: {e2}")
+                        db.session.rollback()
+    except Exception as e:
+        print(f"Error verificando/creando columnas de estados_cuenta: {e}")
+        # No fallar la aplicación si hay error, solo loguear
+
+def ensure_abreviaciones_columns():
+    """
+    Asegura que las columnas de abreviación existen en las tablas de estandarización.
+    Se ejecuta automáticamente al iniciar la aplicación.
+    """
+    try:
+        with app.app_context():
+            # Verificar y agregar abreviacion en banco_estandarizado
+            try:
+                result = db.session.execute(text("SELECT abreviacion FROM banco_estandarizado LIMIT 1"))
+                result.fetchone()
+                print("Columna abreviacion ya existe en banco_estandarizado.")
+            except Exception:
+                print("Columna abreviacion no existe en banco_estandarizado. Creándola...")
+                try:
+                    # Para PostgreSQL
+                    db.session.execute(text("ALTER TABLE banco_estandarizado ADD COLUMN abreviacion VARCHAR(50)"))
+                    db.session.commit()
+                    print("Columna abreviacion creada exitosamente en banco_estandarizado (PostgreSQL).")
+                except Exception as e:
+                    # Si falla, intentar con SQLite syntax
+                    try:
+                        db.session.execute(text("ALTER TABLE banco_estandarizado ADD COLUMN abreviacion TEXT"))
+                        db.session.commit()
+                        print("Columna abreviacion creada exitosamente en banco_estandarizado (SQLite).")
+                    except Exception as e2:
+                        print(f"Error creando columna abreviacion en banco_estandarizado: {e2}")
+                        db.session.rollback()
+            
+            # Verificar y agregar abreviacion en tipo_tarjeta_estandarizado
+            try:
+                result = db.session.execute(text("SELECT abreviacion FROM tipo_tarjeta_estandarizado LIMIT 1"))
+                result.fetchone()
+                print("Columna abreviacion ya existe en tipo_tarjeta_estandarizado.")
+            except Exception:
+                print("Columna abreviacion no existe en tipo_tarjeta_estandarizado. Creándola...")
+                try:
+                    # Para PostgreSQL
+                    db.session.execute(text("ALTER TABLE tipo_tarjeta_estandarizado ADD COLUMN abreviacion VARCHAR(50)"))
+                    db.session.commit()
+                    print("Columna abreviacion creada exitosamente en tipo_tarjeta_estandarizado (PostgreSQL).")
+                except Exception as e:
+                    # Si falla, intentar con SQLite syntax
+                    try:
+                        db.session.execute(text("ALTER TABLE tipo_tarjeta_estandarizado ADD COLUMN abreviacion TEXT"))
+                        db.session.commit()
+                        print("Columna abreviacion creada exitosamente en tipo_tarjeta_estandarizado (SQLite).")
+                    except Exception as e2:
+                        print(f"Error creando columna abreviacion en tipo_tarjeta_estandarizado: {e2}")
+                        db.session.rollback()
+    except Exception as e:
+        print(f"Error verificando/creando columnas de abreviacion: {e}")
+        # No fallar la aplicación si hay error, solo loguear
+
+def relacionar_cargos_iva_con_consumos(estado_cuenta_id):
+    """
+    Post-procesamiento inteligente para relacionar cargos de IVA/retenciones 
+    con los consumos que los generaron y actualizar su categorización.
+    
+    Reglas:
+    1. Retención IVA Digital (15%): Buscar consumo digital cercano donde cargo_iva ≈ consumo * 0.15
+    2. Cargo de servicios (0.31 + 15% IVA = 0.3565): Buscar consumos de servicios públicos cercanos
+    3. Actualizar categoria y categoria_503020 del cargo para que coincida con el consumo relacionado
+    """
+    try:
+        # Obtener todos los movimientos del estado de cuenta
+        movimientos = ConsumosDetalle.query.filter_by(
+            estado_cuenta_id=estado_cuenta_id
+        ).order_by(ConsumosDetalle.fecha.asc()).all()
+        
+        if not movimientos:
+            return
+        
+        # Patrones para identificar cargos de IVA/retenciones
+        patrones_iva = [
+            'RET IVA',
+            'IVA DIGITAL',
+            'IVA SERV DIGITAL',
+            'RETENCION IVA',
+            'IVA N/D',
+            'RET IVA SERV'
+        ]
+        
+        # Patrones para identificar retención del 10% del IVA digital
+        # Nota: El patrón debe ser flexible para capturar variaciones como:
+        # "RET IVA SERV DIGITAL 10%", "RET IVA SERV DIGITAL 10", etc.
+        patrones_retencion_10 = [
+            'RET IVA SERV DIGITAL 10',
+            'RETENCION 10% IVA',
+            'RET 10% IVA',
+            'RET IVA 10%',
+            'RET IVA 10',
+            'RET IVA DIGITAL 10'
+        ]
+        
+        # Patrones para identificar cargos de servicios (0.31 + IVA)
+        patrones_servicios = [
+            'TARIFA',
+            'COSTO',
+            'FEE',
+            'CARGO SERVICIO'
+        ]
+        
+        relacionados = 0
+        
+        for movimiento in movimientos:
+            # Solo procesar cargos (no consumos ni pagos)
+            if movimiento.tipo_transaccion not in ['cargo', 'otro']:
+                continue
+            
+            descripcion = (movimiento.descripcion or '').upper()
+            monto_cargo = movimiento.monto or 0
+            
+            # Verificar si es un cargo de IVA/retención
+            es_iva = any(patron in descripcion for patron in patrones_iva)
+            es_retencion_10 = any(patron in descripcion for patron in patrones_retencion_10)
+            es_servicio = any(patron in descripcion for patron in patrones_servicios)
+            
+            if not (es_iva or es_retencion_10 or es_servicio):
+                continue
+            
+            # Buscar consumo relacionado
+            consumo_relacionado = None
+            fecha_cargo = movimiento.fecha
+            
+            if not fecha_cargo:
+                continue
+            
+            # Buscar en un rango de fechas (hasta 7 días antes o después)
+            from datetime import timedelta
+            fecha_inicio = fecha_cargo - timedelta(days=7)
+            fecha_fin = fecha_cargo + timedelta(days=7)
+            
+            # Buscar consumos cercanos en fecha
+            # Ordenar por proximidad de fecha (compatible con SQLite y PostgreSQL)
+            consumos_candidatos = ConsumosDetalle.query.filter(
+                ConsumosDetalle.estado_cuenta_id == estado_cuenta_id,
+                ConsumosDetalle.tipo_transaccion == 'consumo',
+                ConsumosDetalle.monto > 0,
+                ConsumosDetalle.fecha >= fecha_inicio,
+                ConsumosDetalle.fecha <= fecha_fin,
+                ConsumosDetalle.id != movimiento.id
+            ).all()
+            
+            # Ordenar por proximidad de fecha (en memoria para compatibilidad)
+            consumos_candidatos = sorted(
+                consumos_candidatos,
+                key=lambda c: abs((c.fecha - fecha_cargo).days) if c.fecha and fecha_cargo else 999
+            )
+            
+            if es_retencion_10:
+                # Retención del 10% del IVA digital
+                # Ejemplo: Consumo $10.00 → IVA 15% = $1.50 → Retención 10% del IVA = $0.15
+                # Fórmula: retencion_10% = consumo * 0.15 * 0.10 = consumo * 0.015
+                # Entonces: consumo = retencion_10% / 0.015
+                
+                # ESTRATEGIA DE DOBLE NIVEL:
+                # 1. Primero intentar encontrar un cargo de IVA del 15% relacionado
+                #    Si retencion_10% = $0.15, entonces IVA_15% debería ser $1.50
+                # 2. Si encontramos el IVA, usar ese IVA para encontrar el consumo
+                # 3. Si no encontramos el IVA, calcular directamente desde la retención
+                
+                iva_esperado_desde_retencion = monto_cargo / 0.10  # retencion / 0.10 = IVA del 15%
+                
+                # Buscar cargo de IVA del 15% cercano
+                cargo_iva_relacionado = None
+                for otro_movimiento in movimientos:
+                    if (otro_movimiento.id == movimiento.id or 
+                        otro_movimiento.tipo_transaccion not in ['cargo', 'otro']):
+                        continue
+                    
+                    otra_desc = (otro_movimiento.descripcion or '').upper()
+                    es_iva_otro = any(patron in otra_desc for patron in patrones_iva)
+                    
+                    if es_iva_otro and otro_movimiento.fecha:
+                        # Verificar si el monto del IVA coincide
+                        monto_iva = otro_movimiento.monto or 0
+                        diferencia_iva = abs(monto_iva - iva_esperado_desde_retencion) / iva_esperado_desde_retencion if iva_esperado_desde_retencion > 0 else 1
+                        
+                        # Verificar proximidad de fecha (mismo día o día siguiente)
+                        diferencia_dias_iva = abs((otro_movimiento.fecha - fecha_cargo).days) if fecha_cargo else 999
+                        
+                        if diferencia_iva <= 0.05 and diferencia_dias_iva <= 2:
+                            cargo_iva_relacionado = otro_movimiento
+                            break
+                
+                # Si encontramos el IVA relacionado, buscar el consumo desde el IVA
+                if cargo_iva_relacionado:
+                    monto_iva = cargo_iva_relacionado.monto or 0
+                    consumo_esperado_desde_iva = monto_iva / 0.15  # IVA / 0.15 = consumo original
+                    
+                    # Buscar consumo que coincida con este cálculo
+                    for consumo in consumos_candidatos:
+                        monto_consumo = consumo.monto or 0
+                        if monto_consumo <= 0:
+                            continue
+                        
+                        diferencia_consumo = abs(monto_consumo - consumo_esperado_desde_iva) / consumo_esperado_desde_iva if consumo_esperado_desde_iva > 0 else 1
+                        
+                        if diferencia_consumo <= 0.05:  # 5% de tolerancia
+                            consumo_relacionado = consumo
+                            break
+                else:
+                    # Si no encontramos el IVA, calcular directamente desde la retención del 10%
+                    consumo_esperado = monto_cargo / 0.015  # retencion_10% / 0.015 = consumo original
+                    
+                    for consumo in consumos_candidatos:
+                        monto_consumo = consumo.monto or 0
+                        if monto_consumo <= 0:
+                            continue
+                        
+                        diferencia_consumo = abs(monto_consumo - consumo_esperado) / consumo_esperado if consumo_esperado > 0 else 1
+                        
+                        if diferencia_consumo <= 0.05:  # 5% de tolerancia
+                            consumo_relacionado = consumo
+                            break
+            
+            elif es_iva:
+                # Para IVA digital: buscar consumo donde monto_cargo ≈ consumo * 0.15
+                # Tolerancia del 5% para diferencias por redondeo
+                for consumo in consumos_candidatos:
+                    monto_consumo = consumo.monto or 0
+                    if monto_consumo <= 0:
+                        continue
+                    
+                    # Calcular IVA esperado (15%)
+                    iva_esperado = monto_consumo * 0.15
+                    
+                    # Verificar si el monto del cargo está dentro del rango esperado (tolerancia 5%)
+                    diferencia_porcentual = abs(monto_cargo - iva_esperado) / iva_esperado if iva_esperado > 0 else 1
+                    
+                    if diferencia_porcentual <= 0.05:  # 5% de tolerancia
+                        consumo_relacionado = consumo
+                        break
+                    
+                    # También verificar si el cargo es exactamente el 10% (algunos casos)
+                    iva_10_esperado = monto_consumo * 0.10
+                    diferencia_10 = abs(monto_cargo - iva_10_esperado) / iva_10_esperado if iva_10_esperado > 0 else 1
+                    if diferencia_10 <= 0.05:
+                        consumo_relacionado = consumo
+                        break
+            
+            elif es_servicio:
+                # Para cargos de servicios: buscar consumo de servicios públicos cercano
+                # El cargo suele ser 0.31 + (0.31 * 0.15) = 0.3565, pero puede variar
+                for consumo in consumos_candidatos:
+                    # Verificar si el consumo es de servicios públicos
+                    desc_consumo = (consumo.descripcion or '').upper()
+                    categoria_consumo = consumo.categoria or ''
+                    
+                    # Patrones de servicios públicos
+                    servicios_publicos = [
+                        'AGUA', 'LUZ', 'ELECTRICIDAD', 'ENERGIA',
+                        'TELEFONO', 'TELEFONIA', 'INTERNET',
+                        'MATRICULACION', 'MATRICULA', 'SERVICIOS PUBLICOS'
+                    ]
+                    
+                    es_servicio_publico = (
+                        any(serv in desc_consumo for serv in servicios_publicos) or
+                        categoria_consumo in ['Servicios', 'Transporte']
+                    )
+                    
+                    if es_servicio_publico:
+                        # Verificar proximidad de fecha (mismo día o día siguiente)
+                        diferencia_dias = abs((consumo.fecha - fecha_cargo).days) if consumo.fecha and fecha_cargo else 999
+                        
+                        if diferencia_dias <= 2:  # Mismo día o hasta 2 días de diferencia
+                            consumo_relacionado = consumo
+                            break
+            
+            # Si encontramos un consumo relacionado, actualizar el cargo
+            if consumo_relacionado:
+                # Actualizar categoría del cargo
+                movimiento.categoria = consumo_relacionado.categoria
+                
+                # Actualizar categoria_503020: si el consumo la tiene, usar la misma
+                # Si no, calcularla basándose en la nueva categoría
+                if consumo_relacionado.categoria_503020:
+                    movimiento.categoria_503020 = consumo_relacionado.categoria_503020
+                else:
+                    # Calcular categoria_503020 basándose en la categoría
+                    movimiento.categoria_503020 = mapear_categoria_a_503020(consumo_relacionado.categoria)
+                
+                relacionados += 1
+                categoria_503020_str = movimiento.categoria_503020 or 'N/A'
+                print(f"✅ Relacionado: {movimiento.descripcion[:50]}... (${movimiento.monto:.2f}) → {consumo_relacionado.categoria} ({categoria_503020_str})")
+        
+        # Guardar cambios
+        if relacionados > 0:
+            db.session.commit()
+            print(f"📊 Total de cargos relacionados: {relacionados}")
+        else:
+            print("ℹ️ No se encontraron cargos de IVA/retenciones para relacionar")
+    
+    except Exception as e:
+        print(f"⚠️ Error en relacionar_cargos_iva_con_consumos: {e}")
+        import traceback
+        print(traceback.format_exc())
+        db.session.rollback()
+
+def mapear_categoria_a_503020(categoria):
+    """
+    Mapea una categoría a la clasificación 50-30-20.
+    
+    Regla 50-30-20:
+    - 50% Necesidades: Vivienda, Alimentación (supermercado), Seguros, Educación, 
+                       Servicios Básicos, Transporte, Salud
+    - 30% Deseos: Entretenimiento, Comida Fuera, Viajes/Vacaciones, Donaciones, 
+                  Compras, Hobbies, Cuidado Personal, Mejoras Hogar, Otros
+    - 20% Inversión: No se clasifica normalmente (no aparece en estados de cuenta)
+    
+    Args:
+        categoria (str): Categoría del consumo
+        
+    Returns:
+        str: "Necesidad", "Deseo", o None
+    """
+    if not categoria:
+        return "Deseo"  # Por defecto si no hay categoría
+    
+    categoria = categoria.strip()
+    
+    # Mapeo de categorías a 50-30-20
+    mapeo = {
+        # Necesidades (50%)
+        "Vivienda": "Necesidad",
+        "Alimentación": "Necesidad",  # Supermercado/necesario
+        "Seguros": "Necesidad",
+        "Educación": "Necesidad",
+        "Servicios": "Necesidad",  # Servicios básicos
+        "Transporte": "Necesidad",
+        "Salud": "Necesidad",
+        
+        # Deseos (30%)
+        "Entretenimiento": "Deseo",
+        "Comida Fuera": "Deseo",  # Restaurantes, delivery, cafeterías
+        "Viajes/Vacaciones": "Deseo",
+        "Donaciones": "Deseo",
+        "Compras": "Deseo",
+        "Hobbies": "Deseo",
+        "Cuidado Personal": "Deseo",
+        "Mejoras Hogar": "Deseo",
+        "Otros": "Deseo",  # Por defecto
+    }
+    
+    return mapeo.get(categoria, "Deseo")  # Por defecto "Deseo" si no está en el mapeo
+
+def ensure_consumos_detalle_categoria_503020():
+    """
+    Asegura que la columna categoria_503020 existe en la tabla consumos_detalle.
+    Se ejecuta automáticamente al iniciar la aplicación.
+    """
+    try:
+        with app.app_context():
+            try:
+                result = db.session.execute(text("SELECT categoria_503020 FROM consumos_detalle LIMIT 1"))
+                result.fetchone()
+                print("Columna categoria_503020 ya existe en consumos_detalle.")
+            except Exception:
+                print("Columna categoria_503020 no existe en consumos_detalle. Creándola...")
+                try:
+                    # Para PostgreSQL
+                    db.session.execute(text("ALTER TABLE consumos_detalle ADD COLUMN categoria_503020 VARCHAR(20)"))
+                    db.session.commit()
+                    print("Columna categoria_503020 creada exitosamente (PostgreSQL).")
+                except Exception as e:
+                    # Si falla, intentar con SQLite syntax
+                    try:
+                        db.session.execute(text("ALTER TABLE consumos_detalle ADD COLUMN categoria_503020 TEXT"))
+                        db.session.commit()
+                        print("Columna categoria_503020 creada exitosamente (SQLite).")
+                    except Exception as e2:
+                        print(f"Error creando columna categoria_503020: {e2}")
+                        db.session.rollback()
+    except Exception as e:
+        print(f"Error verificando/creando columna categoria_503020: {e}")
+        # No fallar la aplicación si hay error, solo loguear
+
 # Ejecutar al iniciar la aplicación (solo si hay contexto de aplicación)
 try:
     ensure_avatar_url_column()
+    ensure_estados_cuenta_columns()
+    ensure_abreviaciones_columns()
+    ensure_consumos_detalle_categoria_503020()
 except Exception:
     pass  # Si no hay contexto aún, se ejecutará después
 

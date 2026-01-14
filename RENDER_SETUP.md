@@ -20,6 +20,12 @@ MAILGUN_API_KEY=tu-mailgun-api-key
 MAILGUN_DOMAIN=tu-dominio.mailgun.org
 ```
 
+### **4. 🤖 Anthropic Claude (Para Análisis de PDFs con IA)**
+```
+ANTHROPIC_API_KEY=tu-anthropic-api-key
+```
+**⚠️ IMPORTANTE:** Esta variable es **OBLIGATORIA** para que funcione el análisis de PDFs con IA. Sin ella, la ruta `/analizar-pdf` dará error 500.
+
 ## 🔧 **Configuración de Google OAuth para Producción**
 
 ### **Paso 1: Crear OAuth 2.0 Client ID en Google Cloud Console**

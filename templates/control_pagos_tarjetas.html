@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Control de Pagos - Tarjetas de Crédito</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='unified-style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Estilos específicos para Control de Pagos usando paleta unificada */
+        body {
+            background: linear-gradient(135deg, var(--gris-oscuro) 0%, var(--gris-claro) 50%, var(--blanco) 100%);
+            min-height: 100vh;
+        }
+
+        /* Dashboard de Resumen */
+        .summary-dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .summary-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+            border-left: 4px solid #4a7c59;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .summary-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .summary-card h3 {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #2c5530;
+        }
+
+        .summary-card p {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .summary-card.warning {
+            border-left: 4px solid #dc3545;
+        }
+
+        .summary-card.warning h3 {
+            color: #2c5530;
+        }
+
+        .summary-card.success {
+            border-left: 4px solid var(--verde-vital);
+        }
+
+        .summary-card.success h3 {
+            color: #2c5530;
+        }
+
+        /* Filtros */
+        .filters-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .filters-section h3 {
+            color: var(--texto-oscuro);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--texto-oscuro);
+        }
+
+        .filter-group select {
+            padding: 12px;
+            border: 2px solid var(--gris-claro);
+            border-radius: 10px;
+            font-size: 1rem;
+            background: var(--blanco);
+            color: var(--texto-oscuro);
+            transition: border-color 0.3s ease;
+        }
+
+        .filter-group select:focus {
+            outline: none;
+            border-color: var(--verde-vital);
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .btn-filter {
+            background: linear-gradient(135deg, var(--verde-vital) 0%, var(--azul-util) 100%);
+            color: var(--blanco);
+            padding: 12px 25px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(123, 167, 78, 0.3);
+        }
+
+        .btn-filter:hover {
+            background: linear-gradient(135deg, var(--fondo-intermedio) 0%, var(--verde-vital) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(123, 167, 78, 0.4);
+        }
+
+        .btn-reset {
+            background: linear-gradient(135deg, var(--gris-oscuro) 0%, var(--gris-claro) 100%);
+            color: var(--texto-oscuro);
+            padding: 12px 25px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-reset:hover {
+            background: linear-gradient(135deg, var(--gris-claro) 0%, var(--gris-oscuro) 100%);
+            transform: translateY(-2px);
+        }
+
+        /* Categorías */
+        .categories-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .categories-section h3 {
+            color: var(--texto-oscuro);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .categories-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .category-item {
+            background: linear-gradient(135deg, rgba(123, 167, 78, 0.05) 0%, rgba(76, 165, 179, 0.05) 100%);
+            padding: 15px;
+            border-radius: 12px;
+            border-left: 4px solid var(--verde-vital);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .category-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(123, 167, 78, 0.2);
+        }
+
+        .category-name {
+            font-weight: 600;
+            color: var(--texto-oscuro);
+            margin-bottom: 5px;
+        }
+
+        .category-amount {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--azul-util);
+        }
+
+        .category-count {
+            font-size: 0.9rem;
+            color: var(--gris-oscuro);
+        }
+
+        /* Tabla Pivot */
+        .pivot-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        
+        .pivot-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .pivot-section h3 {
+            color: var(--texto-oscuro);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pivot-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .pivot-table th {
+            background: #2c5530;
+            color: var(--blanco);
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .pivot-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--gris-claro);
+            color: var(--texto-oscuro);
+        }
+
+        .pivot-table tr:hover {
+            background: linear-gradient(135deg, rgba(123, 167, 78, 0.05) 0%, rgba(76, 165, 179, 0.05) 100%);
+        }
+
+        .pivot-table .total-row {
+            background: linear-gradient(135deg, var(--gris-claro) 0%, var(--gris-oscuro) 100%);
+            font-weight: bold;
+            color: var(--texto-oscuro);
+        }
+
+        .amount-cell {
+            text-align: right;
+            font-weight: 600;
+        }
+
+        .amount-positive {
+            color: var(--verde-vital);
+        }
+
+        .amount-negative {
+            color: #dc3545;
+        }
+        
+        .consumo-row:hover {
+            background: linear-gradient(135deg, rgba(220, 53, 69, 0.05) 0%, rgba(200, 35, 51, 0.05) 100%);
+        }
+        
+        .pago-row:hover {
+            background: linear-gradient(135deg, rgba(123, 167, 78, 0.1) 0%, rgba(90, 138, 62, 0.1) 100%);
+        }
+        
+        .resumen-row:hover {
+            background: linear-gradient(135deg, rgba(76, 165, 179, 0.05) 0%, rgba(123, 167, 78, 0.05) 100%);
+        }
+        
+        .diferencia-row {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 0%, rgba(255, 215, 0, 0.2) 100%);
+            border-top: 3px solid var(--dorado);
+        }
+        
+        .diferencia-row:hover {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.15) 0%, rgba(255, 215, 0, 0.25) 100%);
+        }
+        
+        .deuda-anterior-row {
+            background: linear-gradient(135deg, rgba(128, 128, 128, 0.05) 0%, rgba(128, 128, 128, 0.1) 100%);
+            border-top: 2px solid rgba(128, 128, 128, 0.3);
+        }
+        
+        .deuda-anterior-row:hover {
+            background: linear-gradient(135deg, rgba(128, 128, 128, 0.1) 0%, rgba(128, 128, 128, 0.15) 100%);
+        }
+        
+        .deuda-anterior-row td {
+            font-weight: 600;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: var(--gris-oscuro);
+            font-style: italic;
+        }
+        
+        /* Mejoras para móvil */
+        .pivot-table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Indicador de scroll horizontal */
+        .pivot-table-container::-webkit-scrollbar {
+            height: 8px;
+        }
+        
+        .pivot-table-container::-webkit-scrollbar-track {
+            background: var(--gris-claro);
+            border-radius: 4px;
+        }
+        
+        .pivot-table-container::-webkit-scrollbar-thumb {
+            background: var(--verde-vital);
+            border-radius: 4px;
+        }
+        
+        .pivot-table-container::-webkit-scrollbar-thumb:hover {
+            background: var(--fondo-intermedio);
+        }
+
+        @media (max-width: 768px) {
+            .unified-container {
+                padding: 15px;
+            }
+            
+            .unified-content {
+                padding: 20px;
+            }
+            
+            .summary-dashboard {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .summary-card {
+                padding: 20px;
+            }
+            
+            .summary-card h3 {
+                font-size: 1.5rem;
+            }
+            
+            .filters-section {
+                padding: 20px;
+            }
+            
+            .filters-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .filter-group select {
+                padding: 10px;
+                font-size: 1rem;
+            }
+            
+            .filter-buttons {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .btn-filter, .btn-reset {
+                padding: 12px 20px;
+                font-size: 1rem;
+            }
+            
+            .categories-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            
+            .category-item {
+                padding: 12px;
+            }
+            
+            .pivot-section {
+                padding: 20px;
+                overflow-x: auto;
+            }
+            
+            .pivot-table {
+                font-size: 0.8rem;
+                min-width: 600px;
+            }
+            
+            .pivot-table th {
+                padding: 10px 8px;
+                font-size: 0.8rem;
+            }
+            
+            .pivot-table td {
+                padding: 8px 6px;
+                font-size: 0.8rem;
+            }
+            
+            .amount-cell {
+                text-align: right;
+                white-space: nowrap;
+            }
+            
+            /* Scroll horizontal para la tabla */
+            .pivot-table-container {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            /* Mejorar la experiencia táctil */
+            .pivot-table tr:hover {
+                background: #f0f0f0;
+            }
+            
+            /* Ajustar botones para móvil */
+            .btn-filter:hover, .btn-reset:hover {
+                transform: none;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .summary-card h3 {
+                font-size: 1.3rem;
+            }
+            
+            .pivot-table {
+                font-size: 0.7rem;
+                min-width: 500px;
+            }
+            
+            .pivot-table th, .pivot-table td {
+                padding: 6px 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="unified-container">
+        <a href="{{ url_for('tarjetas_credito') }}" class="back-btn">
+            <i class="fas fa-arrow-left"></i>
+            Volver a Tarjetas de Crédito
+        </a>
+        
+        <div class="unified-header">
+            <h1>
+                <i class="fas fa-credit-card"></i>
+                Control de Pagos
+            </h1>
+            <p>Gestiona tus pagos de tarjetas de crédito de manera inteligente</p>
+        </div>
+
+        <div class="unified-content">
+            <!-- Dashboard de Resumen -->
+            <div class="summary-dashboard">
+                <div class="summary-card warning">
+                    <h3>${{ "%.2f"|format(total_deuda) }}</h3>
+                    <p>Deuda Total</p>
+                </div>
+                <div class="summary-card">
+                    <h3>${{ "%.2f"|format(total_pagos_minimos) }}</h3>
+                    <p>Pagos Mínimos</p>
+                </div>
+                <div class="summary-card success">
+                    <h3>{{ estados_cuenta|length }}</h3>
+                    <p>Estados de Cuenta</p>
+                </div>
+                <div class="summary-card">
+                    <h3>{{ bancos_unicos|length }}</h3>
+                    <p>Bancos Diferentes</p>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="filters-section">
+                <h3 style="margin-bottom: 20px; color: #495057;">
+                    <i class="fas fa-filter"></i> Filtros de Búsqueda
+                </h3>
+                <div class="filters-grid">
+            <div class="filter-group">
+                <label for="mesFiltro">Mes de Corte</label>
+                <select id="mesFiltro">
+                    <option value="">Todos los meses</option>
+                    {% for mes in meses_corte %}
+                    <option value="{{ mes }}" {% if mes == mes_filtro_actual %}selected{% endif %}>{{ mes }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="bancoFiltro">Banco</label>
+                <select id="bancoFiltro">
+                    <option value="">Todos los bancos</option>
+                    {% for banco in bancos_unicos %}
+                    <option value="{{ banco }}" {% if banco == banco_filtro_actual %}selected{% endif %}>{{ banco }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="tarjetaFiltro">Tipo de Tarjeta</label>
+                <select id="tarjetaFiltro">
+                    <option value="">Todas las tarjetas</option>
+                    {% for tarjeta in tarjetas_unicas %}
+                    <option value="{{ tarjeta }}" {% if tarjeta == tarjeta_filtro_actual %}selected{% endif %}>{{ tarjeta }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+                </div>
+                <div class="filter-buttons">
+                    <button class="btn-filter" onclick="aplicarFiltros()">
+                        <i class="fas fa-search"></i> Aplicar Filtros
+                    </button>
+                    <button class="btn-reset" onclick="limpiarFiltros()">
+                        <i class="fas fa-undo"></i> Limpiar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Categorías -->
+            {% if categorias_stats %}
+            <div class="categories-section">
+                <h3 style="margin-bottom: 20px; color: #495057;">
+                    <i class="fas fa-chart-pie"></i> Gastos por Categoría
+                </h3>
+                <div class="categories-grid">
+                    {% for categoria, stats in categorias_stats.items() %}
+                    <div class="category-item">
+                        <div class="category-name">{{ categoria }}</div>
+                        <div class="category-amount">${{ "%.2f"|format(stats.total) }}</div>
+                        <div class="category-count">{{ stats.cantidad }} transacciones</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Tabla Pivot de Movimientos Detallados - Dividida en Consumos y Pagos -->
+            
+            <!-- Sección de Consumos -->
+            <div class="pivot-section">
+                <h3 style="margin-bottom: 20px; color: var(--texto-oscuro);">
+                    <i class="fas fa-shopping-cart"></i> Detalle de Consumos por Tarjeta
+                </h3>
+                <div id="consumosTableContainer">
+                    <div class="pivot-table-container">
+                        <table class="pivot-table" id="consumosTable">
+                        <thead>
+                            <tr>
+                                <th>Descripción</th>
+                                {% for tarjeta in tarjetas_columnas %}
+                                <th>{{ tarjeta }}</th>
+                                {% endfor %}
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Fila de Deuda Anterior -->
+                            <tr class="movimiento-row deuda-anterior-row">
+                                <td><strong>Deuda Anterior</strong></td>
+                                {% set total_deuda_anterior_fila = 0 %}
+                                {% for tarjeta in tarjetas_columnas %}
+                                    {% set deuda_anterior_tarjeta = deuda_anterior_por_tarjeta.get(tarjeta, 0) %}
+                                    {% set total_deuda_anterior_fila = total_deuda_anterior_fila + deuda_anterior_tarjeta %}
+                                    <td class="amount-cell">
+                                        {% if deuda_anterior_tarjeta > 0 %}
+                                            ${{ "%.2f"|format(deuda_anterior_tarjeta) }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                                <td class="amount-cell amount-negative"><strong>${{ "%.2f"|format(total_deuda_anterior_fila) }}</strong></td>
+                            </tr>
+                            {% if consumos_pivot %}
+                            {% for descripcion, montos in consumos_pivot.items() %}
+                            <tr class="movimiento-row consumo-row">
+                                <td><strong>{{ descripcion }}</strong></td>
+                                {% set total_fila = 0 %}
+                                {% for tarjeta in tarjetas_columnas %}
+                                    {% set monto_tarjeta = montos.get(tarjeta, 0) %}
+                                    {% set total_fila = total_fila + monto_tarjeta %}
+                                    <td class="amount-cell">
+                                        {% if monto_tarjeta > 0 %}
+                                            ${{ "%.2f"|format(monto_tarjeta) }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                                <td class="amount-cell amount-negative"><strong>${{ "%.2f"|format(total_fila) }}</strong></td>
+                            </tr>
+                            {% endfor %}
+                            {% endif %}
+                            <!-- Fila de totales -->
+                            <tr class="total-row">
+                                <td><strong>TOTAL CONSUMOS</strong></td>
+                                {% for tarjeta in tarjetas_columnas %}
+                                    <td class="amount-cell amount-negative"><strong>${{ "%.2f"|format(totales_consumos_por_tarjeta.get(tarjeta, 0)) }}</strong></td>
+                                {% endfor %}
+                                <td class="amount-cell amount-negative"><strong>${{ "%.2f"|format(total_general_consumos) }}</strong></td>
+                            </tr>
+                        </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sección de Pagos -->
+            <div class="pivot-section">
+                <h3 style="margin-bottom: 20px; color: var(--texto-oscuro);">
+                    <i class="fas fa-money-check-alt"></i> Detalle de Pagos y Créditos por Tarjeta
+                </h3>
+                <div id="pagosTableContainer">
+                    <div class="pivot-table-container">
+                        <table class="pivot-table" id="pagosTable">
+                        <thead>
+                            <tr>
+                                <th>Descripción</th>
+                                {% for tarjeta in tarjetas_columnas %}
+                                <th>{{ tarjeta }}</th>
+                                {% endfor %}
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if pagos_pivot %}
+                            {% for descripcion, montos in pagos_pivot.items() %}
+                            <tr class="movimiento-row pago-row">
+                                <td><strong>{{ descripcion }}</strong></td>
+                                {% set total_fila = 0 %}
+                                {% for tarjeta in tarjetas_columnas %}
+                                    {% set monto_tarjeta = montos.get(tarjeta, 0) %}
+                                    {% set total_fila = total_fila + monto_tarjeta %}
+                                    <td class="amount-cell">
+                                        {% if monto_tarjeta > 0 %}
+                                            ${{ "%.2f"|format(monto_tarjeta) }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                                <td class="amount-cell amount-positive"><strong>${{ "%.2f"|format(total_fila) }}</strong></td>
+                            </tr>
+                            {% endfor %}
+                            {% endif %}
+                            <!-- Fila de totales -->
+                            <tr class="total-row">
+                                <td><strong>TOTAL PAGOS</strong></td>
+                                {% for tarjeta in tarjetas_columnas %}
+                                    <td class="amount-cell amount-positive"><strong>${{ "%.2f"|format(totales_pagos_por_tarjeta.get(tarjeta, 0)) }}</strong></td>
+                                {% endfor %}
+                                <td class="amount-cell amount-positive"><strong>${{ "%.2f"|format(total_general_pagos) }}</strong></td>
+                            </tr>
+                        </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sección de Resumen (Diferencia) -->
+            <div class="pivot-section">
+                <h3 style="margin-bottom: 20px; color: var(--texto-oscuro);">
+                    <i class="fas fa-calculator"></i> Resumen: Diferencia entre Consumos y Pagos
+                </h3>
+                <div id="resumenTableContainer">
+                    <div class="pivot-table-container">
+                        <table class="pivot-table" id="resumenTable">
+                        <thead>
+                            <tr>
+                                <th>Concepto</th>
+                                {% for tarjeta in tarjetas_columnas %}
+                                <th>{{ tarjeta }}</th>
+                                {% endfor %}
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="resumen-row">
+                                <td><strong>Deuda Anterior</strong></td>
+                                {% for tarjeta in tarjetas_columnas %}
+                                    <td class="amount-cell amount-negative"><strong>${{ "%.2f"|format(deuda_anterior_por_tarjeta.get(tarjeta, 0)) }}</strong></td>
+                                {% endfor %}
+                                <td class="amount-cell amount-negative"><strong>${{ "%.2f"|format(total_deuda_anterior) }}</strong></td>
+                            </tr>
+                            <tr class="resumen-row">
+                                <td><strong>Consumos del Período</strong></td>
+                                {% for tarjeta in tarjetas_columnas %}
+                                    {% set consumos_periodo = totales_consumos_por_tarjeta.get(tarjeta, 0) - deuda_anterior_por_tarjeta.get(tarjeta, 0) %}
+                                    <td class="amount-cell amount-negative"><strong>${{ "%.2f"|format(consumos_periodo) }}</strong></td>
+                                {% endfor %}
+                                {% set consumos_periodo_total = total_general_consumos - total_deuda_anterior %}
+                                <td class="amount-cell amount-negative"><strong>${{ "%.2f"|format(consumos_periodo_total) }}</strong></td>
+                            </tr>
+                            <tr class="resumen-row">
+                                <td><strong>Total Consumos</strong></td>
+                                {% for tarjeta in tarjetas_columnas %}
+                                    <td class="amount-cell amount-negative"><strong>${{ "%.2f"|format(totales_consumos_por_tarjeta.get(tarjeta, 0)) }}</strong></td>
+                                {% endfor %}
+                                <td class="amount-cell amount-negative"><strong>${{ "%.2f"|format(total_general_consumos) }}</strong></td>
+                            </tr>
+                            <tr class="resumen-row">
+                                <td><strong>Total Pagos</strong></td>
+                                {% for tarjeta in tarjetas_columnas %}
+                                    <td class="amount-cell amount-positive"><strong>${{ "%.2f"|format(totales_pagos_por_tarjeta.get(tarjeta, 0)) }}</strong></td>
+                                {% endfor %}
+                                <td class="amount-cell amount-positive"><strong>${{ "%.2f"|format(total_general_pagos) }}</strong></td>
+                            </tr>
+                            <tr class="total-row diferencia-row">
+                                <td><strong>DIFERENCIA (Consumos - Pagos)</strong></td>
+                                {% for tarjeta in tarjetas_columnas %}
+                                    {% set diferencia = diferencia_por_tarjeta.get(tarjeta, 0) %}
+                                    <td class="amount-cell {% if diferencia > 0 %}amount-negative{% elif diferencia < 0 %}amount-positive{% endif %}">
+                                        <strong>
+                                            {% if diferencia > 0 %}
+                                                ${{ "%.2f"|format(diferencia) }} (Pendiente)
+                                            {% elif diferencia < 0 %}
+                                                ${{ "%.2f"|format(-diferencia) }} (Pago de más)
+                                            {% else %}
+                                                $0.00 (Pagado)
+                                            {% endif %}
+                                        </strong>
+                                    </td>
+                                {% endfor %}
+                                <td class="amount-cell {% if diferencia_general > 0 %}amount-negative{% elif diferencia_general < 0 %}amount-positive{% else %}amount-positive{% endif %}">
+                                    <strong>
+                                        {% if diferencia_general > 0 %}
+                                            ${{ "%.2f"|format(diferencia_general) }} (Pendiente)
+                                        {% elif diferencia_general < 0 %}
+                                            ${{ "%.2f"|format(-diferencia_general) }} (Pago de más)
+                                        {% else %}
+                                            $0.00 (Todo Pagado)
+                                        {% endif %}
+                                    </strong>
+                                </td>
+                            </tr>
+                        </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function aplicarFiltros() {
+            const mesFiltro = document.getElementById('mesFiltro').value;
+            const bancoFiltro = document.getElementById('bancoFiltro').value;
+            const tarjetaFiltro = document.getElementById('tarjetaFiltro').value;
+            
+            // Los filtros se aplican recargando la página con parámetros
+            // Esta función ahora redirige con los filtros aplicados
+            let url = '/control-pagos-tarjetas?';
+            const params = [];
+            
+            if (mesFiltro) params.push(`mes=${encodeURIComponent(mesFiltro)}`);
+            if (bancoFiltro) params.push(`banco=${encodeURIComponent(bancoFiltro)}`);
+            if (tarjetaFiltro) params.push(`tarjeta=${encodeURIComponent(tarjetaFiltro)}`);
+            
+            if (params.length > 0) {
+                url += params.join('&');
+            } else {
+                url = '/control-pagos-tarjetas';
+            }
+            
+            window.location.href = url;
+        }
+        
+        function limpiarFiltros() {
+            document.getElementById('mesFiltro').value = '';
+            document.getElementById('bancoFiltro').value = '';
+            document.getElementById('tarjetaFiltro').value = '';
+            
+            // Recargar la tabla original
+            location.reload();
+        }
+        
+        // Aplicar filtros automáticamente al cambiar los selects
+        document.getElementById('mesFiltro').addEventListener('change', aplicarFiltros);
+        document.getElementById('bancoFiltro').addEventListener('change', aplicarFiltros);
+        document.getElementById('tarjetaFiltro').addEventListener('change', aplicarFiltros);
+    </script>
+</body>
+</html>

@@ -72,9 +72,9 @@ app-financiera/
 
 #### **1. Estructura de Planes**
 - **Plan Gratuito**: 100 transacciones/mes, 1 usuario
-- **Plan Básico ($9.99/mes)**: 1000 transacciones/mes, 3 usuarios
-- **Plan Pro ($19.99/mes)**: Transacciones ilimitadas, 10 usuarios
-- **Plan Empresarial ($49.99/mes)**: Multi-tenant, API completa
+- **Plan Básico ($1.99/mes)**: 1000 transacciones/mes, 3 usuarios
+- **Plan Pro ($4.99/mes)**: Transacciones ilimitadas, 10 usuarios
+- **Plan Plus ($6.99/mes)**: Multi-tenant, API completa
 
 #### **2. Sistema de Códigos Únicos**
 - **Generación automática** de códigos únicos por usuario

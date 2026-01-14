@@ -1,0 +1,642 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='unified-style.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .filters-section {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        padding: 25px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .filter-group label {
+        font-weight: 600;
+        color: var(--texto-oscuro);
+    }
+    
+    .filter-group select {
+        padding: 12px;
+        border: 2px solid var(--gris-claro);
+        border-radius: 10px;
+        font-size: 1rem;
+        background: var(--blanco);
+        color: var(--texto-oscuro);
+        transition: border-color 0.3s ease;
+    }
+    
+    .filter-group select:focus {
+        outline: none;
+        border-color: var(--verde-vital);
+    }
+    
+    .chart-container {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        padding: 30px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        text-align: center;
+    }
+    
+    .chart-wrapper {
+        position: relative;
+        height: 400px;
+        margin: 20px 0;
+    }
+    
+    .summary-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .summary-card {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        text-align: center;
+        border-left: 4px solid #4a7c59;
+    }
+    
+    .summary-card.necesidad {
+        border-left-color: var(--verde-vital);
+    }
+    
+    .summary-card.deseo {
+        border-left-color: var(--azul-util);
+    }
+    
+    .summary-card.inversion {
+        border-left-color: var(--dorado);
+    }
+    
+    .summary-number {
+        font-size: 2em;
+        font-weight: bold;
+        color: #2c5530;
+        margin-bottom: 5px;
+    }
+    
+    .summary-label {
+        color: #666;
+        font-size: 0.9em;
+    }
+    
+    /* Modal */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0,0,0,0.5);
+    }
+    
+    .modal-content {
+        background-color: white;
+        margin: 5% auto;
+        padding: 30px;
+        border-radius: 15px;
+        width: 90%;
+        max-width: 600px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    
+    .close {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    
+    .close:hover {
+        color: var(--texto-oscuro);
+    }
+    
+    .modal-header {
+        border-bottom: 2px solid var(--gris-claro);
+        padding-bottom: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .modal-header h2 {
+        color: var(--texto-oscuro);
+        margin: 0;
+    }
+    
+    .categoria-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px;
+        border-bottom: 1px solid var(--gris-claro);
+    }
+    
+    .categoria-item:last-child {
+        border-bottom: none;
+    }
+    
+    .categoria-name {
+        font-weight: 600;
+        color: var(--texto-oscuro);
+    }
+    
+    .categoria-amount {
+        color: var(--verde-vital);
+        font-weight: bold;
+    }
+    
+    @media (max-width: 768px) {
+        .chart-wrapper {
+            height: 300px;
+        }
+        
+        .summary-cards {
+            grid-template-columns: 1fr;
+        }
+        
+        .modal-content {
+            width: 95%;
+            margin: 10% auto;
+            padding: 20px;
+        }
+    }
+</style>
+
+<!-- Filtros -->
+<div class="filters-section">
+    <h3 style="margin-bottom: 20px; color: var(--texto-oscuro);">
+        <i class="fas fa-filter"></i> Filtros
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+        <div class="filter-group">
+            <label for="filtroAño">Año</label>
+            <select id="filtroAño">
+                <option value="">Todos los años</option>
+                {% for año in años %}
+                <option value="{{ año }}" {% if año == años[0] %}selected{% endif %}>{{ año }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label for="filtroMes">Mes</label>
+            <select id="filtroMes">
+                <option value="">Todos los meses</option>
+                <option value="1">Enero</option>
+                <option value="2">Febrero</option>
+                <option value="3">Marzo</option>
+                <option value="4">Abril</option>
+                <option value="5">Mayo</option>
+                <option value="6">Junio</option>
+                <option value="7">Julio</option>
+                <option value="8">Agosto</option>
+                <option value="9">Septiembre</option>
+                <option value="10">Octubre</option>
+                <option value="11">Noviembre</option>
+                <option value="12">Diciembre</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label for="filtroTarjeta">Tarjeta</label>
+            <select id="filtroTarjeta">
+                <option value="Todas">Todas las tarjetas</option>
+                {% for tarjeta in tarjetas %}
+                <option value="{{ tarjeta }}">{{ tarjeta }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- Tarjetas de Resumen -->
+<div class="summary-cards">
+    <div class="summary-card necesidad">
+        <div class="summary-number" id="totalNecesidad">${{ "%.2f"|format(total_necesidad) }}</div>
+        <div class="summary-label">Necesidades (50%)</div>
+    </div>
+    <div class="summary-card deseo">
+        <div class="summary-number" id="totalDeseo">${{ "%.2f"|format(total_deseo) }}</div>
+        <div class="summary-label">Deseos (30%)</div>
+    </div>
+    <div class="summary-card inversion">
+        <div class="summary-number" id="totalInversion">${{ "%.2f"|format(total_inversion) }}</div>
+        <div class="summary-label">Inversión (20%)</div>
+        <div style="font-size: 0.8em; color: #999; margin-top: 5px;">(Futuro: Ingresos - Consumos)</div>
+    </div>
+    <div class="summary-card">
+        <div class="summary-number" id="totalGeneral">${{ "%.2f"|format(total_general) }}</div>
+        <div class="summary-label">Total Consumos</div>
+    </div>
+</div>
+
+<!-- Gráfico -->
+<div class="chart-container">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3 style="margin: 0; color: var(--texto-oscuro);">
+            <i class="fas fa-chart-doughnut"></i> <span id="chartTitle">Distribución 50-30-20</span>
+        </h3>
+        <button id="btnVolver" style="display: none; padding: 8px 16px; background: var(--verde-vital); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
+            <i class="fas fa-arrow-left"></i> Volver
+        </button>
+    </div>
+    <div class="chart-wrapper">
+        <canvas id="chart503020"></canvas>
+    </div>
+    <p style="color: #666; font-size: 0.9em; margin-top: 15px;">
+        <i class="fas fa-info-circle"></i> <span id="chartHint">Haz clic en una sección del gráfico para ver el detalle por categorías</span>
+    </p>
+</div>
+
+<!-- Modal para Drill-Down -->
+<div id="modalDetalle" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <div class="modal-header">
+            <h2 id="modalTitulo">Detalle de Categorías</h2>
+        </div>
+        <div id="modalContenido">
+            <!-- Contenido dinámico -->
+        </div>
+    </div>
+</div>
+
+<script>
+    let chart503020 = null;
+    let categoriasNecesidad = {{ categorias_necesidad | tojson }};
+    let categoriasDeseo = {{ categorias_deseo | tojson }};
+    let nivelActual = 'principal'; // 'principal', 'necesidad', 'deseo'
+    let datosPrincipales = null; // Guardar datos del nivel principal
+    
+    // Colores de la marca
+    const colores = {
+        necesidad: '#7ba74e',  // verde-vital
+        deseo: '#4ca5b3',      // azul-util
+        inversion: '#ffd700'   // dorado
+    };
+    
+    // Generar colores para categorías (variaciones del color base)
+    function generarColoresCategorias(cantidad, colorBase) {
+        const colores = [];
+        const base = colorBase.replace('#', '');
+        const r = parseInt(base.substr(0, 2), 16);
+        const g = parseInt(base.substr(2, 2), 16);
+        const b = parseInt(base.substr(4, 2), 16);
+        
+        for (let i = 0; i < cantidad; i++) {
+            const factor = 0.7 + (i * 0.15); // Variar brillo
+            const newR = Math.min(255, Math.floor(r * factor));
+            const newG = Math.min(255, Math.floor(g * factor));
+            const newB = Math.min(255, Math.floor(b * factor));
+            colores.push(`rgb(${newR}, ${newG}, ${newB})`);
+        }
+        return colores;
+    }
+    
+    function cargarDatos() {
+        const año = document.getElementById('filtroAño').value;
+        const mes = document.getElementById('filtroMes').value;
+        const tarjeta = document.getElementById('filtroTarjeta').value;
+        
+        const params = new URLSearchParams();
+        if (año) params.append('año', año);
+        if (mes) params.append('mes', mes);
+        if (tarjeta) params.append('tarjeta', tarjeta);
+        
+        fetch(`/api/consumos-503020?${params.toString()}`)
+            .then(response => response.json())
+            .then(data => {
+                // Actualizar datos principales
+                datosPrincipales = data;
+                categoriasNecesidad = data.categorias_necesidad || {};
+                categoriasDeseo = data.categorias_deseo || {};
+                
+                // Volver al nivel principal si estamos en drill-down
+                if (nivelActual !== 'principal') {
+                    volverAlPrincipal();
+                } else {
+                    actualizarGrafico(data);
+                }
+                actualizarResumen(data);
+            })
+            .catch(error => {
+                console.error('Error cargando datos:', error);
+            });
+    }
+    
+    function mostrarDrillDown(tipo, categorias, colorBase) {
+        nivelActual = tipo;
+        
+        // Guardar datos principales si no están guardados
+        if (!datosPrincipales) {
+            datosPrincipales = {
+                total_necesidad: {{ total_necesidad }},
+                total_deseo: {{ total_deseo }},
+                total_inversion: {{ total_inversion }},
+                total_general: {{ total_general }},
+                categorias_necesidad: categoriasNecesidad,
+                categorias_deseo: categoriasDeseo
+            };
+        }
+        
+        // Ordenar categorías por monto descendente
+        const categoriasOrdenadas = Object.entries(categorias)
+            .sort((a, b) => b[1] - a[1])
+            .map(([nombre, monto]) => ({ nombre, monto }));
+        
+        const total = categoriasOrdenadas.reduce((sum, cat) => sum + cat.monto, 0);
+        const labels = categoriasOrdenadas.map(cat => {
+            const porcentaje = total > 0 ? ((cat.monto / total) * 100).toFixed(1) : 0;
+            return `${cat.nombre} (${porcentaje}%)`;
+        });
+        const valores = categoriasOrdenadas.map(cat => cat.monto);
+        
+        // Generar colores para las categorías
+        const coloresCategorias = generarColoresCategorias(categoriasOrdenadas.length, colorBase);
+        
+        // Actualizar título y botón
+        const titulo = tipo === 'necesidad' ? 'Necesidades - Detalle por Categorías' : 
+                       tipo === 'deseo' ? 'Deseos - Detalle por Categorías' : 
+                       'Inversión - Detalle por Categorías';
+        document.getElementById('chartTitle').textContent = titulo;
+        document.getElementById('btnVolver').style.display = 'block';
+        document.getElementById('chartHint').textContent = 'Haz clic en una categoría para ver más detalles';
+        
+        // Actualizar gráfico
+        actualizarGraficoDrillDown(labels, valores, coloresCategorias, total);
+    }
+    
+    function volverAlPrincipal() {
+        nivelActual = 'principal';
+        document.getElementById('chartTitle').textContent = 'Distribución 50-30-20';
+        document.getElementById('btnVolver').style.display = 'none';
+        document.getElementById('chartHint').textContent = 'Haz clic en una sección del gráfico para ver el detalle por categorías';
+        
+        if (datosPrincipales) {
+            actualizarGrafico(datosPrincipales);
+        }
+    }
+    
+    function actualizarGraficoDrillDown(labels, valores, coloresArray, total) {
+        const ctx = document.getElementById('chart503020');
+        if (!ctx) return;
+        
+        const ctx2d = ctx.getContext('2d');
+        
+        if (chart503020) {
+            chart503020.destroy();
+            chart503020 = null;
+        }
+        
+        try {
+            chart503020 = new Chart(ctx2d, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: valores,
+                        backgroundColor: coloresArray,
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 10,
+                                font: {
+                                    size: 12
+                                },
+                                boxWidth: 15
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                    return `${label}: $${value.toFixed(2)} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    },
+                    onClick: (event, elements) => {
+                        // En el drill-down, no hacer nada adicional por ahora
+                        // Se puede expandir para mostrar más detalles
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error creando el gráfico drill-down:', error);
+        }
+    }
+    
+    function actualizarGrafico(data) {
+        const ctx = document.getElementById('chart503020');
+        if (!ctx) {
+            console.error('No se encontró el elemento canvas con id chart503020');
+            return;
+        }
+        
+        const ctx2d = ctx.getContext('2d');
+        
+        if (chart503020) {
+            chart503020.destroy();
+            chart503020 = null;
+        }
+        
+        const total = data.total_general || 1;
+        const porcentajeNecesidad = total > 0 ? ((data.total_necesidad / total) * 100).toFixed(1) : 0;
+        const porcentajeDeseo = total > 0 ? ((data.total_deseo / total) * 100).toFixed(1) : 0;
+        const porcentajeInversion = total > 0 ? ((data.total_inversion / total) * 100).toFixed(1) : 0;
+        
+        try {
+            chart503020 = new Chart(ctx2d, {
+            type: 'doughnut',
+            data: {
+                labels: [
+                    `Necesidades (${porcentajeNecesidad}%)`,
+                    `Deseos (${porcentajeDeseo}%)`,
+                    `Inversión (${porcentajeInversion}%)`
+                ],
+                datasets: [{
+                    data: [
+                        data.total_necesidad || 0,
+                        data.total_deseo || 0,
+                        data.total_inversion || 0
+                    ],
+                    backgroundColor: [
+                        colores.necesidad,
+                        colores.deseo,
+                        colores.inversion
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            font: {
+                                size: 14
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return `${label}: $${value.toFixed(2)} (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                onClick: (event, elements) => {
+                    if (elements.length > 0 && nivelActual === 'principal') {
+                        const index = elements[0].index;
+                        if (index === 0 && Object.keys(categoriasNecesidad).length > 0) {
+                            mostrarDrillDown('necesidad', categoriasNecesidad, colores.necesidad);
+                        } else if (index === 1 && Object.keys(categoriasDeseo).length > 0) {
+                            mostrarDrillDown('deseo', categoriasDeseo, colores.deseo);
+                        } else if (index === 2) {
+                            // Inversión no tiene categorías por ahora
+                            mostrarModal('Inversión (20%)', {}, colores.inversion);
+                        }
+                    }
+                }
+            }
+        });
+        } catch (error) {
+            console.error('Error creando el gráfico:', error);
+        }
+    }
+    
+    function actualizarResumen(data) {
+        const totalNecesidadEl = document.getElementById('totalNecesidad');
+        const totalDeseoEl = document.getElementById('totalDeseo');
+        const totalInversionEl = document.getElementById('totalInversion');
+        const totalGeneralEl = document.getElementById('totalGeneral');
+        
+        if (totalNecesidadEl) totalNecesidadEl.textContent = `$${data.total_necesidad.toFixed(2)}`;
+        if (totalDeseoEl) totalDeseoEl.textContent = `$${data.total_deseo.toFixed(2)}`;
+        if (totalInversionEl) totalInversionEl.textContent = `$${data.total_inversion.toFixed(2)}`;
+        if (totalGeneralEl) totalGeneralEl.textContent = `$${data.total_general.toFixed(2)}`;
+    }
+    
+    function mostrarModal(titulo, categorias, color) {
+        const modal = document.getElementById('modalDetalle');
+        const modalTitulo = document.getElementById('modalTitulo');
+        const modalContenido = document.getElementById('modalContenido');
+        
+        if (!modal || !modalTitulo || !modalContenido) return;
+        
+        modalTitulo.textContent = titulo;
+        modalTitulo.style.color = color;
+        
+        if (Object.keys(categorias).length === 0) {
+            modalContenido.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No hay datos disponibles para esta sección. Esta funcionalidad estará disponible en el futuro cuando se implemente el cálculo de ingresos.</p>';
+        } else {
+            let html = '<div style="max-height: 400px; overflow-y: auto;">';
+            const sortedCategorias = Object.entries(categorias).sort((a, b) => b[1] - a[1]);
+            sortedCategorias.forEach(([categoria, monto]) => {
+                html += `
+                    <div class="categoria-item">
+                        <span class="categoria-name">${categoria}</span>
+                        <span class="categoria-amount">$${monto.toFixed(2)}</span>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            modalContenido.innerHTML = html;
+        }
+        
+        modal.style.display = 'block';
+    }
+    
+    // Función de inicialización que se ejecuta inmediatamente
+    function inicializarVisualizacion() {
+        const filtroAño = document.getElementById('filtroAño');
+        const filtroMes = document.getElementById('filtroMes');
+        const filtroTarjeta = document.getElementById('filtroTarjeta');
+        
+        if (filtroAño) filtroAño.addEventListener('change', cargarDatos);
+        if (filtroMes) filtroMes.addEventListener('change', cargarDatos);
+        if (filtroTarjeta) filtroTarjeta.addEventListener('change', cargarDatos);
+        
+        // Botón volver
+        const btnVolver = document.getElementById('btnVolver');
+        if (btnVolver) {
+            btnVolver.addEventListener('click', volverAlPrincipal);
+        }
+        
+        // Cerrar modal
+        const closeBtn = document.querySelector('.close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                const modal = document.getElementById('modalDetalle');
+                if (modal) modal.style.display = 'none';
+            });
+        }
+        
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('modalDetalle');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+        
+        // Inicializar gráfico con datos iniciales después de un pequeño delay
+        // para asegurar que el canvas esté completamente renderizado
+        setTimeout(function() {
+            const dataInicial = {
+                total_necesidad: {{ total_necesidad }},
+                total_deseo: {{ total_deseo }},
+                total_inversion: {{ total_inversion }},
+                total_general: {{ total_general }},
+                categorias_necesidad: categoriasNecesidad,
+                categorias_deseo: categoriasDeseo
+            };
+            datosPrincipales = dataInicial; // Guardar datos iniciales
+            actualizarGrafico(dataInicial);
+        }, 200);
+    }
+    
+    // Ejecutar inmediatamente si el DOM ya está listo, o esperar a que esté listo
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', inicializarVisualizacion);
+    } else {
+        // DOM ya está listo, ejecutar inmediatamente
+        inicializarVisualizacion();
+    }
+    
+    // Asegurar que Chart.js esté disponible
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js no está cargado');
+    }
+</script>
+

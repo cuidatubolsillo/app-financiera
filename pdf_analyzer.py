@@ -92,13 +92,14 @@ class PDFAnalyzer:
         except Exception as e:
             raise Exception(f"Error extrayendo texto del PDF: {str(e)}")
     
-    def analizar_estado_cuenta(self, pdf_path, extraer_movimientos_detallados=False):
+    def analizar_estado_cuenta(self, pdf_path, extraer_movimientos_detallados=True):
         """
         Analiza un PDF de estado de cuenta usando Claude Haiku 4.5 (método texto)
+        Siempre extrae movimientos detallados completos.
         
         Args:
             pdf_path (str): Ruta al archivo PDF
-            extraer_movimientos_detallados (bool): Si True, extrae todos los movimientos detallados
+            extraer_movimientos_detallados (bool): Siempre True - extrae todos los movimientos detallados
             
         Returns:
             dict: Diccionario con los datos extraídos del estado de cuenta
@@ -111,12 +112,12 @@ class PDFAnalyzer:
             print(f"DEBUG - Texto extraído (primeros 500 chars): {texto_pdf[:500]}")
             print(f"DEBUG - Longitud total del texto: {len(texto_pdf)}")
             
-            if extraer_movimientos_detallados:
-                # Prompt COMPLETO para extraer datos básicos + todos los movimientos
-                prompt = f"""Analiza este texto de estado de cuenta bancario y extrae EXACTAMENTE los siguientes campos en formato JSON:
+            # Prompt para extraer datos básicos + todos los movimientos detallados
+            prompt = f"""Analiza este texto de estado de cuenta bancario y extrae EXACTAMENTE los siguientes campos en formato JSON:
 
 {{
     "fecha_corte": "DD/MM/YYYY",
+    "fecha_inicio_periodo": "DD/MM/YYYY",
     "fecha_pago": "DD/MM/YYYY", 
     "cupo_autorizado": 0.00,
     "cupo_disponible": 0.00,
@@ -127,6 +128,7 @@ class PDFAnalyzer:
     "consumos_cargos_totales": 0.00,
     "pagos_creditos": 0.00,
     "intereses": 0.00,
+    "minimo_a_pagar": 0.00,
     "deuda_total_pagar": 0.00,
     "nombre_banco": "NOMBRE_BANCO",
     "tipo_tarjeta": "TIPO_TARJETA",
@@ -159,17 +161,35 @@ class PDFAnalyzer:
 - SIEMPRE positivo (usar abs() si es necesario)
 - Usar tipo_transaccion para distinguir pagos de consumos
 
+**IMPORTANTE - pagos_creditos:**
+- Este campo debe incluir TODOS los pagos realizados + TODAS las notas de crédito del periodo
+- Incluye: pagos parciales, pagos totales, abonos, reembolsos, devoluciones, notas de crédito
+- Suma todos los valores positivos que reducen la deuda (pagos y créditos)
+- Busca en secciones como: "Pagos realizados", "Abonos", "Notas de crédito", "Reembolsos", "Devoluciones"
+- Si hay múltiples pagos o notas de crédito, suma todos los montos
+
 **FECHA:**
 - Formato exacto DD/MM/YYYY
 - Si no hay fecha específica, usar fecha de corte
+- "fecha_inicio_periodo": Busca la fecha de inicio del periodo del estado de cuenta (fecha "desde", "periodo desde", "inicio periodo")
+- Esta fecha indica desde cuándo comienza el periodo que cubre el estado de cuenta
 
 **CATEGORIZACIÓN:**
-- "Alimentación": restaurantes, supermercados, comida rápida, cafeterías
-- "Transporte": gasolina, taxi, uber, transporte público, peajes
-- "Entretenimiento": cine, streaming, juegos, deportes
-- "Salud": farmacias, médicos, hospitales, seguros médicos
-- "Servicios": servicios públicos, internet, teléfono, seguros
-- "Compras": tiendas, ropa, electrónicos, hogar
+- "Vivienda": hipoteca, arriendo, alquiler, condominio, mantenimiento vivienda
+- "Alimentación": supermercados, compras de comida necesaria para el hogar
+- "Comida Fuera": restaurantes, delivery, cafeterías, comida rápida, pedidos a domicilio
+- "Seguros": seguros de salud, vida, hogar, auto, seguros médicos
+- "Educación": colegio, universidad, cursos, libros educativos, material escolar
+- "Servicios": servicios públicos básicos (luz, agua, gas), internet mínimo, teléfono básico
+- "Transporte": gasolina, taxi, uber, transporte público, peajes, mantenimiento vehículo
+- "Salud": farmacias, médicos, hospitales, clínicas, medicamentos necesarios
+- "Entretenimiento": cine, streaming, juegos, deportes, libros de ocio
+- "Viajes/Vacaciones": viajes, vacaciones, hoteles, vuelos, turismo
+- "Donaciones": donaciones a caridad, aportes voluntarios
+- "Compras": tiendas, ropa, electrónicos, hogar, artículos no esenciales
+- "Hobbies": equipos para pasatiempos, clases recreativas, actividades de ocio
+- "Cuidado Personal": peluquería, spa, tratamientos de belleza, gimnasio costoso
+- "Mejoras Hogar": renovaciones, decoración, mejoras no esenciales del hogar
 - "Otros": todo lo que no encaje en las categorías anteriores
 
 ⚠️ **VERIFICACIÓN OBLIGATORIA:**
@@ -193,68 +213,9 @@ class PDFAnalyzer:
 
 TEXTO COMPLETO DEL ESTADO DE CUENTA:
 {texto_pdf}"""
-            else:
-                # Prompt BÁSICO para solo datos resumidos (análisis rápido)
-                prompt = f"""Analiza este texto de estado de cuenta bancario y extrae EXACTAMENTE los siguientes campos en formato JSON:
-
-{{
-    "fecha_corte": "DD/MM/YYYY",
-    "fecha_pago": "DD/MM/YYYY", 
-    "cupo_autorizado": 0.00,
-    "cupo_disponible": 0.00,
-    "cupo_utilizado": 0.00,
-    "deuda_anterior": 0.00,
-    "consumos_debitos": 0.00,
-    "otros_cargos": 0.00,
-    "consumos_cargos_totales": 0.00,
-    "pagos_creditos": 0.00,
-    "intereses": 0.00,
-    "deuda_total_pagar": 0.00,
-    "nombre_banco": "NOMBRE_BANCO",
-    "tipo_tarjeta": "TIPO_TARJETA",
-    "ultimos_digitos": "XXX"
-}}
-
-INSTRUCCIONES IMPORTANTES:
-1. Busca estos campos específicos en el texto del documento
-2. Si no encuentras un campo, pon 0.00
-3. Los montos deben ser números decimales (ej: 1500.50)
-4. Las fechas deben estar en formato DD/MM/YYYY
-5. Responde SOLO con el JSON, sin texto adicional
-6. Busca términos como: "fecha de corte", "fecha de pago", "cupo", "disponible", "utilizado", "deuda", "consumos", "pagos", "intereses"
-7. Si el texto está muy fragmentado, intenta reconstruir la información
-8. Busca números que puedan corresponder a montos (ej: 1500.00, $1,500.00, etc.)
-
-9. SEPARACIÓN DE CAMPOS - CRÍTICO:
-   - "consumos_debitos": SOLO los consumos que están en la sección principal de consumos (locales + internacionales)
-   - "otros_cargos": Cargos adicionales que NO están en la sección de consumos (ej: seguros, tarifas, cargos automáticos)
-   - "consumos_cargos_totales": SUMA de consumos_debitos + otros_cargos
-
-10. IDENTIFICACIÓN DE CARGOS ADICIONALES:
-    - Busca cargos que aparecen SEPARADOS de la sección principal de consumos
-    - Busca términos como: "cargo automático", "tarifa", "seguro", "programa de millas", "cargo anual"
-    - Estos cargos NO deben estar incluidos en "consumos_debitos"
-    - Ejemplo: Si hay "CONSUMOS: 211,46" y un cargo separado de "89,70", entonces:
-      * consumos_debitos = 211,46
-      * otros_cargos = 89,70
-      * consumos_cargos_totales = 211,46 + 89,70 = 301,16
-
-11. IDENTIFICACIÓN DE BANCO Y TARJETA:
-    - "nombre_banco": Busca el nombre del banco emisor (ej: "BANCOLOMBIA", "BBVA", "DAVIVIENDA", "CITIBANK", etc.)
-    - "tipo_tarjeta": Busca el tipo COMPLETO de tarjeta (ej: "DINERS TITANIUM", "VISA GOLD", "MASTERCARD PLATINUM", "AMERICAN EXPRESS", etc.) - NO solo "TITANIUM" sino "DINERS TITANIUM"
-    - "ultimos_digitos": Busca SOLO los últimos 3 dígitos de la tarjeta (ej: "638", "234"). Busca números como "XXXX4638" y extrae solo "638"
-
-12. NOTA IMPORTANTE: El cupo_utilizado puede NO cuadrar exactamente con consumos_cargos_totales porque:
-    - Puede haber deuda arrastrada de meses anteriores
-    - Puede haber intereses acumulados
-    - El cupo_utilizado incluye TODA la deuda, no solo los consumos del período actual
-    - Es normal que haya diferencias entre cupo_utilizado y consumos_cargos_totales
-
-TEXTO DEL ESTADO DE CUENTA:
-{texto_pdf[:6000]}"""
             
-            # Ajustar max_tokens según el tipo de análisis
-            max_tokens = 8000 if extraer_movimientos_detallados else 4000
+            # Siempre usar 8000 tokens para análisis completo con movimientos detallados
+            max_tokens = 8000
             
             # Enviar a Claude Haiku 4.5 (método texto)
             response = self.client.messages.create(
@@ -281,10 +242,10 @@ TEXTO DEL ESTADO DE CUENTA:
                     
                     # Validar que tenemos los campos requeridos
                     campos_requeridos = [
-                        'fecha_corte', 'fecha_pago', 'cupo_autorizado', 
+                        'fecha_corte', 'fecha_inicio_periodo', 'fecha_pago', 'cupo_autorizado', 
                         'cupo_disponible', 'cupo_utilizado', 'deuda_anterior',
                         'consumos_debitos', 'otros_cargos', 'consumos_cargos_totales',
-                        'pagos_creditos', 'intereses', 'deuda_total_pagar',
+                        'pagos_creditos', 'intereses', 'minimo_a_pagar', 'deuda_total_pagar',
                         'nombre_banco', 'tipo_tarjeta', 'ultimos_digitos'
                     ]
                     
@@ -295,47 +256,43 @@ TEXTO DEL ESTADO DE CUENTA:
                             else:
                                 datos_extraidos[campo] = 0.00
                     
-                    # Si se extrajeron movimientos detallados, validar el array
-                    if extraer_movimientos_detallados:
-                        if 'movimientos_detallados' not in datos_extraidos:
-                            datos_extraidos['movimientos_detallados'] = []
-                        
-                        # Validar cada movimiento
-                        movimientos_validos = []
-                        for movimiento in datos_extraidos['movimientos_detallados']:
-                            if isinstance(movimiento, dict):
-                                monto_raw = movimiento.get('monto', 0)
-                                # Asegurar que el monto sea siempre positivo
-                                monto_positivo = abs(float(monto_raw)) if monto_raw else 0
-                                
-                                movimiento_valido = {
-                                    'fecha': movimiento.get('fecha', ''),
-                                    'descripcion': movimiento.get('descripcion', ''),
-                                    'monto': monto_positivo,
-                                    'categoria': movimiento.get('categoria', 'Otros'),
-                                    'tipo_transaccion': movimiento.get('tipo_transaccion', 'otro')
-                                }
-                                movimientos_validos.append(movimiento_valido)
-                        
-                        datos_extraidos['movimientos_detallados'] = movimientos_validos
-                        print(f"DEBUG - Movimientos detallados extraídos: {len(movimientos_validos)}")
-                        
-                        # Validación adicional: mostrar algunos movimientos para verificar
-                        if movimientos_validos:
-                            print("DEBUG - Primeros 3 movimientos extraídos:")
-                            for i, mov in enumerate(movimientos_validos[:3]):
-                                print(f"  {i+1}. {mov['descripcion']} - ${mov['monto']} ({mov['categoria']})")
+                    # Validar movimientos detallados (siempre se extraen)
+                    if 'movimientos_detallados' not in datos_extraidos:
+                        datos_extraidos['movimientos_detallados'] = []
                     
-                    # Formatear nombre de banco y tipo de tarjeta con primera letra mayúscula
+                    # Validar cada movimiento
+                    movimientos_validos = []
+                    for movimiento in datos_extraidos['movimientos_detallados']:
+                        if isinstance(movimiento, dict):
+                            monto_raw = movimiento.get('monto', 0)
+                            # Asegurar que el monto sea siempre positivo
+                            monto_positivo = abs(float(monto_raw)) if monto_raw else 0
+                            
+                            movimiento_valido = {
+                                'fecha': movimiento.get('fecha', ''),
+                                'descripcion': movimiento.get('descripcion', ''),
+                                'monto': monto_positivo,
+                                'categoria': movimiento.get('categoria', 'Otros'),
+                                'tipo_transaccion': movimiento.get('tipo_transaccion', 'otro')
+                            }
+                            movimientos_validos.append(movimiento_valido)
+                    
+                    datos_extraidos['movimientos_detallados'] = movimientos_validos
+                    print(f"DEBUG - Movimientos detallados extraídos: {len(movimientos_validos)}")
+                    
+                    # Validación adicional: mostrar algunos movimientos para verificar
+                    if movimientos_validos:
+                        print("DEBUG - Primeros 3 movimientos extraídos:")
+                        for i, mov in enumerate(movimientos_validos[:3]):
+                            print(f"  {i+1}. {mov['descripcion']} - ${mov['monto']} ({mov['categoria']})")
+                    
+                    # Los nombres se estandarizarán en app.py después de recibir el resultado
+                    # Aquí solo limpiamos los espacios
                     if 'nombre_banco' in datos_extraidos and datos_extraidos['nombre_banco']:
-                        nombre_banco = datos_extraidos['nombre_banco'].strip()
-                        if nombre_banco:
-                            datos_extraidos['nombre_banco'] = nombre_banco.capitalize()
+                        datos_extraidos['nombre_banco'] = datos_extraidos['nombre_banco'].strip()
                     
                     if 'tipo_tarjeta' in datos_extraidos and datos_extraidos['tipo_tarjeta']:
-                        tipo_tarjeta = datos_extraidos['tipo_tarjeta'].strip()
-                        if tipo_tarjeta:
-                            datos_extraidos['tipo_tarjeta'] = tipo_tarjeta.capitalize()
+                        datos_extraidos['tipo_tarjeta'] = datos_extraidos['tipo_tarjeta'].strip()
                     
                     return {
                         'status': 'success',

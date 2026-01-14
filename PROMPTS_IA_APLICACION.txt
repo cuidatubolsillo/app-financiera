@@ -1,0 +1,442 @@
+================================================================================
+PROMPTS DE IA - APLICACIÓN DE ANÁLISIS DE ESTADOS DE CUENTA
+================================================================================
+
+Fecha de generación: 2025-01-XX
+Modelo utilizado: Claude Haiku 4.5 (claude-haiku-4-5)
+Sistema: App Financiera - Análisis de PDFs con IA
+
+================================================================================
+✅ ESTADO ACTUAL - UN SOLO PROMPT
+================================================================================
+
+DESPUÉS DE REVISAR Y LIMPIAR EL CÓDIGO:
+
+✅ PROMPT ÚNICO: SIEMPRE SE USA
+   - Ubicación: pdf_analyzer.py línea 116-195
+   - Llamada: analyzer.analizar_estado_cuenta(temp_path, extraer_movimientos_detallados=True)
+   - Estado: ACTIVO - Se ejecuta en cada análisis de PDF
+   - Max Tokens: 8000 (fijo)
+   - Siempre extrae movimientos detallados completos
+
+❌ PROMPT BÁSICO: ELIMINADO
+   - Fue eliminado del código el [fecha]
+   - Ya no existe en pdf_analyzer.py
+   - El código ahora es más simple y directo
+
+CARACTERÍSTICAS:
+- Un solo prompt optimizado para extracción completa
+- Siempre incluye movimientos detallados
+- Texto completo del PDF (sin límites)
+- Max tokens fijo: 8000
+
+================================================================================
+ÍNDICE
+================================================================================
+
+1. PROMPT ÚNICO (con movimientos detallados) - ✅ EL ÚNICO PROMPT ACTIVO
+2. CONFIGURACIÓN DE LA API
+3. PARÁMETROS DE LLAMADA
+4. ANÁLISIS DE USO EN EL CÓDIGO
+
+================================================================================
+1. PROMPT ÚNICO (con movimientos detallados)
+================================================================================
+
+Este es el ÚNICO prompt que existe en la aplicación. Siempre extrae TODOS los 
+movimientos detallados del estado de cuenta.
+
+Max Tokens: 8000 (fijo)
+Texto completo del PDF: Se incluye completo (sin límites)
+
+-------------------------------------------------------------------------------
+PROMPT:
+-------------------------------------------------------------------------------
+
+Analiza este texto de estado de cuenta bancario y extrae EXACTAMENTE los siguientes campos en formato JSON:
+
+{
+    "fecha_corte": "DD/MM/YYYY",
+    "fecha_inicio_periodo": "DD/MM/YYYY",
+    "fecha_pago": "DD/MM/YYYY", 
+    "cupo_autorizado": 0.00,
+    "cupo_disponible": 0.00,
+    "cupo_utilizado": 0.00,
+    "deuda_anterior": 0.00,
+    "consumos_debitos": 0.00,
+    "otros_cargos": 0.00,
+    "consumos_cargos_totales": 0.00,
+    "pagos_creditos": 0.00,
+    "intereses": 0.00,
+    "minimo_a_pagar": 0.00,
+    "deuda_total_pagar": 0.00,
+    "nombre_banco": "NOMBRE_BANCO",
+    "tipo_tarjeta": "TIPO_TARJETA",
+    "ultimos_digitos": "XXX",
+    "movimientos_detallados": [
+        {
+            "fecha": "DD/MM/YYYY",
+            "descripcion": "DESCRIPCION_COMPLETA",
+            "monto": 0.00,
+            "categoria": "CATEGORIA",
+            "tipo_transaccion": "consumo|pago|interes|cargo|otro"
+        }
+    ]
+}
+
+🔍 **INSTRUCCIONES CRÍTICAS PARA MOVIMIENTOS DETALLADOS:**
+
+**EXTRACCIÓN EXHAUSTIVA:**
+- Incluye TODOS los movimientos, sin excepción
+- Si ves "renovacion plan recompensa" 2 veces, incluye ambas
+- Si hay movimientos similares o duplicados, inclúyelos TODOS
+- NO omitas ningún movimiento por pequeño que sea
+
+**FORMATO DE DESCRIPCIÓN:**
+- Usa la descripción EXACTA del documento
+- Mantén mayúsculas, minúsculas y caracteres especiales
+- No modifiques ni resumas las descripciones
+
+**MONTO:**
+- SIEMPRE positivo (usar abs() si es necesario)
+- Usar tipo_transaccion para distinguir pagos de consumos
+
+**FECHA:**
+- Formato exacto DD/MM/YYYY
+- Si no hay fecha específica, usar fecha de corte
+- "fecha_inicio_periodo": Busca la fecha de inicio del periodo del estado de cuenta (fecha "desde", "periodo desde", "inicio periodo")
+- Esta fecha indica desde cuándo comienza el periodo que cubre el estado de cuenta
+
+**CATEGORIZACIÓN:**
+- "Alimentación": restaurantes, supermercados, comida rápida, cafeterías
+- "Transporte": gasolina, taxi, uber, transporte público, peajes
+- "Entretenimiento": cine, streaming, juegos, deportes
+- "Salud": farmacias, médicos, hospitales, seguros médicos
+- "Servicios": servicios públicos, internet, teléfono, seguros
+- "Compras": tiendas, ropa, electrónicos, hogar
+- "Otros": todo lo que no encaje en las categorías anteriores
+
+⚠️ **VERIFICACIÓN OBLIGATORIA:**
+- Cuenta manualmente los movimientos antes de incluir
+- Si encuentras 10 movimientos, el array debe tener 10 elementos
+- Si encuentras 25 movimientos, el array debe tener 25 elementos
+- NO omitas movimientos duplicados o similares
+
+5. BUSCAR EN TODAS LAS SECCIONES:
+   - Sección de consumos locales
+   - Sección de consumos internacionales  
+   - Sección de cargos automáticos
+   - Sección de intereses y comisiones
+   - Sección de pagos realizados
+   - Cualquier otra sección con movimientos
+
+6. FORMATO DE DESCRIPCIÓN:
+   - Mantén la descripción original del establecimiento
+   - Si hay códigos o números, inclúyelos
+   - Ejemplo: "SUPERMERCADO WALMART 1234" en lugar de solo "WALMART"
+
+TEXTO COMPLETO DEL ESTADO DE CUENTA:
+{texto_pdf}
+
+-------------------------------------------------------------------------------
+NOTAS SOBRE ESTE PROMPT:
+-------------------------------------------------------------------------------
+
+- Incluye el texto COMPLETO del PDF (sin límite de caracteres)
+- Siempre extrae todos los movimientos individuales
+- Genera hasta 8000 tokens de salida
+- Ubicación en código: pdf_analyzer.py línea 116-195
+- Se ejecuta en: app.py línea 1119 (ruta /analizar-pdf)
+- También se usa en: diagnosticar_pdf.py línea 29
+
+================================================================================
+2. CONFIGURACIÓN DE LA API
+================================================================================
+
+CLIENTE:
+--------
+Cliente: Anthropic
+Biblioteca: anthropic (Python)
+API Key: ANTHROPIC_API_KEY (variable de entorno)
+
+MODELO:
+-------
+Modelo: claude-haiku-4-5
+Versión: Claude Haiku 4.5
+Tipo: Modelo de texto (no vision)
+
+INICIALIZACIÓN:
+---------------
+```python
+from anthropic import Anthropic
+
+self.api_key = os.environ.get('ANTHROPIC_API_KEY')
+self.client = Anthropic(api_key=self.api_key)
+```
+
+================================================================================
+3. PARÁMETROS DE LLAMADA
+================================================================================
+
+LLAMADA A LA API:
+-----------------
+```python
+response = self.client.messages.create(
+    model="claude-haiku-4-5",
+    max_tokens=max_tokens,  # 8000 o 4000 según el tipo
+    messages=[{
+        "role": "user",
+        "content": prompt
+    }]
+)
+```
+
+PARÁMETROS:
+-----------
+- model: "claude-haiku-4-5" (fijo)
+- max_tokens: 8000 (fijo - siempre análisis completo)
+- messages: Array con un solo mensaje del usuario
+  * role: "user"
+  * content: El prompt completo (string)
+
+RESPUESTA:
+----------
+La respuesta viene en formato:
+```python
+response.content[0].text  # Texto de la respuesta
+```
+
+PROCESAMIENTO:
+--------------
+1. Se extrae el texto de la respuesta
+2. Se busca el JSON entre las primeras llaves { }
+3. Se parsea el JSON
+4. Se validan los campos requeridos
+5. Se formatean los datos
+
+VALIDACIÓN:
+-----------
+Campos requeridos que se validan:
+- fecha_corte
+- fecha_inicio_periodo (nuevo)
+- fecha_pago
+- cupo_autorizado
+- cupo_disponible
+- cupo_utilizado
+- deuda_anterior
+- consumos_debitos
+- otros_cargos
+- consumos_cargos_totales
+- pagos_creditos
+- intereses
+- minimo_a_pagar (nuevo)
+- deuda_total_pagar
+- nombre_banco
+- tipo_tarjeta
+- ultimos_digitos
+- movimientos_detallados (siempre se extraen)
+
+Si falta un campo:
+- Para strings (nombre_banco, tipo_tarjeta, ultimos_digitos): Se asigna ""
+- Para números: Se asigna 0.00
+- Para movimientos_detallados: Se asigna []
+
+================================================================================
+4. ESTRUCTURA DE RESPUESTA ESPERADA
+================================================================================
+
+FORMATO JSON ESPERADO:
+----------------------
+
+El prompt siempre devuelve el formato completo con movimientos detallados:
+{
+    "fecha_corte": "15/01/2025",
+    "fecha_inicio_periodo": "16/12/2024",
+    "fecha_pago": "05/02/2025",
+    "cupo_autorizado": 5000.00,
+    "cupo_disponible": 2500.00,
+    "cupo_utilizado": 2500.00,
+    "deuda_anterior": 0.00,
+    "consumos_debitos": 2000.00,
+    "otros_cargos": 500.00,
+    "consumos_cargos_totales": 2500.00,
+    "pagos_creditos": 0.00,
+    "intereses": 0.00,
+    "minimo_a_pagar": 250.00,
+    "deuda_total_pagar": 2500.00,
+    "nombre_banco": "Banco Pichincha C.A.",
+    "tipo_tarjeta": "Visa",
+    "ultimos_digitos": "638",
+    "movimientos_detallados": [
+        {
+            "fecha": "10/01/2025",
+            "descripcion": "SUPERMERCADO WALMART 1234",
+            "monto": 150.50,
+            "categoria": "Alimentación",
+            "tipo_transaccion": "consumo"
+        },
+        {
+            "fecha": "12/01/2025",
+            "descripcion": "ESTACION DE SERVICIO SHELL",
+            "monto": 45.00,
+            "categoria": "Transporte",
+            "tipo_transaccion": "consumo"
+        }
+    ]
+}
+
+================================================================================
+5. PROCESAMIENTO POST-EXTRACCIÓN
+================================================================================
+
+VALIDACIÓN DE MOVIMIENTOS:
+---------------------------
+Siempre se validan los movimientos detallados (siempre se extraen):
+- Se asegura que el monto sea siempre positivo (abs())
+- Se valida que tenga los campos requeridos
+- Se asigna "Otros" como categoría por defecto si falta
+- Se asigna "otro" como tipo_transaccion por defecto si falta
+
+FORMATEO DE NOMBRES:
+--------------------
+- nombre_banco: Se capitaliza (primera letra mayúscula)
+- tipo_tarjeta: Se capitaliza (primera letra mayúscula)
+
+CÁLCULO DE PORCENTAJE:
+----------------------
+Se calcula automáticamente:
+porcentaje_utilizacion = (cupo_utilizado / cupo_autorizado) * 100
+
+Si cupo_autorizado es 0, se asigna porcentaje_utilizacion = 0
+
+================================================================================
+6. COSTOS Y LÍMITES
+================================================================================
+
+MODELO: Claude Haiku 4.5
+-------------------------
+Precio: $0.25 por 1 MILLÓN de tokens
+Costo por token: $0.00000025
+
+ESTIMACIÓN DE TOKENS:
+---------------------
+- Input: Texto del PDF (puede ser 10,000+ caracteres)
+- Output: JSON estructurado (varía según movimientos)
+- Estimación: ~1.3 tokens por palabra
+
+COSTO ESTIMADO POR ANÁLISIS:
+-----------------------------
+- Análisis completo (único disponible): ~$0.0005 - $0.002
+
+LÍMITES DE USUARIOS:
+-------------------
+- Usuarios normales: 50 usos por mes
+- Administradores: Sin límite (999999)
+
+================================================================================
+7. MANEJO DE ERRORES
+================================================================================
+
+ERRORES POSIBLES:
+-----------------
+
+1. Error de API Key:
+   - Mensaje: "ANTHROPIC_API_KEY no está configurado"
+   - Solución: Verificar variable de entorno
+
+2. Error de extracción de texto:
+   - Mensaje: "No se pudo extraer texto del PDF"
+   - Solución: Verificar que el PDF sea válido
+
+3. Error de parsing JSON:
+   - Mensaje: "Error parseando JSON"
+   - Solución: La IA no devolvió JSON válido
+
+4. Error de validación:
+   - Mensaje: "Campos requeridos faltantes"
+   - Solución: Se asignan valores por defecto
+
+RESPUESTA DE ERROR:
+-------------------
+```json
+{
+    "status": "error",
+    "message": "Descripción del error",
+    "raw_response": "Respuesta cruda de la IA",
+    "method": "texto",
+    "error_type": "TipoDeError"
+}
+```
+
+================================================================================
+8. ANÁLISIS DE USO EN EL CÓDIGO
+================================================================================
+
+REVISIÓN COMPLETA DEL CÓDIGO:
+-------------------------------
+
+LUGARES DONDE SE LLAMA analizar_estado_cuenta:
+-----------------------------------------------
+
+1. app.py línea 1119 (Ruta: /analizar-pdf)
+   Código:
+   ```python
+   resultado = analyzer.analizar_estado_cuenta(temp_path, extraer_movimientos_detallados=True)
+   ```
+   Estado: ✅ ACTIVO - Se ejecuta cuando el usuario sube un PDF
+   Prompt usado: ÚNICO PROMPT (con movimientos detallados)
+
+2. diagnosticar_pdf.py línea 29 (Script de diagnóstico)
+   Código:
+   ```python
+   resultado = analyzer.analizar_estado_cuenta(pdf_path, extraer_movimientos_detallados=True)
+   ```
+   Estado: ✅ ACTIVO - Se ejecuta cuando se usa el script de diagnóstico
+   Prompt usado: ÚNICO PROMPT (con movimientos detallados)
+
+3. app.py línea 1329 (Ruta: /api/guardar-estado-cuenta)
+   Código:
+   ```python
+   estado_cuenta = guardar_estado_cuenta(usuario_actual.id, datos_analisis, archivo_original, extraer_movimientos_detallados=True)
+   ```
+   Nota: Esta NO es una llamada a analizar_estado_cuenta, es a guardar_estado_cuenta
+   Solo indica que se guardarán movimientos detallados
+
+CONCLUSIÓN FINAL:
+-----------------
+- Total de llamadas a analizar_estado_cuenta: 2
+- Llamadas con extraer_movimientos_detallados=True: 2 (100%)
+- Prompt único usado: 100% de las veces
+- Max tokens: 8000 (fijo)
+
+VALOR POR DEFECTO:
+------------------
+En pdf_analyzer.py línea 95:
+```python
+def analizar_estado_cuenta(self, pdf_path, extraer_movimientos_detallados=True):
+```
+El valor por defecto es True, y siempre se usa con este valor.
+
+================================================================================
+9. MEJORAS Y OPTIMIZACIONES
+================================================================================
+
+OPTIMIZACIONES ACTUALES:
+------------------------
+1. Se usa solo el texto del PDF (no imágenes) para reducir costos
+2. Se valida y limpia la respuesta antes de procesarla
+3. Se registran métricas de uso para control de costos
+4. Código simplificado - un solo prompt (eliminado código muerto)
+
+POSIBLES MEJORAS FUTURAS:
+--------------------------
+1. Usar Claude Sonnet para análisis más complejos
+2. Implementar caché de análisis similares
+3. Procesar PDFs con imágenes usando visión
+4. Análisis incremental (solo nuevos movimientos)
+5. Opción de análisis rápido (sin movimientos detallados) para vista previa
+
+================================================================================
+FIN DEL DOCUMENTO
+================================================================================
+

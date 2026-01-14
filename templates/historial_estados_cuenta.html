@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial de Estados de Cuenta - App Financiera</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='unified-style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, var(--gris-oscuro) 0%, var(--gris-claro) 50%, var(--blanco) 100%);
+            min-height: 100vh;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+            border-left: 4px solid #4a7c59;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #2c5530;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .estados-table {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .estados-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .estados-table th {
+            background: #2c5530;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        .estados-table td {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .estados-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        /* Estilos para vista compacta */
+        .estado-row {
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .estado-header {
+            padding: 20px;
+            cursor: pointer;
+            transition: background 0.3s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .estado-header:hover {
+            background: #f8f9fa;
+        }
+        
+        .estado-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .banco-tarjeta-info {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .banco-nombre {
+            font-weight: 600;
+            color: #2c5530;
+            font-size: 1.1em;
+        }
+        
+        .tarjeta-info {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .fecha-corte-info {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .monto-info {
+            font-weight: 600;
+            color: #d32f2f;
+            font-size: 1.1em;
+        }
+        
+        .porcentaje-info {
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.9em;
+        }
+        
+        .porcentaje-bajo {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+        
+        .porcentaje-medio {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+        
+        .porcentaje-alto {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+        
+        .expand-icon {
+            font-size: 1.2em;
+            color: #666;
+            transition: transform 0.3s;
+        }
+        
+        .expand-icon.expanded {
+            transform: rotate(180deg);
+        }
+        
+        .estado-details {
+            display: none;
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #eee;
+        }
+        
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        /* Estilos para grupos de detalles */
+        .details-group {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        
+        .group-title {
+            margin: 0 0 15px 0;
+            color: #2c5530;
+            font-size: 1.1em;
+            font-weight: 600;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .grupo-1 {
+            border-left: 4px solid var(--azul-util);
+        }
+        
+        .grupo-2 {
+            border-left: 4px solid var(--verde-vital);
+        }
+        
+        .grupo-3 {
+            border-left: 4px solid var(--dorado);
+        }
+        
+        .detail-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .detail-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .detail-card.highlight {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 0%, rgba(255, 215, 0, 0.2) 100%);
+            border: 2px solid var(--dorado);
+        }
+        
+        .detail-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #4a7c59;
+        }
+        
+        .detail-label {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 8px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .detail-value {
+            font-weight: 600;
+            color: #2c5530;
+            font-size: 1.1em;
+        }
+        
+        .detail-value.currency {
+            color: #1976d2;
+            font-size: 1.2em;
+        }
+        
+        .detail-value.highlight-value {
+            color: #d32f2f;
+            font-size: 1.4em;
+            font-weight: 700;
+        }
+        
+        .movimientos-count {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+        
+        .banco-tarjeta {
+            font-weight: 600;
+            color: #2c5530;
+        }
+        
+        .fecha-corte {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .monto {
+            font-weight: 600;
+            color: #d32f2f;
+        }
+        
+        .monto-positivo {
+            color: #388e3c;
+        }
+        
+        .porcentaje-utilizacion {
+            font-weight: 600;
+        }
+        
+        .porcentaje-bajo {
+            color: #388e3c;
+        }
+        
+        .porcentaje-medio {
+            color: #f57c00;
+        }
+        
+        .porcentaje-alto {
+            color: #d32f2f;
+        }
+        
+        .btn-ver-detalle {
+            background: #4a7c59;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background 0.3s;
+        }
+        
+        .btn-ver-detalle:hover {
+            background: #2c5530;
+        }
+        
+        .no-estados {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        
+        .no-estados h3 {
+            color: #2c5530;
+            margin-bottom: 10px;
+        }
+        
+        .btn-analizar {
+            background: #4a7c59;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 20px;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        
+        .btn-analizar:hover {
+            background: #2c5530;
+        }
+        
+        /* Estilos para botones de eliminar */
+        .estado-actions {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            text-align: center;
+        }
+        
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        
+        .btn-delete:hover {
+            background: #c82333;
+        }
+        
+        .btn-delete i {
+            margin-right: 5px;
+        }
+        
+        /* Estilos para sección de limpieza */
+        .cleanup-section {
+            margin-top: 40px;
+            padding: 20px;
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .btn-cleanup {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        
+        .btn-cleanup:hover {
+            background: #ff5252;
+        }
+        
+        .btn-cleanup i {
+            margin-right: 8px;
+        }
+        
+        .cleanup-warning {
+            margin-top: 10px;
+            color: #856404;
+            font-size: 0.9em;
+            font-style: italic;
+        }
+        
+        @media (max-width: 768px) {
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+            
+            .estados-table {
+                overflow-x: auto;
+            }
+            
+            .estados-table table {
+                min-width: 600px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="unified-container">
+        <a href="{{ url_for('tarjetas_credito') }}" class="back-btn">
+            <i class="fas fa-arrow-left"></i>
+            Volver a Tarjetas de Crédito
+        </a>
+        
+        <div class="unified-header">
+            <h1>
+                <i class="fas fa-file-invoice"></i>
+                Historial de Estados de Cuenta
+            </h1>
+            <p>Gestión completa de tus estados de cuenta analizados</p>
+        </div>
+
+        <div class="unified-content">
+            <!-- Estadísticas -->
+            <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">{{ total_estados }}</div>
+                <div class="stat-label">Estados Analizados</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ bancos_unicos }}</div>
+                <div class="stat-label">Bancos Diferentes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ tarjetas_unicas }}</div>
+                <div class="stat-label">Tarjetas Únicas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${{ "%.2f"|format(deuda_total_actual) }}</div>
+                <div class="stat-label">Deuda Total Actual</div>
+            </div>
+        </div>
+        
+        <!-- Vista Compacta de Estados de Cuenta -->
+        {% if estados_cuenta %}
+        <div class="estados-container">
+            {% for estado in estados_cuenta %}
+            <div class="estado-row" data-estado-id="{{ estado.id }}">
+                <div class="estado-header" onclick="toggleDetails({{ estado.id }})">
+                    <div class="estado-info">
+                        <div class="banco-tarjeta-info">
+                            <div class="banco-nombre">{{ estado.nombre_banco or 'Banco no identificado' }}</div>
+                            <div class="tarjeta-info">
+                                {{ estado.tipo_tarjeta or 'Tarjeta no identificada' }}
+                                {% if estado.ultimos_digitos %}
+                                    (***{{ estado.ultimos_digitos }})
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="fecha-corte-info">
+                            {% if estado.fecha_corte %}
+                                Corte: {{ estado.fecha_corte.strftime('%d/%m/%Y') }}
+                            {% else %}
+                                Fecha no disponible
+                            {% endif %}
+                        </div>
+                        
+                        <div class="monto-info">
+                            {% if estado.deuda_total_pagar is not none %}
+                                ${{ "%.2f"|format(estado.deuda_total_pagar) }}
+                            {% else %}
+                                Monto no disponible
+                            {% endif %}
+                        </div>
+                        
+                        {% if estado.porcentaje_utilizacion %}
+                        <div class="porcentaje-info 
+                            {% if estado.porcentaje_utilizacion < 30 %}porcentaje-bajo
+                            {% elif estado.porcentaje_utilizacion < 70 %}porcentaje-medio
+                            {% else %}porcentaje-alto{% endif %}">
+                            {{ "%.1f"|format(estado.porcentaje_utilizacion) }}%
+                        </div>
+                        {% endif %}
+                        
+                        <div class="movimientos-count">
+                            {{ estado.consumos_detalle|length }} movimientos
+                        </div>
+                    </div>
+                    
+                    <div class="expand-icon" id="icon-{{ estado.id }}">▼</div>
+                </div>
+                
+                <div class="estado-details" id="details-{{ estado.id }}">
+                    <!-- Grupo 1: Fechas -->
+                    <div class="details-group grupo-1">
+                        <h4 class="group-title">📅 Fechas del Periodo</h4>
+                        <div class="details-grid">
+                            <div class="detail-card">
+                                <div class="detail-label">Fecha Inicio Periodo</div>
+                                <div class="detail-value">
+                                    {% if estado.fecha_inicio_periodo %}
+                                        {{ estado.fecha_inicio_periodo.strftime('%d/%m/%Y') }}
+                                    {% else %}
+                                        No disponible
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="detail-card">
+                                <div class="detail-label">Fecha de Corte</div>
+                                <div class="detail-value">
+                                    {% if estado.fecha_corte %}
+                                        {{ estado.fecha_corte.strftime('%d/%m/%Y') }}
+                                    {% else %}
+                                        No disponible
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="detail-card">
+                                <div class="detail-label">Fecha de Pago</div>
+                                <div class="detail-value">
+                                    {% if estado.fecha_pago %}
+                                        {{ estado.fecha_pago.strftime('%d/%m/%Y') }}
+                                    {% else %}
+                                        No disponible
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Grupo 2: Cupos -->
+                    <div class="details-group grupo-2">
+                        <h4 class="group-title">💳 Información de Cupo</h4>
+                        <div class="details-grid">
+                            <div class="detail-card">
+                                <div class="detail-label">Cupo Autorizado</div>
+                                <div class="detail-value currency">
+                                    {% if estado.cupo_autorizado %}
+                                        ${{ "%.2f"|format(estado.cupo_autorizado) }}
+                                    {% else %}
+                                        No disponible
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="detail-card">
+                                <div class="detail-label">Cupo Disponible</div>
+                                <div class="detail-value currency">
+                                    {% if estado.cupo_disponible %}
+                                        ${{ "%.2f"|format(estado.cupo_disponible) }}
+                                    {% else %}
+                                        No disponible
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="detail-card">
+                                <div class="detail-label">Cupo Utilizado</div>
+                                <div class="detail-value currency">
+                                    {% if estado.cupo_utilizado %}
+                                        ${{ "%.2f"|format(estado.cupo_utilizado) }}
+                                    {% else %}
+                                        No disponible
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Grupo 3: Totales y Deudas -->
+                    <div class="details-group grupo-3">
+                        <h4 class="group-title">💰 Totales y Pagos</h4>
+                        <div class="details-grid">
+                            <div class="detail-card">
+                                <div class="detail-label">Deuda Anterior</div>
+                                <div class="detail-value currency">
+                                    {% if estado.deuda_anterior %}
+                                        ${{ "%.2f"|format(estado.deuda_anterior) }}
+                                    {% else %}
+                                        $0.00
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="detail-card">
+                                <div class="detail-label">Consumos y Cargos</div>
+                                <div class="detail-value currency">
+                                    {% if estado.consumos_cargos_totales %}
+                                        ${{ "%.2f"|format(estado.consumos_cargos_totales) }}
+                                    {% else %}
+                                        No disponible
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="detail-card">
+                                <div class="detail-label">Pagos y Créditos</div>
+                                <div class="detail-value currency">
+                                    {% if estado.pagos_creditos %}
+                                        ${{ "%.2f"|format(estado.pagos_creditos) }}
+                                    {% else %}
+                                        $0.00
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="detail-card">
+                                <div class="detail-label">Intereses</div>
+                                <div class="detail-value currency">
+                                    {% if estado.intereses is not none %}
+                                        ${{ "%.2f"|format(estado.intereses) }}
+                                    {% else %}
+                                        $0.00
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="detail-card">
+                                <div class="detail-label">Mínimo a Pagar</div>
+                                <div class="detail-value currency">
+                                    {% if estado.minimo_a_pagar %}
+                                        ${{ "%.2f"|format(estado.minimo_a_pagar) }}
+                                    {% else %}
+                                        No disponible
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="detail-card highlight">
+                                <div class="detail-label">Deuda Total a Pagar</div>
+                                <div class="detail-value currency highlight-value">
+                                    {% if estado.deuda_total_pagar is not none %}
+                                        ${{ "%.2f"|format(estado.deuda_total_pagar) }}
+                                    {% else %}
+                                        No disponible
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="estado-actions">
+                        <button class="btn-delete" onclick="eliminarEstado({{ estado.id }})" title="Eliminar estado de cuenta">
+                            <i class="fas fa-trash"></i> Eliminar
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="no-estados">
+            <h3>📋 No hay estados de cuenta analizados</h3>
+            <p>Comienza analizando tu primer estado de cuenta para ver el historial aquí.</p>
+            <a href="{{ url_for('analizar_pdf') }}" class="btn-analizar">
+                📄 Analizar Estado de Cuenta
+            </a>
+        </div>
+        {% endif %}
+        
+        {% if estados_cuenta %}
+        <div class="cleanup-section">
+            <button class="btn-cleanup" onclick="limpiarTodosEstados()" title="Limpiar todos los estados de cuenta (para pruebas)">
+                <i class="fas fa-broom"></i> Limpiar Todos los Estados
+            </button>
+            <p class="cleanup-warning">⚠️ Esta acción eliminará TODOS los estados de cuenta guardados</p>
+        </div>
+        {% endif %}
+        </div>
+    </div>
+    
+    <!-- Modal para ver detalles -->
+    <div id="modal-detalle" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 10px; max-width: 600px; width: 90%; max-height: 80%; overflow-y: auto;">
+            <h3 id="modal-titulo">Detalle del Estado de Cuenta</h3>
+            <div id="modal-contenido"></div>
+            <button onclick="cerrarModal()" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 5px; margin-top: 20px; cursor: pointer;">
+                Cerrar
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        function toggleDetails(estadoId) {
+            const details = document.getElementById('details-' + estadoId);
+            const icon = document.getElementById('icon-' + estadoId);
+            
+            if (details.style.display === 'none' || details.style.display === '') {
+                // Mostrar detalles
+                details.style.display = 'block';
+                icon.classList.add('expanded');
+            } else {
+                // Ocultar detalles
+                details.style.display = 'none';
+                icon.classList.remove('expanded');
+            }
+        }
+        
+        function eliminarEstado(estadoId) {
+            if (confirm('¿Estás seguro de que quieres eliminar este estado de cuenta? Esta acción no se puede deshacer.')) {
+                fetch(`/api/eliminar-estado-cuenta/${estadoId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Eliminar el elemento del DOM
+                        const estadoElement = document.querySelector(`[data-estado-id="${estadoId}"]`);
+                        if (estadoElement) {
+                            estadoElement.remove();
+                        }
+                        
+                        // Mostrar mensaje de éxito
+                        alert('Estado de cuenta eliminado correctamente');
+                        
+                        // Recargar la página para actualizar estadísticas
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    } else {
+                        alert('Error al eliminar: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error al eliminar el estado de cuenta');
+                });
+            }
+        }
+        
+        function limpiarTodosEstados() {
+            if (confirm('⚠️ ADVERTENCIA: Esta acción eliminará TODOS los estados de cuenta guardados. ¿Estás completamente seguro?')) {
+                if (confirm('Esta acción es IRREVERSIBLE. ¿Confirmas que quieres eliminar todos los estados de cuenta?')) {
+                    fetch('/api/limpiar-todos-estados', {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Todos los estados de cuenta han sido eliminados');
+                            window.location.reload();
+                        } else {
+                            alert('Error al limpiar: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error al limpiar los estados de cuenta');
+                    });
+                }
+            }
+        }
+        
+        // Función para ver detalles completos (modal)
+        function verDetalle(estadoId) {
+            // Por ahora, mostrar un mensaje simple
+            // En el futuro, se puede hacer una llamada AJAX para obtener más detalles
+            document.getElementById('modal-titulo').textContent = 'Detalle del Estado de Cuenta #' + estadoId;
+            document.getElementById('modal-contenido').innerHTML = `
+                <p>Esta funcionalidad mostrará todos los detalles del estado de cuenta seleccionado.</p>
+                <p><strong>ID:</strong> ${estadoId}</p>
+                <p><em>Próximamente: vista detallada completa con todos los campos extraídos del análisis.</em></p>
+            `;
+            document.getElementById('modal-detalle').style.display = 'block';
+        }
+        
+        function cerrarModal() {
+            document.getElementById('modal-detalle').style.display = 'none';
+        }
+        
+        // Cerrar modal al hacer clic fuera
+        document.getElementById('modal-detalle').addEventListener('click', function(e) {
+            if (e.target === this) {
+                cerrarModal();
+            }
+        });
+        
+        // Inicializar todos los desplegables como cerrados
+        document.addEventListener('DOMContentLoaded', function() {
+            const details = document.querySelectorAll('.estado-details');
+            details.forEach(detail => {
+                detail.style.display = 'none';
+            });
+        });
+    </script>
+</body>
+</html>
