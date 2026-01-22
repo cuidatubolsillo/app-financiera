@@ -34,6 +34,32 @@ class PDFAnalyzer:
             print(f"ERROR inicializando cliente Anthropic: {str(e)}")
             raise
     
+    def normalizar_texto(self, texto):
+        """
+        Normaliza el texto para manejar caracteres Unicode problemáticos
+        Reemplaza caracteres especiales que pueden causar problemas de codificación
+        """
+        if not texto:
+            return ""
+        
+        # Reemplazar caracteres Unicode problemáticos
+        reemplazos = {
+            '\u2212': '-',  # Menos matemático → guión normal
+            '\u2013': '-',  # En dash → guión normal
+            '\u2014': '-',  # Em dash → guión normal
+            '\u2018': "'",  # Comilla simple izquierda → comilla normal
+            '\u2019': "'",  # Comilla simple derecha → comilla normal
+            '\u201C': '"',  # Comilla doble izquierda → comilla normal
+            '\u201D': '"',  # Comilla doble derecha → comilla normal
+            '\u00A0': ' ',  # Espacio no separador → espacio normal
+        }
+        
+        texto_normalizado = texto
+        for char_unicode, char_reemplazo in reemplazos.items():
+            texto_normalizado = texto_normalizado.replace(char_unicode, char_reemplazo)
+        
+        return texto_normalizado
+    
     def extraer_texto_pdf(self, pdf_path):
         """
         Extrae texto del PDF usando múltiples métodos (más robusto)
@@ -60,6 +86,8 @@ class PDFAnalyzer:
                 doc.close()
                 
                 if texto_completo.strip():
+                    # Normalizar el texto para evitar problemas de codificación
+                    texto_completo = self.normalizar_texto(texto_completo)
                     print(f"DEBUG - PyMuPDF extrajo {len(texto_completo)} caracteres")
                     return texto_completo
                     
@@ -80,6 +108,8 @@ class PDFAnalyzer:
                         texto_completo += texto_pagina
                     
                     if texto_completo.strip():
+                        # Normalizar el texto para evitar problemas de codificación
+                        texto_completo = self.normalizar_texto(texto_completo)
                         print(f"DEBUG - PyPDF2 extrajo {len(texto_completo)} caracteres")
                         return texto_completo
                         
@@ -108,8 +138,16 @@ class PDFAnalyzer:
             # Extraer texto del PDF
             texto_pdf = self.extraer_texto_pdf(pdf_path)
             
+            # Asegurar que el texto esté normalizado (por si acaso)
+            texto_pdf = self.normalizar_texto(texto_pdf)
+            
             # Debug: mostrar los primeros 500 caracteres del texto extraído
-            print(f"DEBUG - Texto extraído (primeros 500 chars): {texto_pdf[:500]}")
+            # Usar encoding seguro para evitar errores de charmap
+            try:
+                texto_debug = texto_pdf[:500].encode('utf-8', errors='replace').decode('utf-8')
+                print(f"DEBUG - Texto extraído (primeros 500 chars): {texto_debug}")
+            except Exception as e:
+                print(f"DEBUG - Error mostrando texto debug: {str(e)}")
             print(f"DEBUG - Longitud total del texto: {len(texto_pdf)}")
             
             # Prompt para extraer datos básicos + todos los movimientos detallados
@@ -174,7 +212,25 @@ class PDFAnalyzer:
 - "fecha_inicio_periodo": Busca la fecha de inicio del periodo del estado de cuenta (fecha "desde", "periodo desde", "inicio periodo")
 - Esta fecha indica desde cuándo comienza el periodo que cubre el estado de cuenta
 
+**IMPORTANTE - tipo_tarjeta:**
+- Este campo debe contener la MARCA de la tarjeta, NO el tipo de producto
+- Busca palabras como: "VISA", "MASTERCARD", "DINERS", "DINERS CLUB", "AMERICAN EXPRESS", "AMEX", "AMERICAN", "DISCOVER"
+- Si el documento dice "VISA", "VISA Crédito", "Tarjeta VISA", etc., extrae SOLO "VISA"
+- Si el documento dice "MASTERCARD", "Mastercard Crédito", etc., extrae SOLO "MASTERCARD"
+- Si el documento dice "AMERICAN EXPRESS", "AMEX", "AMERICAN" (solo), "American Express", etc., extrae "AMERICAN EXPRESS" o "AMEX"
+- Si el documento dice "DINERS CLUB", "Diners", etc., extrae "DINERS" o "DINERS CLUB"
+- NO extraigas "Crédito", "Débito", "Tarjeta de Crédito" - esos son tipos de producto, no marcas
+- Si no encuentras una marca específica, busca en el encabezado, logo, o nombre del producto
+- Ejemplos correctos: "VISA", "MASTERCARD", "DINERS", "AMERICAN EXPRESS", "AMEX"
+- Ejemplos incorrectos: "Crédito", "Débito", "Tarjeta de Crédito", "AMERICAN" (si aparece solo, debe ser "AMERICAN EXPRESS")
+
+**IMPORTANTE - nombre_banco:**
+- Extrae el nombre completo del banco emisor de la tarjeta
+- Busca en el encabezado, pie de página, o sección de información del banco
+- Ejemplos: "Banco Guayaquil", "Banco Pichincha", "Banco de Guayaquil", "Produbanco", etc.
+
 **CATEGORIZACIÓN:**
+
 - "Vivienda": hipoteca, arriendo, alquiler, condominio, mantenimiento vivienda
 - "Alimentación": supermercados, compras de comida necesaria para el hogar
 - "Comida Fuera": restaurantes, delivery, cafeterías, comida rápida, pedidos a domicilio

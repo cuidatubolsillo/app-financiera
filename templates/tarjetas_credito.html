@@ -992,6 +992,21 @@
         </div>
     </div>
 
+    <!-- Modal de éxito -->
+    <div id="analizar-successModal" class="save-modal">
+        <div class="save-modal-content success-modal-content">
+            <h3>✅ ¡Guardado Exitoso!</h3>
+            <div class="success-message">
+                <p id="analizar-success-message-text">El estado de cuenta se ha guardado correctamente en tu historial.</p>
+            </div>
+            <div class="save-modal-buttons">
+                <button class="btn-save" onclick="analizarCerrarModalExito()">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ===== FUNCIONALIDAD DEL CARRUSEL CON DRAG-TO-SCROLL =====
         document.addEventListener('DOMContentLoaded', function() {
@@ -1508,6 +1523,24 @@
             document.getElementById('analizar-saveModal').style.display = 'none';
         }
         
+        function analizarMostrarModalExito(mensaje) {
+            const successModal = document.getElementById('analizar-successModal');
+            const messageText = document.getElementById('analizar-success-message-text');
+            if (messageText) {
+                messageText.textContent = mensaje;
+            }
+            if (successModal) {
+                successModal.style.display = 'block';
+            }
+        }
+        
+        function analizarCerrarModalExito() {
+            const successModal = document.getElementById('analizar-successModal');
+            if (successModal) {
+                successModal.style.display = 'none';
+            }
+        }
+        
         async function analizarGuardarEstadoCuenta() {
             if (!analizarCurrentAnalysisData) {
                 analizarShowError('No hay datos de análisis para guardar');
@@ -1515,6 +1548,9 @@
             }
             
             const btnSave = document.getElementById('analizar-btnSave');
+            const saveModal = document.getElementById('analizar-saveModal');
+            
+            // Deshabilitar botón y mostrar estado de carga
             btnSave.disabled = true;
             btnSave.textContent = '💾 Guardando...';
             
@@ -1530,25 +1566,47 @@
                     })
                 });
                 
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status}`);
+                }
+                
                 const result = await response.json();
+                console.log('Resultado del guardado:', result);
                 
                 if (result.status === 'success') {
-                    analizarShowSuccess('✅ Estado de cuenta guardado exitosamente en tu historial');
-                    analizarCerrarModalGuardar();
+                    // Cerrar modal de guardar INMEDIATAMENTE
+                    if (saveModal) {
+                        saveModal.style.display = 'none';
+                    }
+                    analizarCerrarModalGuardar(); // Asegurar que se cierre
+                    
+                    // Limpiar datos para evitar guardados duplicados
+                    analizarCurrentAnalysisData = null;
+                    
+                    // Mostrar modal de éxito DESPUÉS de cerrar el modal de guardar
+                    setTimeout(() => {
+                        analizarMostrarModalExito('El estado de cuenta se ha guardado correctamente en tu historial.');
+                    }, 100);
+                    
+                    // NO restaurar el botón en caso de éxito
+                    return;
                 } else if (result.status === 'duplicate') {
                     // Estado de cuenta duplicado - mostrar modal de confirmación
                     analizarEstadoCuentaDuplicadoId = result.estado_cuenta_existente.id;
                     analizarMostrarModalDuplicado(result.estado_cuenta_existente);
                 } else {
-                    analizarShowError('Error guardando estado de cuenta: ' + result.message);
+                    analizarShowError('Error guardando estado de cuenta: ' + (result.message || 'Error desconocido'));
                 }
                 
             } catch (error) {
                 console.error('Error guardando estado:', error);
                 analizarShowError('Error de conexión al guardar: ' + error.message);
             } finally {
-                btnSave.disabled = false;
-                btnSave.textContent = '💾 Guardar';
+                // Solo restaurar el botón si NO fue exitoso
+                if (btnSave && btnSave.textContent === '💾 Guardando...') {
+                    btnSave.disabled = false;
+                    btnSave.textContent = '💾 Guardar';
+                }
             }
         }
         
@@ -1618,6 +1676,8 @@
             }
             
             const btnOverwrite = document.getElementById('analizar-btnOverwrite');
+            const duplicateModal = document.getElementById('analizar-duplicateModal');
+            
             btnOverwrite.disabled = true;
             btnOverwrite.textContent = '⏳ Sobrescribiendo...';
             
@@ -1635,21 +1695,44 @@
                     })
                 });
                 
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status}`);
+                }
+                
                 const result = await response.json();
+                console.log('Resultado del sobrescritura:', result);
                 
                 if (result.status === 'success') {
-                    analizarShowSuccess('✅ Estado de cuenta actualizado exitosamente');
-                    analizarCerrarModalDuplicado();
+                    // Cerrar modal de duplicado INMEDIATAMENTE
+                    if (duplicateModal) {
+                        duplicateModal.style.display = 'none';
+                    }
+                    analizarCerrarModalDuplicado(); // Asegurar que se cierre
+                    
+                    // Limpiar datos para evitar guardados duplicados
+                    analizarCurrentAnalysisData = null;
+                    analizarEstadoCuentaDuplicadoId = null;
+                    
+                    // Mostrar modal de éxito DESPUÉS de cerrar el modal de duplicado
+                    setTimeout(() => {
+                        analizarMostrarModalExito('El estado de cuenta se ha actualizado correctamente en tu historial.');
+                    }, 100);
+                    
+                    // NO restaurar el botón en caso de éxito
+                    return;
                 } else {
-                    analizarShowError('Error sobrescribiendo estado de cuenta: ' + result.message);
+                    analizarShowError('Error sobrescribiendo estado de cuenta: ' + (result.message || 'Error desconocido'));
                 }
                 
             } catch (error) {
                 console.error('Error sobrescribiendo estado:', error);
                 analizarShowError('Error de conexión al sobrescribir: ' + error.message);
             } finally {
-                btnOverwrite.disabled = false;
-                btnOverwrite.textContent = '✅ Sí, Sobrescribir';
+                // Solo restaurar el botón si NO fue exitoso
+                if (btnOverwrite && btnOverwrite.textContent === '⏳ Sobrescribiendo...') {
+                    btnOverwrite.disabled = false;
+                    btnOverwrite.textContent = '✅ Sí, Sobrescribir';
+                }
             }
         }
         

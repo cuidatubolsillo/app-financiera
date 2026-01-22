@@ -445,98 +445,252 @@ def registrar_metrica_ia(usuario_id, modelo_ia, tipo_operacion, tokens_consumido
     db.session.commit()
     return metrica
 
+def normalizar_nombre_banco(nombre):
+    """Normaliza el nombre del banco removiendo sufijos comunes para comparación"""
+    if not nombre:
+        return ""
+    
+    # Convertir a minúsculas y remover espacios extra
+    nombre_normalizado = nombre.strip().lower()
+    
+    # Remover sufijos comunes que pueden variar
+    sufijos = [
+        " s.a.", " s.a", " sa", " c.a.", " c.a", " ca",
+        " b.p.", " b.p", " bp", " n.a.", " n.a", " na",
+        " s.a. ", " c.a. ", " b.p. ", " n.a. "
+    ]
+    
+    for sufijo in sufijos:
+        if nombre_normalizado.endswith(sufijo):
+            nombre_normalizado = nombre_normalizado[:-len(sufijo)].strip()
+    
+    # Remover "banco" al inicio si existe (para comparación más flexible)
+    if nombre_normalizado.startswith("banco "):
+        nombre_normalizado = nombre_normalizado[6:].strip()
+    
+    return nombre_normalizado
+
 def estandarizar_banco(nombre_banco):
     """Estandarizar nombre de banco usando base de datos de bancos conocidos. Retorna la abreviación si existe."""
     if not nombre_banco:
         return None
     
-    # Limpiar el nombre del banco
-    nombre_limpio = nombre_banco.strip().lower()
-    
-    # Buscar coincidencia exacta
-    banco_existente = BancoEstandarizado.query.filter_by(nombre_estandarizado=nombre_banco).first()
-    if banco_existente:
-        # Retornar abreviación si existe, sino el nombre estandarizado
-        return banco_existente.abreviacion if banco_existente.abreviacion else banco_existente.nombre_estandarizado
-    
-    # Buscar coincidencia parcial inteligente
-    bancos_conocidos = BancoEstandarizado.query.filter(BancoEstandarizado.activo == True).all()
-    
-    for banco_conocido in bancos_conocidos:
-        nombre_conocido = banco_conocido.nombre_estandarizado.lower()
+    try:
+        print(f"DEBUG estandarizar_banco: Buscando banco '{nombre_banco}'")
         
-        # Buscar palabras clave comunes
-        palabras_clave = [
-            "pichincha", "guayaquil", "produbanco", "bolivariano", "internacional",
-            "austro", "machala", "solidario", "rumiñahui", "loja", "manabí",
-            "coopnacional", "procredit", "amazonas", "d-miro", "finca", "delbank",
-            "visionfund", "fucer", "lhv", "citibank", "china", "icbc", "opportunity",
-            "diners", "pacífico", "biess", "banecuador", "desarrollo", "cfn",
-            "jep", "jardín", "azuayo", "policía", "nacional", "alianza", "valle",
-            "sagrario", "octubre", "cooprogreso", "atlántida", "de prati", "pycca",
-            "comandato", "ganga", "tventas", "rm", "sukasa", "todohogar"
-        ]
+        # Limpiar el nombre del banco
+        nombre_limpio = nombre_banco.strip()
+        nombre_normalizado = normalizar_nombre_banco(nombre_banco)
         
-        for palabra in palabras_clave:
-            if palabra in nombre_limpio and palabra in nombre_conocido:
-                # Retornar abreviación si existe, sino el nombre estandarizado
-                return banco_conocido.abreviacion if banco_conocido.abreviacion else banco_conocido.nombre_estandarizado
-    
-    # Si no existe, crear nuevo registro
-    nuevo_banco = BancoEstandarizado(
-        nombre_estandarizado=nombre_banco,
-        abreviacion=nombre_banco,  # Por defecto usar el nombre completo
-        variaciones=f'["{nombre_banco}"]',
-        pais="Ecuador"  # Por defecto Ecuador
-    )
-    db.session.add(nuevo_banco)
-    db.session.commit()
-    
-    return nombre_banco
+        # Buscar coincidencia exacta (con y sin normalización)
+        try:
+            # Primero buscar coincidencia exacta
+            banco_existente = BancoEstandarizado.query.filter_by(nombre_estandarizado=nombre_banco).first()
+            if banco_existente:
+                print(f"DEBUG: Coincidencia exacta encontrada: {banco_existente.nombre_estandarizado}")
+                return banco_existente.abreviacion if banco_existente.abreviacion else banco_existente.nombre_estandarizado
+            
+            # Buscar por nombre normalizado (sin sufijos)
+            bancos_todos = BancoEstandarizado.query.filter(BancoEstandarizado.activo == True).all()
+            for banco in bancos_todos:
+                nombre_banco_normalizado = normalizar_nombre_banco(banco.nombre_estandarizado)
+                if nombre_normalizado == nombre_banco_normalizado:
+                    print(f"DEBUG: Coincidencia normalizada encontrada: {banco.nombre_estandarizado}")
+                    return banco.abreviacion if banco.abreviacion else banco.nombre_estandarizado
+                    
+        except Exception as e:
+            print(f"ADVERTENCIA: Error consultando BancoEstandarizado (coincidencia exacta): {str(e)}")
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")
+            # Si falla la consulta, continuar con búsqueda parcial
+        
+        # Buscar coincidencia parcial inteligente usando palabras clave
+        try:
+            bancos_conocidos = BancoEstandarizado.query.filter(BancoEstandarizado.activo == True).all()
+            
+            # Palabras clave para búsqueda
+            palabras_clave = [
+                "pichincha", "guayaquil", "produbanco", "bolivariano", "internacional",
+                "austro", "machala", "solidario", "rumiñahui", "loja", "manabí",
+                "coopnacional", "procredit", "amazonas", "d-miro", "finca", "delbank",
+                "visionfund", "fucer", "lhv", "citibank", "china", "icbc", "opportunity",
+                "diners", "pacífico", "biess", "banecuador", "desarrollo", "cfn",
+                "jep", "jardín", "azuayo", "policía", "nacional", "alianza", "valle",
+                "sagrario", "octubre", "cooprogreso", "atlántida", "de prati", "pycca",
+                "comandato", "ganga", "tventas", "rm", "sukasa", "todohogar"
+            ]
+            
+            nombre_limpio_lower = nombre_limpio.lower()
+            
+            # Buscar la mejor coincidencia
+            mejor_coincidencia = None
+            mejor_puntaje = 0
+            
+            for banco_conocido in bancos_conocidos:
+                nombre_conocido_lower = banco_conocido.nombre_estandarizado.lower()
+                nombre_conocido_normalizado = normalizar_nombre_banco(banco_conocido.nombre_estandarizado)
+                
+                # Verificar si alguna palabra clave está en ambos nombres
+                for palabra in palabras_clave:
+                    if palabra in nombre_limpio_lower and palabra in nombre_conocido_lower:
+                        # Calcular puntaje de coincidencia (más largo = mejor)
+                        puntaje = len(palabra)
+                        if puntaje > mejor_puntaje:
+                            mejor_puntaje = puntaje
+                            mejor_coincidencia = banco_conocido
+                            print(f"DEBUG: Coincidencia parcial encontrada con palabra '{palabra}': {banco_conocido.nombre_estandarizado}")
+                            break
+                
+                # También verificar si el nombre normalizado contiene el nombre del banco conocido
+                if nombre_normalizado and nombre_conocido_normalizado:
+                    if nombre_normalizado in nombre_conocido_normalizado or nombre_conocido_normalizado in nombre_normalizado:
+                        if len(nombre_conocido_normalizado) > mejor_puntaje:
+                            mejor_puntaje = len(nombre_conocido_normalizado)
+                            mejor_coincidencia = banco_conocido
+                            print(f"DEBUG: Coincidencia por contenido normalizado: {banco_conocido.nombre_estandarizado}")
+            
+            if mejor_coincidencia:
+                return mejor_coincidencia.abreviacion if mejor_coincidencia.abreviacion else mejor_coincidencia.nombre_estandarizado
+                
+        except Exception as e:
+            print(f"ADVERTENCIA: Error consultando BancoEstandarizado (coincidencia parcial): {str(e)}")
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")
+            # Si falla la consulta, retornar el nombre original
+            return nombre_banco
+        
+        # Si no se encontró coincidencia, intentar crear nuevo registro
+        print(f"DEBUG: No se encontró coincidencia para '{nombre_banco}', intentando crear nuevo registro")
+        try:
+            nuevo_banco = BancoEstandarizado(
+                nombre_estandarizado=nombre_banco,
+                abreviacion=nombre_banco,  # Por defecto usar el nombre completo
+                variaciones=f'["{nombre_banco}"]',
+                pais="Ecuador"  # Por defecto Ecuador
+            )
+            db.session.add(nuevo_banco)
+            db.session.commit()
+            print(f"DEBUG: Nuevo banco creado: {nombre_banco}")
+        except Exception as e:
+            print(f"ADVERTENCIA: Error creando nuevo banco en BancoEstandarizado: {str(e)}")
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")
+            # Si falla al crear, simplemente retornar el nombre original
+            db.session.rollback()
+            return nombre_banco
+        
+        return nombre_banco
+        
+    except Exception as e:
+        # Manejo general de errores - si algo falla, retornar el nombre original
+        print(f"ERROR en estandarizar_banco: {str(e)}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
+        return nombre_banco
 
 def estandarizar_tipo_tarjeta(tipo_tarjeta):
     """Estandarizar tipo de tarjeta usando base de datos de tipos conocidos. Retorna la abreviación si existe."""
     if not tipo_tarjeta:
         return None
     
-    # Limpiar el nombre de la tarjeta
-    tipo_limpio = tipo_tarjeta.strip().lower()
-    
-    # Buscar coincidencia exacta
-    tipo_existente = TipoTarjetaEstandarizado.query.filter_by(nombre_estandarizado=tipo_tarjeta).first()
-    if tipo_existente:
-        # Retornar abreviación si existe, sino el nombre estandarizado
-        return tipo_existente.abreviacion if tipo_existente.abreviacion else tipo_existente.nombre_estandarizado
-    
-    # Buscar coincidencia parcial inteligente
-    tipos_conocidos = TipoTarjetaEstandarizado.query.filter(TipoTarjetaEstandarizado.activo == True).all()
-    
-    for tipo_conocido in tipos_conocidos:
-        nombre_conocido = tipo_conocido.nombre_estandarizado.lower()
+    try:
+        # Limpiar el nombre de la tarjeta
+        tipo_limpio = tipo_tarjeta.strip().lower()
         
-        # Buscar palabras clave comunes
-        palabras_clave = [
-            "visa", "mastercard", "american express", "diners", "discover", "titanium",
-            "esfera", "amex", "crédito de prati", "club pycca", "comandato", "ganga",
-            "tventas", "rm", "sukasa", "todohogar"
-        ]
-        
-        for palabra in palabras_clave:
-            if palabra in tipo_limpio and palabra in nombre_conocido:
+        # Buscar coincidencia exacta
+        try:
+            tipo_existente = TipoTarjetaEstandarizado.query.filter_by(nombre_estandarizado=tipo_tarjeta).first()
+            if tipo_existente:
                 # Retornar abreviación si existe, sino el nombre estandarizado
-                return tipo_conocido.abreviacion if tipo_conocido.abreviacion else tipo_conocido.nombre_estandarizado
-    
-    # Si no existe, crear nuevo registro
-    nuevo_tipo = TipoTarjetaEstandarizado(
-        nombre_estandarizado=tipo_tarjeta,
-        abreviacion=tipo_tarjeta,  # Por defecto usar el nombre completo
-        variaciones=f'["{tipo_tarjeta}"]',
-        pais="Ecuador"  # Por defecto Ecuador
-    )
-    db.session.add(nuevo_tipo)
-    db.session.commit()
-    
-    return tipo_tarjeta
+                return tipo_existente.abreviacion if tipo_existente.abreviacion else tipo_existente.nombre_estandarizado
+        except Exception as e:
+            print(f"ADVERTENCIA: Error consultando TipoTarjetaEstandarizado (coincidencia exacta): {str(e)}")
+            # Si falla la consulta, retornar el nombre original
+            return tipo_tarjeta
+        
+        # Buscar coincidencia parcial inteligente con priorización
+        try:
+            tipos_conocidos = TipoTarjetaEstandarizado.query.filter(TipoTarjetaEstandarizado.activo == True).all()
+            
+            # Mapeo de palabras clave a tipos de tarjeta (orden de prioridad: más específico primero)
+            mapeo_palabras_clave = {
+                # American Express - prioridad alta (más específico primero)
+                "american express": ["American Express (Internacional)"],
+                "amex": ["American Express (Internacional)"],
+                "american": ["American Express (Internacional)"],  # Agregado: "american" se relaciona con Amex
+                # Visa
+                "visa": ["Visa (Internacional)"],
+                # Mastercard
+                "mastercard": ["Mastercard (Internacional)"],
+                # Diners Club
+                "diners club": ["Diners Club (Internacional)"],
+                "diners": ["Diners Club (Internacional)"],
+                # Discover
+                "discover": ["Discover (Internacional)"],
+                # Titanium
+                "titanium": ["Titanium (Nacional)"],
+                # Casas comerciales
+                "crédito de prati": ["Crédito De Prati"],
+                "club pycca": ["Club Pycca"],
+                "comandato": ["Crédito Directo Comandato"],
+                "ganga": ["Crédito Directo La Ganga"],
+                "tventas": ["CrediTVentas"],
+                "rm": ["Crédito Directo RM"],
+                "sukasa": ["Club Sukasa (Crédito)"],
+                "esfera": ["Titanium (Nacional)"],  # Esfera es una variante de Titanium
+                "todohogar": ["Titanium (Nacional)"]  # Todohogar es una variante de Titanium
+            }
+            
+            # Primero buscar coincidencias específicas (orden de prioridad)
+            for palabra_clave, tipos_esperados in mapeo_palabras_clave.items():
+                if palabra_clave in tipo_limpio:
+                    # Buscar el tipo correspondiente en la base de datos
+                    for tipo_esperado in tipos_esperados:
+                        for tipo_conocido in tipos_conocidos:
+                            if tipo_conocido.nombre_estandarizado.lower() == tipo_esperado.lower():
+                                # Retornar abreviación si existe, sino el nombre estandarizado
+                                return tipo_conocido.abreviacion if tipo_conocido.abreviacion else tipo_conocido.nombre_estandarizado
+            
+            # Si no hay coincidencia específica, buscar coincidencias parciales en nombres de la BD
+            for tipo_conocido in tipos_conocidos:
+                nombre_conocido = tipo_conocido.nombre_estandarizado.lower()
+                
+                # Verificar si alguna parte del nombre extraído está en el nombre conocido
+                palabras_extraidas = tipo_limpio.split()
+                for palabra_extraida in palabras_extraidas:
+                    if len(palabra_extraida) >= 3 and palabra_extraida in nombre_conocido:
+                        # Retornar abreviación si existe, sino el nombre estandarizado
+                        return tipo_conocido.abreviacion if tipo_conocido.abreviacion else tipo_conocido.nombre_estandarizado
+                        
+        except Exception as e:
+            print(f"ADVERTENCIA: Error consultando TipoTarjetaEstandarizado (coincidencia parcial): {str(e)}")
+            # Si falla la consulta, retornar el nombre original
+            return tipo_tarjeta
+        
+        # Si no existe, intentar crear nuevo registro
+        try:
+            nuevo_tipo = TipoTarjetaEstandarizado(
+                nombre_estandarizado=tipo_tarjeta,
+                abreviacion=tipo_tarjeta,  # Por defecto usar el nombre completo
+                variaciones=f'["{tipo_tarjeta}"]',
+                pais="Ecuador"  # Por defecto Ecuador
+            )
+            db.session.add(nuevo_tipo)
+            db.session.commit()
+        except Exception as e:
+            print(f"ADVERTENCIA: Error creando nuevo tipo de tarjeta en TipoTarjetaEstandarizado: {str(e)}")
+            # Si falla al crear, simplemente retornar el nombre original
+            db.session.rollback()
+            return tipo_tarjeta
+        
+        return tipo_tarjeta
+        
+    except Exception as e:
+        # Manejo general de errores - si algo falla, retornar el nombre original
+        print(f"ERROR en estandarizar_tipo_tarjeta: {str(e)}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
+        return tipo_tarjeta
 
 def inicializar_bancos_oficiales():
     """Inicializar la base de datos con los bancos oficiales de Ecuador"""
@@ -1097,6 +1251,56 @@ def tarjetas_credito():
     """
     return render_template('tarjetas_credito.html')
 
+def calcular_categorias_estado(estado):
+    """
+    Calcula las categorías (Intereses y Cargos y Gastos) para un estado de cuenta específico
+    Retorna un diccionario con 'intereses' y 'cargos_gastos'
+    """
+    intereses_total = 0
+    intereses_cantidad = 0
+    cargos_gastos_total = 0
+    cargos_gastos_cantidad = 0
+    
+    for consumo in estado.consumos_detalle:
+        tipo_transaccion = (consumo.tipo_transaccion or '').lower()
+        es_pago = tipo_transaccion in ['pago', 'pagos', 'abono', 'abonos', 'nota de crédito', 'notas de crédito', 'credito', 'creditos']
+        
+        if not es_pago:
+            descripcion = (consumo.descripcion or '').upper()
+            
+            # Identificar intereses
+            es_interes = tipo_transaccion in ['interes', 'interés']
+            patrones_interes = [
+                'INTERES', 'INTERÉS', 'INTERESES', 'INTERÉSES',
+                'INTERES FINANCIAMIENTO', 'INTERES POR MORA',
+                'INTERES FINANCIERO', 'INTERES DE MORA'
+            ]
+            es_interes_por_descripcion = any(patron in descripcion for patron in patrones_interes)
+            
+            # Identificar cargos y gastos
+            es_cargo_gasto = tipo_transaccion in ['cargo', 'gasto', 'comision', 'comisión', 'fee', 'tarifa']
+            patrones_cargos_gastos = [
+                'CARGO', 'CARGOS', 'COMISION', 'COMISIÓN', 'COMISIONES', 'COMISIONES',
+                'FEE', 'TARIFA', 'TARIFAS', 'COSTO', 'COSTOS',
+                'IVA', 'IMPUESTO', 'RETENCION', 'RETENCIÓN', 'RET IVA',
+                'CONTRIBUCIÓN', 'CONTRIBUCION', 'SOLCA',
+                'SALIDA DIVISAS', 'IMPUESTO SALIDA',
+                'ND IVA', 'NOTA DEBITO', 'NOTA DÉBITO'
+            ]
+            es_cargo_gasto_por_descripcion = any(patron in descripcion for patron in patrones_cargos_gastos)
+            
+            if es_interes or es_interes_por_descripcion:
+                intereses_total += consumo.monto or 0
+                intereses_cantidad += 1
+            elif es_cargo_gasto or es_cargo_gasto_por_descripcion:
+                cargos_gastos_total += consumo.monto or 0
+                cargos_gastos_cantidad += 1
+    
+    return {
+        'intereses': {'total': intereses_total, 'cantidad': intereses_cantidad},
+        'cargos_gastos': {'total': cargos_gastos_total, 'cantidad': cargos_gastos_cantidad}
+    }
+
 @app.route('/historial-estados-cuenta')
 @login_required
 def historial_estados_cuenta():
@@ -1121,7 +1325,11 @@ def historial_estados_cuenta():
         deuda_total_actual = 0
         tarjetas_procesadas = set()
         
+        # Calcular categorías para cada estado de cuenta
+        categorias_por_estado = {}
         for estado in estados_cuenta:
+            categorias_por_estado[estado.id] = calcular_categorias_estado(estado)
+            
             tarjeta_key = f"{estado.nombre_banco}-{estado.tipo_tarjeta}"
             if tarjeta_key not in tarjetas_procesadas and estado.deuda_total_pagar:
                 deuda_total_actual += estado.deuda_total_pagar
@@ -1133,7 +1341,8 @@ def historial_estados_cuenta():
                              total_estados=total_estados,
                              bancos_unicos=bancos_unicos,
                              tarjetas_unicas=tarjetas_unicas,
-                             deuda_total_actual=deuda_total_actual)
+                             deuda_total_actual=deuda_total_actual,
+                             categorias_por_estado=categorias_por_estado)
     
     except Exception as e:
         print(f"Error en historial_estados_cuenta: {e}")
@@ -1266,11 +1475,22 @@ def analizar_pdf():
                     resultado = analyzer.analizar_estado_cuenta(temp_path, extraer_movimientos_detallados=True)
                 except Exception as e:
                     import traceback
-                    print(f"ERROR en analizar_estado_cuenta: {str(e)}")
-                    print(f"Traceback: {traceback.format_exc()}")
+                    # Normalizar el mensaje de error para evitar problemas de codificación
+                    try:
+                        error_message = str(e).encode('utf-8', errors='replace').decode('utf-8')
+                    except:
+                        error_message = "Error analizando PDF (problema de codificación)"
+                    
+                    print(f"ERROR en analizar_estado_cuenta: {error_message}")
+                    try:
+                        traceback_text = traceback.format_exc().encode('utf-8', errors='replace').decode('utf-8')
+                        print(f"Traceback: {traceback_text}")
+                    except:
+                        print("Traceback no disponible (problema de codificación)")
+                    
                     return jsonify({
                         'status': 'error',
-                        'message': f'Error analizando PDF: {str(e)}',
+                        'message': f'Error analizando PDF: {error_message}',
                         'error_type': type(e).__name__
                     }), 500
                 
@@ -1341,12 +1561,22 @@ def analizar_pdf():
                     
         except Exception as e:
             import traceback
-            error_traceback = traceback.format_exc()
-            print(f"ERROR en analizar-pdf: {str(e)}")
+            # Normalizar el mensaje de error para evitar problemas de codificación
+            try:
+                error_message = str(e).encode('utf-8', errors='replace').decode('utf-8')
+            except:
+                error_message = "Error procesando PDF (problema de codificación)"
+            
+            try:
+                error_traceback = traceback.format_exc().encode('utf-8', errors='replace').decode('utf-8')
+            except:
+                error_traceback = "Traceback no disponible (problema de codificación)"
+            
+            print(f"ERROR en analizar-pdf: {error_message}")
             print(f"Traceback completo: {error_traceback}")
             return jsonify({
                 'status': 'error',
-                'message': f'Error procesando PDF: {str(e)}',
+                'message': f'Error procesando PDF: {error_message}',
                 'error_type': type(e).__name__
             }), 500
     
@@ -1679,18 +1909,50 @@ def control_pagos_tarjetas():
         query = query.filter(EstadosCuenta.nombre_banco == banco_filtro)
     
     if tarjeta_filtro:
-        query = query.filter(EstadosCuenta.tipo_tarjeta == tarjeta_filtro)
+        # El filtro viene como "tipo_tarjeta - ultimos_digitos", necesitamos parsearlo
+        if ' - ' in tarjeta_filtro:
+            tipo_tarjeta, ultimos_digitos = tarjeta_filtro.split(' - ', 1)
+            query = query.filter(
+                EstadosCuenta.tipo_tarjeta == tipo_tarjeta,
+                EstadosCuenta.ultimos_digitos == ultimos_digitos
+            )
+        else:
+            # Fallback: si no tiene el formato, buscar solo por tipo
+            query = query.filter(EstadosCuenta.tipo_tarjeta == tarjeta_filtro)
     
     # Obtener estados de cuenta filtrados
     estados_cuenta = query.order_by(EstadosCuenta.fecha_corte.desc()).all()
+    
+    # Debug: mostrar información de filtros aplicados
+    print(f"DEBUG control_pagos_tarjetas: Filtros aplicados - mes={mes_filtro}, banco={banco_filtro}, tarjeta={tarjeta_filtro}")
+    print(f"DEBUG control_pagos_tarjetas: Estados de cuenta encontrados: {len(estados_cuenta)}")
     
     # Obtener bancos únicos para filtros (todos los disponibles)
     bancos_unicos = db.session.query(EstadosCuenta.nombre_banco).filter_by(usuario_id=usuario_actual.id).distinct().all()
     bancos_unicos = [banco[0] for banco in bancos_unicos if banco[0]]
     
-    # Obtener tarjetas únicas para filtros (todas las disponibles)
-    tarjetas_unicas = db.session.query(EstadosCuenta.tipo_tarjeta).filter_by(usuario_id=usuario_actual.id).distinct().all()
-    tarjetas_unicas = [tarjeta[0] for tarjeta in tarjetas_unicas if tarjeta[0]]
+    # Obtener tarjetas únicas para filtros con formato completo (tipo_tarjeta - ultimos_digitos)
+    # También obtener datos completos para filtros inteligentes
+    tarjetas_completas = db.session.query(
+        EstadosCuenta.tipo_tarjeta,
+        EstadosCuenta.ultimos_digitos,
+        EstadosCuenta.nombre_banco
+    ).filter_by(usuario_id=usuario_actual.id).distinct().all()
+    
+    # Crear lista de tarjetas con formato "tipo_tarjeta - ultimos_digitos"
+    tarjetas_unicas = []
+    tarjetas_datos = {}  # Para filtros inteligentes: { "tipo_tarjeta - ultimos_digitos": {"banco": "...", "tipo": "...", "digitos": "..."} }
+    
+    for tipo, digitos, banco in tarjetas_completas:
+        if tipo and digitos:
+            tarjeta_formato = f"{tipo} - {digitos}"
+            if tarjeta_formato not in tarjetas_unicas:
+                tarjetas_unicas.append(tarjeta_formato)
+                tarjetas_datos[tarjeta_formato] = {
+                    "banco": banco,
+                    "tipo": tipo,
+                    "digitos": digitos
+                }
     
     # Obtener meses únicos para filtros (todos los disponibles)
     fechas_corte = db.session.query(EstadosCuenta.fecha_corte).filter_by(usuario_id=usuario_actual.id).distinct().order_by(EstadosCuenta.fecha_corte.desc()).all()
@@ -1705,15 +1967,83 @@ def control_pagos_tarjetas():
     total_deuda = sum(estado.deuda_total_pagar for estado in estados_cuenta if estado.deuda_total_pagar)
     total_pagos_minimos = sum(estado.deuda_total_pagar * 0.1 for estado in estados_cuenta if estado.deuda_total_pagar)  # Asumiendo 10% mínimo
     
-    # Estadísticas por categoría (usando consumos detallados de estados filtrados)
+    # Estadísticas por categoría (usando SOLO consumos detallados de estados filtrados, excluyendo pagos)
     categorias_stats = {}
+    total_consumos_procesados = 0
+    total_intereses = 0
+    cantidad_intereses = 0
+    total_cargos_gastos = 0
+    cantidad_cargos_gastos = 0
+    
     for estado in estados_cuenta:
         for consumo in estado.consumos_detalle:
-            categoria = consumo.categoria or 'Sin categoría'
-            if categoria not in categorias_stats:
-                categorias_stats[categoria] = {'total': 0, 'cantidad': 0}
-            categorias_stats[categoria]['total'] += consumo.monto or 0
-            categorias_stats[categoria]['cantidad'] += 1
+            # Solo incluir consumos reales, excluir pagos, abonos y notas de crédito
+            tipo_transaccion = (consumo.tipo_transaccion or '').lower()
+            es_pago = tipo_transaccion in ['pago', 'pagos', 'abono', 'abonos', 'nota de crédito', 'notas de crédito', 'credito', 'creditos']
+            
+            # Solo procesar si NO es un pago
+            if not es_pago:
+                descripcion = (consumo.descripcion or '').upper()
+                
+                # IDENTIFICAR INTERESES (solo intereses reales)
+                es_interes = tipo_transaccion in ['interes', 'interés']
+                patrones_interes = [
+                    'INTERES', 'INTERÉS', 'INTERESES', 'INTERÉSES',
+                    'INTERES FINANCIAMIENTO', 'INTERES POR MORA',
+                    'INTERES FINANCIERO', 'INTERES DE MORA'
+                ]
+                es_interes_por_descripcion = any(patron in descripcion for patron in patrones_interes)
+                
+                # IDENTIFICAR CARGOS Y GASTOS (todo lo demás que no es interés ni consumo normal)
+                es_cargo_gasto = tipo_transaccion in ['cargo', 'gasto', 'comision', 'comisión', 'fee', 'tarifa']
+                patrones_cargos_gastos = [
+                    'CARGO', 'CARGOS', 'COMISION', 'COMISIÓN', 'COMISIONES', 'COMISIONES',
+                    'FEE', 'TARIFA', 'TARIFAS', 'COSTO', 'COSTOS',
+                    'IVA', 'IMPUESTO', 'RETENCION', 'RETENCIÓN', 'RET IVA',
+                    'CONTRIBUCIÓN', 'CONTRIBUCION', 'SOLCA',
+                    'SALIDA DIVISAS', 'IMPUESTO SALIDA',
+                    'ND IVA', 'NOTA DEBITO', 'NOTA DÉBITO'
+                ]
+                es_cargo_gasto_por_descripcion = any(patron in descripcion for patron in patrones_cargos_gastos)
+                
+                if es_interes or es_interes_por_descripcion:
+                    # Agregar a categoría "Intereses"
+                    if 'Intereses' not in categorias_stats:
+                        categorias_stats['Intereses'] = {'total': 0, 'cantidad': 0}
+                    categorias_stats['Intereses']['total'] += consumo.monto or 0
+                    categorias_stats['Intereses']['cantidad'] += 1
+                    total_intereses += consumo.monto or 0
+                    cantidad_intereses += 1
+                elif es_cargo_gasto or es_cargo_gasto_por_descripcion:
+                    # Agregar a categoría "Cargos y Gastos"
+                    if 'Cargos y Gastos' not in categorias_stats:
+                        categorias_stats['Cargos y Gastos'] = {'total': 0, 'cantidad': 0}
+                    categorias_stats['Cargos y Gastos']['total'] += consumo.monto or 0
+                    categorias_stats['Cargos y Gastos']['cantidad'] += 1
+                    total_cargos_gastos += consumo.monto or 0
+                    cantidad_cargos_gastos += 1
+                else:
+                    # Categoría normal de consumo
+                    categoria = consumo.categoria or 'Sin categoría'
+                    if categoria not in categorias_stats:
+                        categorias_stats[categoria] = {'total': 0, 'cantidad': 0}
+                    categorias_stats[categoria]['total'] += consumo.monto or 0
+                    categorias_stats[categoria]['cantidad'] += 1
+                    total_consumos_procesados += 1
+    
+    # Agregar categoría "Deuda Anterior" con la suma de todas las deudas anteriores
+    total_deuda_anterior_categoria = sum(estado.deuda_anterior or 0 for estado in estados_cuenta if estado.deuda_anterior)
+    if total_deuda_anterior_categoria > 0:
+        categorias_stats['Deuda Anterior'] = {
+            'total': total_deuda_anterior_categoria,
+            'cantidad': len([estado for estado in estados_cuenta if estado.deuda_anterior and estado.deuda_anterior > 0])
+        }
+    
+    print(f"DEBUG control_pagos_tarjetas: Total consumos procesados para categorías: {total_consumos_procesados}")
+    print(f"DEBUG control_pagos_tarjetas: Total intereses: {total_intereses} ({cantidad_intereses} transacciones)")
+    print(f"DEBUG control_pagos_tarjetas: Total cargos y gastos: {total_cargos_gastos} ({cantidad_cargos_gastos} transacciones)")
+    print(f"DEBUG control_pagos_tarjetas: Total deuda anterior: {total_deuda_anterior_categoria}")
+    print(f"DEBUG control_pagos_tarjetas: Categorías encontradas: {list(categorias_stats.keys())}")
     
     # Crear tabla pivot de movimientos detallados (solo de estados filtrados)
     # Separar movimientos en consumos y pagos
@@ -1748,6 +2078,18 @@ def control_pagos_tarjetas():
     
     # Mantener compatibilidad con código anterior
     movimientos_pivot = {**consumos_pivot, **pagos_pivot}
+    
+    # Calcular totales por fila para consumos
+    totales_por_fila_consumos = {}
+    for descripcion, montos in consumos_pivot.items():
+        total_fila = sum(float(montos.get(tarjeta, 0) or 0) for tarjeta in tarjetas_columnas)
+        totales_por_fila_consumos[descripcion] = total_fila
+    
+    # Calcular totales por fila para pagos
+    totales_por_fila_pagos = {}
+    for descripcion, montos in pagos_pivot.items():
+        total_fila = sum(float(montos.get(tarjeta, 0) or 0) for tarjeta in tarjetas_columnas)
+        totales_por_fila_pagos[descripcion] = total_fila
     
     # Calcular totales por tarjeta para consumos y pagos
     totales_consumos_por_tarjeta = {}
@@ -1797,11 +2139,62 @@ def control_pagos_tarjetas():
     for tarjeta in tarjetas_columnas:
         diferencia_por_tarjeta[tarjeta] = totales_consumos_por_tarjeta.get(tarjeta, 0) - totales_pagos_por_tarjeta.get(tarjeta, 0)
     
+    # Agrupar consumos detallados por categoría para la tabla dinámica
+    categorias_detalle = {}
+    for estado in estados_cuenta:
+        tarjeta_key = f"{estado.tipo_tarjeta}-{estado.ultimos_digitos}"
+        for consumo in estado.consumos_detalle:
+            tipo_transaccion = (consumo.tipo_transaccion or '').lower()
+            es_pago = tipo_transaccion in ['pago', 'pagos', 'abono', 'abonos', 'nota de crédito', 'notas de crédito', 'credito', 'creditos']
+            
+            if not es_pago:
+                descripcion = (consumo.descripcion or '').upper()
+                
+                # Determinar categoría (misma lógica que arriba)
+                es_interes = tipo_transaccion in ['interes', 'interés']
+                patrones_interes = [
+                    'INTERES', 'INTERÉS', 'INTERESES', 'INTERÉSES',
+                    'INTERES FINANCIAMIENTO', 'INTERES POR MORA',
+                    'INTERES FINANCIERO', 'INTERES DE MORA'
+                ]
+                es_interes_por_descripcion = any(patron in descripcion for patron in patrones_interes)
+                
+                es_cargo_gasto = tipo_transaccion in ['cargo', 'gasto', 'comision', 'comisión', 'fee', 'tarifa']
+                patrones_cargos_gastos = [
+                    'CARGO', 'CARGOS', 'COMISION', 'COMISIÓN', 'COMISIONES', 'COMISIONES',
+                    'FEE', 'TARIFA', 'TARIFAS', 'COSTO', 'COSTOS',
+                    'IVA', 'IMPUESTO', 'RETENCION', 'RETENCIÓN', 'RET IVA',
+                    'CONTRIBUCIÓN', 'CONTRIBUCION', 'SOLCA',
+                    'SALIDA DIVISAS', 'IMPUESTO SALIDA',
+                    'ND IVA', 'NOTA DEBITO', 'NOTA DÉBITO'
+                ]
+                es_cargo_gasto_por_descripcion = any(patron in descripcion for patron in patrones_cargos_gastos)
+                
+                if es_interes or es_interes_por_descripcion:
+                    categoria = 'Intereses'
+                elif es_cargo_gasto or es_cargo_gasto_por_descripcion:
+                    categoria = 'Cargos y Gastos'
+                else:
+                    categoria = consumo.categoria or 'Sin categoría'
+                
+                if categoria not in categorias_detalle:
+                    categorias_detalle[categoria] = []
+                
+                categorias_detalle[categoria].append({
+                    'descripcion': consumo.descripcion or 'Sin descripción',
+                    'fecha': consumo.fecha.strftime('%d/%m/%Y') if consumo.fecha else 'Sin fecha',
+                    'monto': consumo.monto or 0,
+                    'tarjeta': tarjeta_key,
+                    'banco': estado.nombre_banco or 'Sin banco',
+                    'tipo_tarjeta': estado.tipo_tarjeta or 'Sin tipo'
+                })
+    
     return render_template('control_pagos_tarjetas.html',
                          usuario=usuario_actual,
                          estados_cuenta=estados_cuenta,
                          bancos_unicos=bancos_unicos,
                          tarjetas_unicas=tarjetas_unicas,
+                         tarjetas_datos=tarjetas_datos,  # Datos completos para filtros inteligentes
                          meses_corte=meses_corte,
                          total_deuda=total_deuda,
                          total_pagos_minimos=total_pagos_minimos,
@@ -1818,6 +2211,9 @@ def control_pagos_tarjetas():
                          total_deuda_anterior=total_deuda_anterior,
                          diferencia_por_tarjeta=diferencia_por_tarjeta,
                          diferencia_general=diferencia_general,
+                         totales_por_fila_consumos=totales_por_fila_consumos,
+                         totales_por_fila_pagos=totales_por_fila_pagos,
+                         categorias_detalle=categorias_detalle,
                          mes_filtro_actual=mes_filtro,
                          banco_filtro_actual=banco_filtro,
                          tarjeta_filtro_actual=tarjeta_filtro)

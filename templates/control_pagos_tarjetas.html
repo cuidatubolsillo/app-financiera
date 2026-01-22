@@ -182,6 +182,142 @@
             gap: 15px;
         }
 
+        /* Tabla Dinámica de Categorías */
+        .dynamic-table-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+        }
+
+        .dynamic-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .dynamic-table thead {
+            background: linear-gradient(135deg, var(--verde-vital) 0%, var(--azul-util) 100%);
+            color: white;
+        }
+
+        .dynamic-table th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .dynamic-table th.sortable {
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.3s ease;
+        }
+
+        .dynamic-table th.sortable:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .dynamic-table th.sortable i {
+            margin-left: 5px;
+            opacity: 0.7;
+        }
+
+        .dynamic-table tbody tr {
+            border-bottom: 1px solid #e0e0e0;
+            transition: background 0.2s ease;
+        }
+
+        .dynamic-table tbody tr:hover {
+            background: rgba(123, 167, 78, 0.05);
+        }
+
+        .dynamic-table tbody tr.category-row {
+            cursor: pointer;
+        }
+
+        .dynamic-table td {
+            padding: 12px 15px;
+        }
+
+        .expand-cell {
+            width: 50px;
+            text-align: center;
+        }
+
+        .expand-btn {
+            background: var(--verde-vital);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .expand-btn:hover {
+            background: var(--azul-util);
+            transform: scale(1.1);
+        }
+
+        .expand-btn.expanded {
+            background: #dc3545;
+        }
+
+        .expand-btn.expanded i {
+            transform: rotate(45deg);
+        }
+
+        .category-name-cell {
+            font-weight: 600;
+            color: var(--texto-oscuro);
+        }
+
+        .category-details-row {
+            background: #f8f9fa;
+        }
+
+        .category-details {
+            padding: 15px;
+        }
+
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .details-table thead {
+            background: var(--gris-oscuro);
+            color: white;
+        }
+
+        .details-table th {
+            padding: 10px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .details-table tbody tr {
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .details-table tbody tr:hover {
+            background: rgba(123, 167, 78, 0.05);
+        }
+
+        .details-table td {
+            padding: 8px 10px;
+            font-size: 0.9em;
+        }
+
         .category-item {
             background: linear-gradient(135deg, rgba(123, 167, 78, 0.05) 0%, rgba(76, 165, 179, 0.05) 100%);
             padding: 15px;
@@ -459,6 +595,7 @@
     </style>
 </head>
 <body>
+    <!-- Script inline eliminado: ya no recargamos la página, así que no necesitamos restaurar scroll -->
     <div class="unified-container">
         <a href="{{ url_for('tarjetas_credito') }}" class="back-btn">
             <i class="fas fa-arrow-left"></i>
@@ -519,11 +656,13 @@
                 </select>
             </div>
             <div class="filter-group">
-                <label for="tarjetaFiltro">Tipo de Tarjeta</label>
+                <label for="tarjetaFiltro">Tarjeta</label>
                 <select id="tarjetaFiltro">
                     <option value="">Todas las tarjetas</option>
                     {% for tarjeta in tarjetas_unicas %}
-                    <option value="{{ tarjeta }}" {% if tarjeta == tarjeta_filtro_actual %}selected{% endif %}>{{ tarjeta }}</option>
+                    <option value="{{ tarjeta }}" 
+                            data-banco="{{ tarjetas_datos[tarjeta].banco if tarjeta in tarjetas_datos else '' }}"
+                            {% if tarjeta == tarjeta_filtro_actual %}selected{% endif %}>{{ tarjeta }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -538,20 +677,75 @@
                 </div>
             </div>
 
-            <!-- Categorías -->
+            <!-- Tabla Dinámica de Categorías -->
             {% if categorias_stats %}
             <div class="categories-section">
                 <h3 style="margin-bottom: 20px; color: #495057;">
                     <i class="fas fa-chart-pie"></i> Gastos por Categoría
                 </h3>
-                <div class="categories-grid">
-                    {% for categoria, stats in categorias_stats.items() %}
-                    <div class="category-item">
-                        <div class="category-name">{{ categoria }}</div>
-                        <div class="category-amount">${{ "%.2f"|format(stats.total) }}</div>
-                        <div class="category-count">{{ stats.cantidad }} transacciones</div>
-                    </div>
-                    {% endfor %}
+                <div class="dynamic-table-container">
+                    <table class="dynamic-table" id="categoriasTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;"></th>
+                                <th class="sortable" data-sort="categoria">
+                                    Categoría <i class="fas fa-sort"></i>
+                                </th>
+                                <th class="sortable" data-sort="monto">
+                                    Total <i class="fas fa-sort"></i>
+                                </th>
+                                <th class="sortable" data-sort="cantidad">
+                                    Transacciones <i class="fas fa-sort"></i>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for categoria, stats in categorias_stats.items() %}
+                            <tr class="category-row" data-categoria="{{ categoria }}">
+                                <td class="expand-cell">
+                                    <button class="expand-btn" onclick="toggleCategory('{{ categoria }}')" data-categoria="{{ categoria }}">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </td>
+                                <td class="category-name-cell"><strong>{{ categoria }}</strong></td>
+                                <td class="amount-cell">${{ "%.2f"|format(stats.total) }}</td>
+                                <td class="count-cell">{{ stats.cantidad }} transacciones</td>
+                            </tr>
+                            <tr class="category-details-row" id="details-{{ categoria }}" style="display: none;">
+                                <td colspan="4">
+                                    <div class="category-details">
+                                        <table class="details-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Fecha</th>
+                                                    <th>Descripción</th>
+                                                    <th>Tarjeta</th>
+                                                    <th>Monto</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% if categorias_detalle.get(categoria) %}
+                                                    {% for detalle in categorias_detalle[categoria] %}
+                                                    <tr>
+                                                        <td>{{ detalle.fecha }}</td>
+                                                        <td>{{ detalle.descripcion }}</td>
+                                                        <td>{{ detalle.tarjeta }}</td>
+                                                        <td class="amount-cell">${{ "%.2f"|format(detalle.monto) }}</td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                {% else %}
+                                                    <tr>
+                                                        <td colspan="4" style="text-align: center; color: #999;">No hay detalles disponibles</td>
+                                                    </tr>
+                                                {% endif %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
             {% endif %}
@@ -579,10 +773,8 @@
                             <!-- Fila de Deuda Anterior -->
                             <tr class="movimiento-row deuda-anterior-row">
                                 <td><strong>Deuda Anterior</strong></td>
-                                {% set total_deuda_anterior_fila = 0 %}
                                 {% for tarjeta in tarjetas_columnas %}
-                                    {% set deuda_anterior_tarjeta = deuda_anterior_por_tarjeta.get(tarjeta, 0) %}
-                                    {% set total_deuda_anterior_fila = total_deuda_anterior_fila + deuda_anterior_tarjeta %}
+                                    {% set deuda_anterior_tarjeta = deuda_anterior_por_tarjeta.get(tarjeta, 0) or 0 %}
                                     <td class="amount-cell">
                                         {% if deuda_anterior_tarjeta > 0 %}
                                             ${{ "%.2f"|format(deuda_anterior_tarjeta) }}
@@ -591,16 +783,14 @@
                                         {% endif %}
                                     </td>
                                 {% endfor %}
-                                <td class="amount-cell amount-negative"><strong>${{ "%.2f"|format(total_deuda_anterior_fila) }}</strong></td>
+                                <td class="amount-cell amount-negative"><strong>${{ "%.2f"|format(total_deuda_anterior) }}</strong></td>
                             </tr>
                             {% if consumos_pivot %}
                             {% for descripcion, montos in consumos_pivot.items() %}
                             <tr class="movimiento-row consumo-row">
                                 <td><strong>{{ descripcion }}</strong></td>
-                                {% set total_fila = 0 %}
                                 {% for tarjeta in tarjetas_columnas %}
-                                    {% set monto_tarjeta = montos.get(tarjeta, 0) %}
-                                    {% set total_fila = total_fila + monto_tarjeta %}
+                                    {% set monto_tarjeta = montos.get(tarjeta, 0) or 0 %}
                                     <td class="amount-cell">
                                         {% if monto_tarjeta > 0 %}
                                             ${{ "%.2f"|format(monto_tarjeta) }}
@@ -609,7 +799,7 @@
                                         {% endif %}
                                     </td>
                                 {% endfor %}
-                                <td class="amount-cell amount-negative"><strong>${{ "%.2f"|format(total_fila) }}</strong></td>
+                                <td class="amount-cell amount-negative"><strong>${{ "%.2f"|format(totales_por_fila_consumos.get(descripcion, 0)) }}</strong></td>
                             </tr>
                             {% endfor %}
                             {% endif %}
@@ -649,10 +839,8 @@
                             {% for descripcion, montos in pagos_pivot.items() %}
                             <tr class="movimiento-row pago-row">
                                 <td><strong>{{ descripcion }}</strong></td>
-                                {% set total_fila = 0 %}
                                 {% for tarjeta in tarjetas_columnas %}
-                                    {% set monto_tarjeta = montos.get(tarjeta, 0) %}
-                                    {% set total_fila = total_fila + monto_tarjeta %}
+                                    {% set monto_tarjeta = montos.get(tarjeta, 0) or 0 %}
                                     <td class="amount-cell">
                                         {% if monto_tarjeta > 0 %}
                                             ${{ "%.2f"|format(monto_tarjeta) }}
@@ -661,7 +849,7 @@
                                         {% endif %}
                                     </td>
                                 {% endfor %}
-                                <td class="amount-cell amount-positive"><strong>${{ "%.2f"|format(total_fila) }}</strong></td>
+                                <td class="amount-cell amount-positive"><strong>${{ "%.2f"|format(totales_por_fila_pagos.get(descripcion, 0)) }}</strong></td>
                             </tr>
                             {% endfor %}
                             {% endif %}
@@ -764,13 +952,15 @@
     </div>
 
     <script>
-        function aplicarFiltros() {
+        // Ya no necesitamos guardar/restaurar scroll porque no recargamos la página
+        
+        async function aplicarFiltros() {
+            // NO recargar la página, usar AJAX para actualizar solo el contenido
             const mesFiltro = document.getElementById('mesFiltro').value;
             const bancoFiltro = document.getElementById('bancoFiltro').value;
             const tarjetaFiltro = document.getElementById('tarjetaFiltro').value;
             
-            // Los filtros se aplican recargando la página con parámetros
-            // Esta función ahora redirige con los filtros aplicados
+            // Construir URL con parámetros
             let url = '/control-pagos-tarjetas?';
             const params = [];
             
@@ -784,22 +974,209 @@
                 url = '/control-pagos-tarjetas';
             }
             
-            window.location.href = url;
+            // Mostrar indicador de carga
+            const contentDiv = document.querySelector('.unified-content');
+            const originalContent = contentDiv.innerHTML;
+            contentDiv.style.opacity = '0.7';
+            contentDiv.style.pointerEvents = 'none';
+            
+            try {
+                // Obtener el HTML completo de la página
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status}`);
+                }
+                
+                const html = await response.text();
+                
+                // Crear un documento temporal para extraer solo el contenido
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const newContent = doc.querySelector('.unified-content');
+                
+                if (newContent) {
+                    // Actualizar solo el contenido, manteniendo la posición del scroll
+                    contentDiv.innerHTML = newContent.innerHTML;
+                    
+                    // Re-inicializar scripts y event listeners necesarios
+                    actualizarTarjetasSegunBanco();
+                    
+                    // Actualizar URL sin recargar
+                    window.history.pushState({}, '', url);
+                } else {
+                    throw new Error('No se pudo encontrar el contenido');
+                }
+            } catch (error) {
+                console.error('Error aplicando filtros:', error);
+                alert('Error al aplicar filtros: ' + error.message);
+                contentDiv.innerHTML = originalContent;
+            } finally {
+                contentDiv.style.opacity = '1';
+                contentDiv.style.pointerEvents = 'auto';
+            }
         }
         
-        function limpiarFiltros() {
+        async function limpiarFiltros() {
+            // Limpiar los filtros
             document.getElementById('mesFiltro').value = '';
             document.getElementById('bancoFiltro').value = '';
             document.getElementById('tarjetaFiltro').value = '';
             
-            // Recargar la tabla original
-            location.reload();
+            // Aplicar filtros sin parámetros (equivalente a limpiar)
+            await aplicarFiltros();
         }
         
-        // Aplicar filtros automáticamente al cambiar los selects
-        document.getElementById('mesFiltro').addEventListener('change', aplicarFiltros);
-        document.getElementById('bancoFiltro').addEventListener('change', aplicarFiltros);
-        document.getElementById('tarjetaFiltro').addEventListener('change', aplicarFiltros);
+        // Restaurar posición del scroll como backup (el script inline ya lo hace primero)
+        // Solo restaurar si aún hay una posición guardada (por si el script inline no funcionó)
+        // Ya no necesitamos restaurar scroll porque no recargamos la página
+        
+        // Filtros inteligentes: actualizar tarjetas según banco seleccionado
+        const bancoFiltro = document.getElementById('bancoFiltro');
+        const tarjetaFiltro = document.getElementById('tarjetaFiltro');
+        
+        // Guardar todas las tarjetas originales con sus datos
+        const todasLasTarjetas = [];
+        Array.from(tarjetaFiltro.options).forEach(option => {
+            if (option.value !== '') {
+                todasLasTarjetas.push({
+                    value: option.value,
+                    text: option.text,
+                    banco: option.getAttribute('data-banco') || '',
+                    selected: option.selected
+                });
+            }
+        });
+        
+        function actualizarTarjetasSegunBanco() {
+            const bancoSeleccionado = bancoFiltro.value;
+            const tarjetaSeleccionadaActual = tarjetaFiltro.value;
+            
+            // Limpiar opciones actuales (excepto "Todas las tarjetas")
+            tarjetaFiltro.innerHTML = '<option value="">Todas las tarjetas</option>';
+            
+            // Agregar solo las tarjetas del banco seleccionado (o todas si no hay banco seleccionado)
+            todasLasTarjetas.forEach(tarjeta => {
+                if (!bancoSeleccionado || tarjeta.banco === bancoSeleccionado) {
+                    const nuevaOpcion = document.createElement('option');
+                    nuevaOpcion.value = tarjeta.value;
+                    nuevaOpcion.textContent = tarjeta.text;
+                    nuevaOpcion.setAttribute('data-banco', tarjeta.banco);
+                    
+                    // Mantener seleccionada si coincide con la tarjeta actual
+                    if (tarjeta.value === tarjetaSeleccionadaActual) {
+                        nuevaOpcion.selected = true;
+                    }
+                    
+                    tarjetaFiltro.appendChild(nuevaOpcion);
+                }
+            });
+        }
+        
+        // Event listener para banco (solo actualiza tarjetas, NO recarga la página)
+        bancoFiltro.addEventListener('change', function() {
+            const tarjetaActual = tarjetaFiltro.value;
+            actualizarTarjetasSegunBanco();
+            
+            // Si había una tarjeta seleccionada que no pertenece al nuevo banco, limpiarla
+            if (tarjetaActual && bancoFiltro.value) {
+                const opcionTarjeta = tarjetaFiltro.querySelector(`option[value="${tarjetaActual}"]`);
+                if (!opcionTarjeta) {
+                    tarjetaFiltro.value = '';
+                }
+            }
+        });
+        
+        // Inicializar tarjetas según banco seleccionado al cargar la página
+        actualizarTarjetasSegunBanco();
+        
+        // Funcionalidad de tabla dinámica de categorías
+        let sortDirection = {};
+        
+        // Función para expandir/colapsar categoría
+        function toggleCategory(categoria) {
+            const detailsRow = document.getElementById('details-' + categoria);
+            const expandBtn = document.querySelector(`[data-categoria="${categoria}"]`);
+            const icon = expandBtn.querySelector('i');
+            
+            if (detailsRow.style.display === 'none') {
+                detailsRow.style.display = 'table-row';
+                expandBtn.classList.add('expanded');
+                icon.classList.remove('fa-plus');
+                icon.classList.add('fa-minus');
+            } else {
+                detailsRow.style.display = 'none';
+                expandBtn.classList.remove('expanded');
+                icon.classList.remove('fa-minus');
+                icon.classList.add('fa-plus');
+            }
+        }
+        
+        // Función para ordenar tabla
+        function sortTable(column) {
+            const table = document.getElementById('categoriasTable');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr.category-row'));
+            
+            // Determinar dirección de ordenamiento
+            if (!sortDirection[column]) {
+                sortDirection[column] = 'asc';
+            } else {
+                sortDirection[column] = sortDirection[column] === 'asc' ? 'desc' : 'asc';
+            }
+            
+            const direction = sortDirection[column];
+            
+            // Ordenar filas
+            rows.sort((a, b) => {
+                let aValue, bValue;
+                
+                if (column === 'categoria') {
+                    aValue = a.querySelector('.category-name-cell').textContent.trim();
+                    bValue = b.querySelector('.category-name-cell').textContent.trim();
+                } else if (column === 'monto') {
+                    aValue = parseFloat(a.querySelector('.amount-cell').textContent.replace('$', '').replace(',', ''));
+                    bValue = parseFloat(b.querySelector('.amount-cell').textContent.replace('$', '').replace(',', ''));
+                } else if (column === 'cantidad') {
+                    aValue = parseInt(a.querySelector('.count-cell').textContent);
+                    bValue = parseInt(b.querySelector('.count-cell').textContent);
+                }
+                
+                if (typeof aValue === 'string') {
+                    return direction === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+                } else {
+                    return direction === 'asc' ? aValue - bValue : bValue - aValue;
+                }
+            });
+            
+            // Reordenar filas en el DOM (incluyendo filas de detalles)
+            rows.forEach((row, index) => {
+                const categoria = row.getAttribute('data-categoria');
+                const detailsRow = document.getElementById('details-' + categoria);
+                tbody.appendChild(row);
+                if (detailsRow && detailsRow.style.display !== 'none') {
+                    tbody.appendChild(detailsRow);
+                }
+            });
+            
+            // Actualizar iconos de ordenamiento
+            document.querySelectorAll('.sortable i').forEach(icon => {
+                icon.className = 'fas fa-sort';
+            });
+            
+            const currentHeader = document.querySelector(`[data-sort="${column}"]`);
+            if (currentHeader) {
+                const icon = currentHeader.querySelector('i');
+                icon.className = direction === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+            }
+        }
+        
+        // Agregar event listeners a los headers ordenables
+        document.querySelectorAll('.sortable').forEach(header => {
+            header.addEventListener('click', () => {
+                const column = header.getAttribute('data-sort');
+                sortTable(column);
+            });
+        });
     </script>
 </body>
 </html>

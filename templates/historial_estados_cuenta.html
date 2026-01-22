@@ -630,8 +630,21 @@
                             <div class="detail-card">
                                 <div class="detail-label">Intereses</div>
                                 <div class="detail-value currency">
-                                    {% if estado.intereses is not none %}
-                                        ${{ "%.2f"|format(estado.intereses) }}
+                                    {% if categorias_por_estado[estado.id].intereses.total > 0 %}
+                                        ${{ "%.2f"|format(categorias_por_estado[estado.id].intereses.total) }}
+                                        <span style="font-size: 0.8em; color: #666;">({{ categorias_por_estado[estado.id].intereses.cantidad }} transacciones)</span>
+                                    {% else %}
+                                        $0.00
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="detail-card">
+                                <div class="detail-label">Cargos y Gastos</div>
+                                <div class="detail-value currency">
+                                    {% if categorias_por_estado[estado.id].cargos_gastos.total > 0 %}
+                                        ${{ "%.2f"|format(categorias_por_estado[estado.id].cargos_gastos.total) }}
+                                        <span style="font-size: 0.8em; color: #666;">({{ categorias_por_estado[estado.id].cargos_gastos.cantidad }} transacciones)</span>
                                     {% else %}
                                         $0.00
                                     {% endif %}
