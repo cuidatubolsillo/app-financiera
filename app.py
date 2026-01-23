@@ -1405,6 +1405,9 @@ def historial_estados_cuenta():
     Historial de estados de cuenta analizados
     """
     try:
+        # Asegurar que la columna existe ANTES de hacer cualquier consulta
+        ensure_fecha_inicio_periodo_column()
+        
         usuario_actual = get_current_user()
         
         # Obtener estados de cuenta del usuario ordenados por fecha de corte (más reciente primero)
@@ -2031,15 +2034,19 @@ def admin_bancos():
 @login_required
 def control_pagos_tarjetas():
     """Control de pagos de tarjetas de crédito con filtros dinámicos"""
-    usuario_actual = Usuario.query.get(session['user_id'])
-    
-    # Obtener parámetros de filtro de la URL
-    mes_filtro = request.args.get('mes', '')
-    banco_filtro = request.args.get('banco', '')
-    tarjeta_filtro = request.args.get('tarjeta', '')
-    
-    # Construir query base
-    query = EstadosCuenta.query.filter_by(usuario_id=usuario_actual.id)
+    try:
+        # Asegurar que la columna existe ANTES de hacer cualquier consulta
+        ensure_fecha_inicio_periodo_column()
+        
+        usuario_actual = Usuario.query.get(session['user_id'])
+        
+        # Obtener parámetros de filtro de la URL
+        mes_filtro = request.args.get('mes', '')
+        banco_filtro = request.args.get('banco', '')
+        tarjeta_filtro = request.args.get('tarjeta', '')
+        
+        # Construir query base
+        query = EstadosCuenta.query.filter_by(usuario_id=usuario_actual.id)
     
     # Aplicar filtros
     if mes_filtro:
@@ -2337,34 +2344,41 @@ def control_pagos_tarjetas():
                     'tipo_tarjeta': estado.tipo_tarjeta or 'Sin tipo'
                 })
     
-    return render_template('control_pagos_tarjetas.html',
-                         usuario=usuario_actual,
-                         estados_cuenta=estados_cuenta,
-                         bancos_unicos=bancos_unicos,
-                         tarjetas_unicas=tarjetas_unicas,
-                         tarjetas_datos=tarjetas_datos,  # Datos completos para filtros inteligentes
-                         meses_corte=meses_corte,
-                         total_deuda=total_deuda,
-                         total_pagos_minimos=total_pagos_minimos,
-                         categorias_stats=categorias_stats,
-                         movimientos_pivot=movimientos_pivot,
+        return render_template('control_pagos_tarjetas.html',
+                             usuario=usuario_actual,
+                             estados_cuenta=estados_cuenta,
+                             bancos_unicos=bancos_unicos,
+                             tarjetas_unicas=tarjetas_unicas,
+                             tarjetas_datos=tarjetas_datos,  # Datos completos para filtros inteligentes
+                             meses_corte=meses_corte,
+                             total_deuda=total_deuda,
+                             total_pagos_minimos=total_pagos_minimos,
+                             categorias_stats=categorias_stats,
+                             movimientos_pivot=movimientos_pivot,
                          consumos_pivot=consumos_pivot,
                          pagos_pivot=pagos_pivot,
                          tarjetas_columnas=tarjetas_columnas,
-                         totales_consumos_por_tarjeta=totales_consumos_por_tarjeta,
-                         totales_pagos_por_tarjeta=totales_pagos_por_tarjeta,
-                         total_general_consumos=total_general_consumos,
-                         total_general_pagos=total_general_pagos,
+                             totales_consumos_por_tarjeta=totales_consumos_por_tarjeta,
+                             totales_pagos_por_tarjeta=totales_pagos_por_tarjeta,
+                             total_general_consumos=total_general_consumos,
+                             total_general_pagos=total_general_pagos,
                          deuda_anterior_por_tarjeta=deuda_anterior_por_tarjeta,
                          total_deuda_anterior=total_deuda_anterior,
                          diferencia_por_tarjeta=diferencia_por_tarjeta,
                          diferencia_general=diferencia_general,
                          totales_por_fila_consumos=totales_por_fila_consumos,
                          totales_por_fila_pagos=totales_por_fila_pagos,
-                         categorias_detalle=categorias_detalle,
-                         mes_filtro_actual=mes_filtro,
-                         banco_filtro_actual=banco_filtro,
-                         tarjeta_filtro_actual=tarjeta_filtro)
+                             categorias_detalle=categorias_detalle,
+                             mes_filtro_actual=mes_filtro,
+                             banco_filtro_actual=banco_filtro,
+                             tarjeta_filtro_actual=tarjeta_filtro)
+    
+    except Exception as e:
+        print(f"Error en control_pagos_tarjetas: {e}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
+        flash(f'Error cargando control de pagos: {str(e)}', 'error')
+        return redirect(url_for('tarjetas_credito'))
 
 @app.route('/admin/tarjetas')
 @login_required
@@ -3209,21 +3223,71 @@ def test_webhook():
 def ensure_fecha_inicio_periodo_column():
     """Asegurar que la columna fecha_inicio_periodo existe en la tabla estados_cuenta"""
     try:
-        # Verificar si la columna existe
+        # Asegurar que la sesión esté limpia
+        try:
+            db.session.rollback()
+        except:
+            pass
+        
+        # Verificar si la tabla existe primero
         from sqlalchemy import inspect, text
         inspector = inspect(db.engine)
-        columns = [col['name'] for col in inspector.get_columns('estados_cuenta')]
+        tables = inspector.get_table_names()
+        
+        if 'estados_cuenta' not in tables:
+            print("ADVERTENCIA: Tabla estados_cuenta no existe aún, se creará con db.create_all()")
+            return
+        
+        # Verificar si la columna existe
+        try:
+            columns = [col['name'] for col in inspector.get_columns('estados_cuenta')]
+        except Exception as e:
+            print(f"ADVERTENCIA: Error obteniendo columnas de estados_cuenta: {str(e)}")
+            # Intentar crear la columna de todas formas
+            try:
+                db.session.execute(text("ALTER TABLE estados_cuenta ADD COLUMN IF NOT EXISTS fecha_inicio_periodo DATE"))
+                db.session.commit()
+                print("✅ Columna fecha_inicio_periodo creada (método alternativo)")
+                return
+            except Exception as e2:
+                print(f"ERROR: No se pudo crear columna fecha_inicio_periodo: {str(e2)}")
+                try:
+                    db.session.rollback()
+                except:
+                    pass
+                return
         
         if 'fecha_inicio_periodo' not in columns:
             print("Columna fecha_inicio_periodo no existe, creándola...")
-            # Agregar la columna
-            db.session.execute(text("ALTER TABLE estados_cuenta ADD COLUMN fecha_inicio_periodo DATE"))
-            db.session.commit()
-            print("✅ Columna fecha_inicio_periodo creada exitosamente")
+            try:
+                # Intentar con IF NOT EXISTS primero (PostgreSQL 9.5+)
+                db.session.execute(text("ALTER TABLE estados_cuenta ADD COLUMN IF NOT EXISTS fecha_inicio_periodo DATE"))
+                db.session.commit()
+                print("✅ Columna fecha_inicio_periodo creada exitosamente")
+            except Exception as e:
+                # Si IF NOT EXISTS no funciona, intentar sin él (puede fallar si ya existe)
+                try:
+                    db.session.rollback()
+                    db.session.execute(text("ALTER TABLE estados_cuenta ADD COLUMN fecha_inicio_periodo DATE"))
+                    db.session.commit()
+                    print("✅ Columna fecha_inicio_periodo creada exitosamente (método alternativo)")
+                except Exception as e2:
+                    # Si falla, puede ser que ya exista o hay un problema de permisos
+                    error_msg = str(e2).lower()
+                    if 'already exists' in error_msg or 'duplicate' in error_msg:
+                        print("✅ Columna fecha_inicio_periodo ya existe (detectado por error)")
+                    else:
+                        print(f"ERROR: No se pudo crear columna fecha_inicio_periodo: {str(e2)}")
+                    try:
+                        db.session.rollback()
+                    except:
+                        pass
         else:
             print("✅ Columna fecha_inicio_periodo ya existe")
     except Exception as e:
         print(f"ADVERTENCIA: Error verificando/creando columna fecha_inicio_periodo: {str(e)}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
         try:
             db.session.rollback()
         except:
