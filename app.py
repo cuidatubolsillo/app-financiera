@@ -1406,15 +1406,46 @@ def historial_estados_cuenta():
     """
     try:
         # Asegurar que la columna existe ANTES de hacer cualquier consulta
+        print("DEBUG historial_estados_cuenta: Verificando columna fecha_inicio_periodo...")
         ensure_fecha_inicio_periodo_column()
+        print("DEBUG historial_estados_cuenta: Columna verificada")
+        
+        # Asegurar que la transacción esté limpia
+        try:
+            db.session.rollback()
+        except:
+            pass
         
         usuario_actual = get_current_user()
+        if not usuario_actual:
+            print("ERROR historial_estados_cuenta: Usuario no autenticado")
+            flash('Por favor, inicia sesión para acceder a esta página.', 'warning')
+            return redirect(url_for('login'))
+        
+        print(f"DEBUG historial_estados_cuenta: Usuario ID: {usuario_actual.id}")
         
         # Obtener estados de cuenta del usuario ordenados por fecha de corte (más reciente primero)
-        estados_cuenta = EstadosCuenta.query.filter_by(usuario_id=usuario_actual.id).order_by(
-            EstadosCuenta.fecha_corte.desc(),
-            EstadosCuenta.fecha_creacion.desc()
-        ).all()
+        # Usar text() para evitar que SQLAlchemy intente seleccionar columnas que no existen
+        try:
+            estados_cuenta = EstadosCuenta.query.filter_by(usuario_id=usuario_actual.id).order_by(
+                EstadosCuenta.fecha_corte.desc(),
+                EstadosCuenta.fecha_creacion.desc()
+            ).all()
+            print(f"DEBUG historial_estados_cuenta: {len(estados_cuenta)} estados encontrados")
+        except Exception as query_error:
+            print(f"ERROR historial_estados_cuenta en query: {str(query_error)}")
+            # Si falla la query, puede ser por la columna faltante - intentar crearla de nuevo
+            try:
+                ensure_fecha_inicio_periodo_column()
+                db.session.rollback()
+                estados_cuenta = EstadosCuenta.query.filter_by(usuario_id=usuario_actual.id).order_by(
+                    EstadosCuenta.fecha_corte.desc(),
+                    EstadosCuenta.fecha_creacion.desc()
+                ).all()
+                print(f"DEBUG historial_estados_cuenta: Query exitosa después de crear columna - {len(estados_cuenta)} estados")
+            except Exception as retry_error:
+                print(f"ERROR historial_estados_cuenta en retry: {str(retry_error)}")
+                raise retry_error
         
         # Calcular estadísticas
         total_estados = len(estados_cuenta)
@@ -1428,7 +1459,11 @@ def historial_estados_cuenta():
         # Calcular categorías para cada estado de cuenta
         categorias_por_estado = {}
         for estado in estados_cuenta:
-            categorias_por_estado[estado.id] = calcular_categorias_estado(estado)
+            try:
+                categorias_por_estado[estado.id] = calcular_categorias_estado(estado)
+            except Exception as cat_error:
+                print(f"ADVERTENCIA: Error calculando categorías para estado {estado.id}: {str(cat_error)}")
+                categorias_por_estado[estado.id] = {'intereses': {'total': 0, 'cantidad': 0}, 'cargos_gastos': {'total': 0, 'cantidad': 0}}
             
             tarjeta_key = f"{estado.nombre_banco}-{estado.tipo_tarjeta}"
             if tarjeta_key not in tarjetas_procesadas and estado.deuda_total_pagar:
@@ -1445,7 +1480,10 @@ def historial_estados_cuenta():
                              categorias_por_estado=categorias_por_estado)
     
     except Exception as e:
-        print(f"Error en historial_estados_cuenta: {e}")
+        import traceback
+        error_traceback = traceback.format_exc()
+        print(f"ERROR en historial_estados_cuenta: {str(e)}")
+        print(f"Traceback completo: {error_traceback}")
         flash(f'Error cargando historial: {str(e)}', 'error')
         return redirect(url_for('tarjetas_credito'))
 
@@ -2047,8 +2085,8 @@ def control_pagos_tarjetas():
         
         # Construir query base
         query = EstadosCuenta.query.filter_by(usuario_id=usuario_actual.id)
-    
-    # Aplicar filtros
+        
+        # Aplicar filtros
     if mes_filtro:
         # Convertir YYYY-MM a fecha de inicio y fin del mes
         year, month = mes_filtro.split('-')
@@ -2058,292 +2096,292 @@ def control_pagos_tarjetas():
         else:
             fecha_fin = datetime(int(year), int(month) + 1, 1).date()
         
-        query = query.filter(EstadosCuenta.fecha_corte >= fecha_inicio, EstadosCuenta.fecha_corte < fecha_fin)
-    
-    if banco_filtro:
-        query = query.filter(EstadosCuenta.nombre_banco == banco_filtro)
-    
-    if tarjeta_filtro:
-        # El filtro viene como "tipo_tarjeta - ultimos_digitos", necesitamos parsearlo
-        if ' - ' in tarjeta_filtro:
-            tipo_tarjeta, ultimos_digitos = tarjeta_filtro.split(' - ', 1)
-            query = query.filter(
-                EstadosCuenta.tipo_tarjeta == tipo_tarjeta,
-                EstadosCuenta.ultimos_digitos == ultimos_digitos
-            )
-        else:
-            # Fallback: si no tiene el formato, buscar solo por tipo
-            query = query.filter(EstadosCuenta.tipo_tarjeta == tarjeta_filtro)
-    
-    # Obtener estados de cuenta filtrados
-    estados_cuenta = query.order_by(EstadosCuenta.fecha_corte.desc()).all()
-    
-    # Debug: mostrar información de filtros aplicados
-    print(f"DEBUG control_pagos_tarjetas: Filtros aplicados - mes={mes_filtro}, banco={banco_filtro}, tarjeta={tarjeta_filtro}")
-    print(f"DEBUG control_pagos_tarjetas: Estados de cuenta encontrados: {len(estados_cuenta)}")
-    
-    # Obtener bancos únicos para filtros (todos los disponibles)
-    bancos_unicos = db.session.query(EstadosCuenta.nombre_banco).filter_by(usuario_id=usuario_actual.id).distinct().all()
-    bancos_unicos = [banco[0] for banco in bancos_unicos if banco[0]]
-    
-    # Obtener tarjetas únicas para filtros con formato completo (tipo_tarjeta - ultimos_digitos)
-    # También obtener datos completos para filtros inteligentes
-    tarjetas_completas = db.session.query(
-        EstadosCuenta.tipo_tarjeta,
-        EstadosCuenta.ultimos_digitos,
-        EstadosCuenta.nombre_banco
-    ).filter_by(usuario_id=usuario_actual.id).distinct().all()
-    
-    # Crear lista de tarjetas con formato "tipo_tarjeta - ultimos_digitos"
-    tarjetas_unicas = []
-    tarjetas_datos = {}  # Para filtros inteligentes: { "tipo_tarjeta - ultimos_digitos": {"banco": "...", "tipo": "...", "digitos": "..."} }
-    
-    for tipo, digitos, banco in tarjetas_completas:
-        if tipo and digitos:
-            tarjeta_formato = f"{tipo} - {digitos}"
-            if tarjeta_formato not in tarjetas_unicas:
-                tarjetas_unicas.append(tarjeta_formato)
-                tarjetas_datos[tarjeta_formato] = {
-                    "banco": banco,
-                    "tipo": tipo,
-                    "digitos": digitos
-                }
-    
-    # Obtener meses únicos para filtros (todos los disponibles)
-    fechas_corte = db.session.query(EstadosCuenta.fecha_corte).filter_by(usuario_id=usuario_actual.id).distinct().order_by(EstadosCuenta.fecha_corte.desc()).all()
-    meses_corte = []
-    for fecha in fechas_corte:
-        if fecha[0]:
-            mes_anio = fecha[0].strftime('%Y-%m')
-            if mes_anio not in meses_corte:
-                meses_corte.append(mes_anio)
-    
-    # Calcular estadísticas generales (solo de los estados filtrados)
-    total_deuda = sum(estado.deuda_total_pagar for estado in estados_cuenta if estado.deuda_total_pagar)
-    total_pagos_minimos = sum(estado.deuda_total_pagar * 0.1 for estado in estados_cuenta if estado.deuda_total_pagar)  # Asumiendo 10% mínimo
-    
-    # Estadísticas por categoría (usando SOLO consumos detallados de estados filtrados, excluyendo pagos)
-    categorias_stats = {}
-    total_consumos_procesados = 0
-    total_intereses = 0
-    cantidad_intereses = 0
-    total_cargos_gastos = 0
-    cantidad_cargos_gastos = 0
-    
-    for estado in estados_cuenta:
-        for consumo in estado.consumos_detalle:
-            # Solo incluir consumos reales, excluir pagos, abonos y notas de crédito
-            tipo_transaccion = (consumo.tipo_transaccion or '').lower()
-            es_pago = tipo_transaccion in ['pago', 'pagos', 'abono', 'abonos', 'nota de crédito', 'notas de crédito', 'credito', 'creditos']
-            
-            # Solo procesar si NO es un pago
-            if not es_pago:
-                descripcion = (consumo.descripcion or '').upper()
+            query = query.filter(EstadosCuenta.fecha_corte >= fecha_inicio, EstadosCuenta.fecha_corte < fecha_fin)
+        
+        if banco_filtro:
+            query = query.filter(EstadosCuenta.nombre_banco == banco_filtro)
+        
+        if tarjeta_filtro:
+            # El filtro viene como "tipo_tarjeta - ultimos_digitos", necesitamos parsearlo
+            if ' - ' in tarjeta_filtro:
+                tipo_tarjeta, ultimos_digitos = tarjeta_filtro.split(' - ', 1)
+                query = query.filter(
+                    EstadosCuenta.tipo_tarjeta == tipo_tarjeta,
+                    EstadosCuenta.ultimos_digitos == ultimos_digitos
+                )
+            else:
+                # Fallback: si no tiene el formato, buscar solo por tipo
+                query = query.filter(EstadosCuenta.tipo_tarjeta == tarjeta_filtro)
+        
+        # Obtener estados de cuenta filtrados
+        estados_cuenta = query.order_by(EstadosCuenta.fecha_corte.desc()).all()
+        
+        # Debug: mostrar información de filtros aplicados
+        print(f"DEBUG control_pagos_tarjetas: Filtros aplicados - mes={mes_filtro}, banco={banco_filtro}, tarjeta={tarjeta_filtro}")
+        print(f"DEBUG control_pagos_tarjetas: Estados de cuenta encontrados: {len(estados_cuenta)}")
+        
+        # Obtener bancos únicos para filtros (todos los disponibles)
+        bancos_unicos = db.session.query(EstadosCuenta.nombre_banco).filter_by(usuario_id=usuario_actual.id).distinct().all()
+        bancos_unicos = [banco[0] for banco in bancos_unicos if banco[0]]
+        
+        # Obtener tarjetas únicas para filtros con formato completo (tipo_tarjeta - ultimos_digitos)
+        # También obtener datos completos para filtros inteligentes
+        tarjetas_completas = db.session.query(
+            EstadosCuenta.tipo_tarjeta,
+            EstadosCuenta.ultimos_digitos,
+            EstadosCuenta.nombre_banco
+        ).filter_by(usuario_id=usuario_actual.id).distinct().all()
+        
+        # Crear lista de tarjetas con formato "tipo_tarjeta - ultimos_digitos"
+        tarjetas_unicas = []
+        tarjetas_datos = {}  # Para filtros inteligentes: { "tipo_tarjeta - ultimos_digitos": {"banco": "...", "tipo": "...", "digitos": "..."} }
+        
+        for tipo, digitos, banco in tarjetas_completas:
+            if tipo and digitos:
+                tarjeta_formato = f"{tipo} - {digitos}"
+                if tarjeta_formato not in tarjetas_unicas:
+                    tarjetas_unicas.append(tarjeta_formato)
+                    tarjetas_datos[tarjeta_formato] = {
+                        "banco": banco,
+                        "tipo": tipo,
+                        "digitos": digitos
+                    }
+        
+        # Obtener meses únicos para filtros (todos los disponibles)
+        fechas_corte = db.session.query(EstadosCuenta.fecha_corte).filter_by(usuario_id=usuario_actual.id).distinct().order_by(EstadosCuenta.fecha_corte.desc()).all()
+        meses_corte = []
+        for fecha in fechas_corte:
+            if fecha[0]:
+                mes_anio = fecha[0].strftime('%Y-%m')
+                if mes_anio not in meses_corte:
+                    meses_corte.append(mes_anio)
+        
+        # Calcular estadísticas generales (solo de los estados filtrados)
+        total_deuda = sum(estado.deuda_total_pagar for estado in estados_cuenta if estado.deuda_total_pagar)
+        total_pagos_minimos = sum(estado.deuda_total_pagar * 0.1 for estado in estados_cuenta if estado.deuda_total_pagar)  # Asumiendo 10% mínimo
+        
+        # Estadísticas por categoría (usando SOLO consumos detallados de estados filtrados, excluyendo pagos)
+        categorias_stats = {}
+        total_consumos_procesados = 0
+        total_intereses = 0
+        cantidad_intereses = 0
+        total_cargos_gastos = 0
+        cantidad_cargos_gastos = 0
+        
+        for estado in estados_cuenta:
+            for consumo in estado.consumos_detalle:
+                # Solo incluir consumos reales, excluir pagos, abonos y notas de crédito
+                tipo_transaccion = (consumo.tipo_transaccion or '').lower()
+                es_pago = tipo_transaccion in ['pago', 'pagos', 'abono', 'abonos', 'nota de crédito', 'notas de crédito', 'credito', 'creditos']
                 
-                # IDENTIFICAR INTERESES (solo intereses reales)
-                es_interes = tipo_transaccion in ['interes', 'interés']
-                patrones_interes = [
-                    'INTERES', 'INTERÉS', 'INTERESES', 'INTERÉSES',
-                    'INTERES FINANCIAMIENTO', 'INTERES POR MORA',
-                    'INTERES FINANCIERO', 'INTERES DE MORA'
-                ]
-                es_interes_por_descripcion = any(patron in descripcion for patron in patrones_interes)
+                # Solo procesar si NO es un pago
+                if not es_pago:
+                    descripcion = (consumo.descripcion or '').upper()
+                    
+                    # IDENTIFICAR INTERESES (solo intereses reales)
+                    es_interes = tipo_transaccion in ['interes', 'interés']
+                    patrones_interes = [
+                        'INTERES', 'INTERÉS', 'INTERESES', 'INTERÉSES',
+                        'INTERES FINANCIAMIENTO', 'INTERES POR MORA',
+                        'INTERES FINANCIERO', 'INTERES DE MORA'
+                    ]
+                    es_interes_por_descripcion = any(patron in descripcion for patron in patrones_interes)
+                    
+                    # IDENTIFICAR CARGOS Y GASTOS (todo lo demás que no es interés ni consumo normal)
+                    es_cargo_gasto = tipo_transaccion in ['cargo', 'gasto', 'comision', 'comisión', 'fee', 'tarifa']
+                    patrones_cargos_gastos = [
+                        'CARGO', 'CARGOS', 'COMISION', 'COMISIÓN', 'COMISIONES', 'COMISIONES',
+                        'FEE', 'TARIFA', 'TARIFAS', 'COSTO', 'COSTOS',
+                        'IVA', 'IMPUESTO', 'RETENCION', 'RETENCIÓN', 'RET IVA',
+                        'CONTRIBUCIÓN', 'CONTRIBUCION', 'SOLCA',
+                        'SALIDA DIVISAS', 'IMPUESTO SALIDA',
+                        'ND IVA', 'NOTA DEBITO', 'NOTA DÉBITO'
+                    ]
+                    es_cargo_gasto_por_descripcion = any(patron in descripcion for patron in patrones_cargos_gastos)
+                    
+                    if es_interes or es_interes_por_descripcion:
+                        # Agregar a categoría "Intereses"
+                        if 'Intereses' not in categorias_stats:
+                            categorias_stats['Intereses'] = {'total': 0, 'cantidad': 0}
+                        categorias_stats['Intereses']['total'] += consumo.monto or 0
+                        categorias_stats['Intereses']['cantidad'] += 1
+                        total_intereses += consumo.monto or 0
+                        cantidad_intereses += 1
+                    elif es_cargo_gasto or es_cargo_gasto_por_descripcion:
+                        # Agregar a categoría "Cargos y Gastos"
+                        if 'Cargos y Gastos' not in categorias_stats:
+                            categorias_stats['Cargos y Gastos'] = {'total': 0, 'cantidad': 0}
+                        categorias_stats['Cargos y Gastos']['total'] += consumo.monto or 0
+                        categorias_stats['Cargos y Gastos']['cantidad'] += 1
+                        total_cargos_gastos += consumo.monto or 0
+                        cantidad_cargos_gastos += 1
+                    else:
+                        # Categoría normal de consumo
+                        categoria = consumo.categoria or 'Sin categoría'
+                        if categoria not in categorias_stats:
+                            categorias_stats[categoria] = {'total': 0, 'cantidad': 0}
+                        categorias_stats[categoria]['total'] += consumo.monto or 0
+                        categorias_stats[categoria]['cantidad'] += 1
+                        total_consumos_procesados += 1
+        
+        # Agregar categoría "Deuda Anterior" con la suma de todas las deudas anteriores
+        total_deuda_anterior_categoria = sum(estado.deuda_anterior or 0 for estado in estados_cuenta if estado.deuda_anterior)
+        if total_deuda_anterior_categoria > 0:
+            categorias_stats['Deuda Anterior'] = {
+                'total': total_deuda_anterior_categoria,
+                'cantidad': len([estado for estado in estados_cuenta if estado.deuda_anterior and estado.deuda_anterior > 0])
+            }
+        
+        print(f"DEBUG control_pagos_tarjetas: Total consumos procesados para categorías: {total_consumos_procesados}")
+        print(f"DEBUG control_pagos_tarjetas: Total intereses: {total_intereses} ({cantidad_intereses} transacciones)")
+        print(f"DEBUG control_pagos_tarjetas: Total cargos y gastos: {total_cargos_gastos} ({cantidad_cargos_gastos} transacciones)")
+        print(f"DEBUG control_pagos_tarjetas: Total deuda anterior: {total_deuda_anterior_categoria}")
+        print(f"DEBUG control_pagos_tarjetas: Categorías encontradas: {list(categorias_stats.keys())}")
+        
+        # Crear tabla pivot de movimientos detallados (solo de estados filtrados)
+        # Separar movimientos en consumos y pagos
+        consumos_pivot = {}
+        pagos_pivot = {}
+        tarjetas_columnas = []
+        
+        # Recopilar todos los movimientos y organizarlos por descripción
+        for estado in estados_cuenta:
+            tarjeta_key = f"{estado.tipo_tarjeta}-{estado.ultimos_digitos}"
+            if tarjeta_key not in tarjetas_columnas:
+                tarjetas_columnas.append(tarjeta_key)
+            
+            for consumo in estado.consumos_detalle:
+                descripcion = consumo.descripcion or 'Sin descripción'
+                monto = consumo.monto or 0
+                tipo_transaccion = consumo.tipo_transaccion or 'otro'
                 
-                # IDENTIFICAR CARGOS Y GASTOS (todo lo demás que no es interés ni consumo normal)
-                es_cargo_gasto = tipo_transaccion in ['cargo', 'gasto', 'comision', 'comisión', 'fee', 'tarifa']
-                patrones_cargos_gastos = [
-                    'CARGO', 'CARGOS', 'COMISION', 'COMISIÓN', 'COMISIONES', 'COMISIONES',
-                    'FEE', 'TARIFA', 'TARIFAS', 'COSTO', 'COSTOS',
-                    'IVA', 'IMPUESTO', 'RETENCION', 'RETENCIÓN', 'RET IVA',
-                    'CONTRIBUCIÓN', 'CONTRIBUCION', 'SOLCA',
-                    'SALIDA DIVISAS', 'IMPUESTO SALIDA',
-                    'ND IVA', 'NOTA DEBITO', 'NOTA DÉBITO'
-                ]
-                es_cargo_gasto_por_descripcion = any(patron in descripcion for patron in patrones_cargos_gastos)
+                # Determinar si es consumo o pago
+                es_pago = tipo_transaccion.lower() in ['pago', 'pagos', 'abono', 'abonos', 'nota de crédito', 'notas de crédito']
                 
-                if es_interes or es_interes_por_descripcion:
-                    # Agregar a categoría "Intereses"
-                    if 'Intereses' not in categorias_stats:
-                        categorias_stats['Intereses'] = {'total': 0, 'cantidad': 0}
-                    categorias_stats['Intereses']['total'] += consumo.monto or 0
-                    categorias_stats['Intereses']['cantidad'] += 1
-                    total_intereses += consumo.monto or 0
-                    cantidad_intereses += 1
-                elif es_cargo_gasto or es_cargo_gasto_por_descripcion:
-                    # Agregar a categoría "Cargos y Gastos"
-                    if 'Cargos y Gastos' not in categorias_stats:
-                        categorias_stats['Cargos y Gastos'] = {'total': 0, 'cantidad': 0}
-                    categorias_stats['Cargos y Gastos']['total'] += consumo.monto or 0
-                    categorias_stats['Cargos y Gastos']['cantidad'] += 1
-                    total_cargos_gastos += consumo.monto or 0
-                    cantidad_cargos_gastos += 1
-                else:
-                    # Categoría normal de consumo
-                    categoria = consumo.categoria or 'Sin categoría'
-                    if categoria not in categorias_stats:
-                        categorias_stats[categoria] = {'total': 0, 'cantidad': 0}
-                    categorias_stats[categoria]['total'] += consumo.monto or 0
-                    categorias_stats[categoria]['cantidad'] += 1
-                    total_consumos_procesados += 1
-    
-    # Agregar categoría "Deuda Anterior" con la suma de todas las deudas anteriores
-    total_deuda_anterior_categoria = sum(estado.deuda_anterior or 0 for estado in estados_cuenta if estado.deuda_anterior)
-    if total_deuda_anterior_categoria > 0:
-        categorias_stats['Deuda Anterior'] = {
-            'total': total_deuda_anterior_categoria,
-            'cantidad': len([estado for estado in estados_cuenta if estado.deuda_anterior and estado.deuda_anterior > 0])
-        }
-    
-    print(f"DEBUG control_pagos_tarjetas: Total consumos procesados para categorías: {total_consumos_procesados}")
-    print(f"DEBUG control_pagos_tarjetas: Total intereses: {total_intereses} ({cantidad_intereses} transacciones)")
-    print(f"DEBUG control_pagos_tarjetas: Total cargos y gastos: {total_cargos_gastos} ({cantidad_cargos_gastos} transacciones)")
-    print(f"DEBUG control_pagos_tarjetas: Total deuda anterior: {total_deuda_anterior_categoria}")
-    print(f"DEBUG control_pagos_tarjetas: Categorías encontradas: {list(categorias_stats.keys())}")
-    
-    # Crear tabla pivot de movimientos detallados (solo de estados filtrados)
-    # Separar movimientos en consumos y pagos
-    consumos_pivot = {}
-    pagos_pivot = {}
-    tarjetas_columnas = []
-    
-    # Recopilar todos los movimientos y organizarlos por descripción
-    for estado in estados_cuenta:
-        tarjeta_key = f"{estado.tipo_tarjeta}-{estado.ultimos_digitos}"
-        if tarjeta_key not in tarjetas_columnas:
-            tarjetas_columnas.append(tarjeta_key)
+                # Seleccionar el diccionario apropiado
+                pivot_dict = pagos_pivot if es_pago else consumos_pivot
+                
+                if descripcion not in pivot_dict:
+                    pivot_dict[descripcion] = {}
+                
+                if tarjeta_key not in pivot_dict[descripcion]:
+                    pivot_dict[descripcion][tarjeta_key] = 0
+                
+                pivot_dict[descripcion][tarjeta_key] += monto
         
-        for consumo in estado.consumos_detalle:
-            descripcion = consumo.descripcion or 'Sin descripción'
-            monto = consumo.monto or 0
-            tipo_transaccion = consumo.tipo_transaccion or 'otro'
-            
-            # Determinar si es consumo o pago
-            es_pago = tipo_transaccion.lower() in ['pago', 'pagos', 'abono', 'abonos', 'nota de crédito', 'notas de crédito']
-            
-            # Seleccionar el diccionario apropiado
-            pivot_dict = pagos_pivot if es_pago else consumos_pivot
-            
-            if descripcion not in pivot_dict:
-                pivot_dict[descripcion] = {}
-            
-            if tarjeta_key not in pivot_dict[descripcion]:
-                pivot_dict[descripcion][tarjeta_key] = 0
-            
-            pivot_dict[descripcion][tarjeta_key] += monto
-    
-    # Mantener compatibilidad con código anterior
-    movimientos_pivot = {**consumos_pivot, **pagos_pivot}
-    
-    # Calcular totales por fila para consumos
-    totales_por_fila_consumos = {}
-    for descripcion, montos in consumos_pivot.items():
-        total_fila = sum(float(montos.get(tarjeta, 0) or 0) for tarjeta in tarjetas_columnas)
-        totales_por_fila_consumos[descripcion] = total_fila
-    
-    # Calcular totales por fila para pagos
-    totales_por_fila_pagos = {}
-    for descripcion, montos in pagos_pivot.items():
-        total_fila = sum(float(montos.get(tarjeta, 0) or 0) for tarjeta in tarjetas_columnas)
-        totales_por_fila_pagos[descripcion] = total_fila
-    
-    # Calcular totales por tarjeta para consumos y pagos
-    totales_consumos_por_tarjeta = {}
-    totales_pagos_por_tarjeta = {}
-    total_general_consumos = 0
-    total_general_pagos = 0
-    
-    # Calcular deuda anterior por tarjeta primero
-    deuda_anterior_por_tarjeta = {}
-    total_deuda_anterior = 0
-    
-    for estado in estados_cuenta:
-        tarjeta_key = f"{estado.tipo_tarjeta}-{estado.ultimos_digitos}"
-        deuda_anterior = estado.deuda_anterior or 0
+        # Mantener compatibilidad con código anterior
+        movimientos_pivot = {**consumos_pivot, **pagos_pivot}
         
-        if tarjeta_key not in deuda_anterior_por_tarjeta:
-            deuda_anterior_por_tarjeta[tarjeta_key] = 0
-        
-        deuda_anterior_por_tarjeta[tarjeta_key] += deuda_anterior
-        total_deuda_anterior += deuda_anterior
-    
-    # Calcular totales por tarjeta (incluyendo deuda anterior en consumos)
-    for tarjeta in tarjetas_columnas:
-        total_consumos_tarjeta = 0
-        total_pagos_tarjeta = 0
-        
-        # Sumar consumos por tarjeta
+        # Calcular totales por fila para consumos
+        totales_por_fila_consumos = {}
         for descripcion, montos in consumos_pivot.items():
-            total_consumos_tarjeta += montos.get(tarjeta, 0)
+            total_fila = sum(float(montos.get(tarjeta, 0) or 0) for tarjeta in tarjetas_columnas)
+            totales_por_fila_consumos[descripcion] = total_fila
         
-        # Sumar pagos por tarjeta
+        # Calcular totales por fila para pagos
+        totales_por_fila_pagos = {}
         for descripcion, montos in pagos_pivot.items():
-            total_pagos_tarjeta += montos.get(tarjeta, 0)
+            total_fila = sum(float(montos.get(tarjeta, 0) or 0) for tarjeta in tarjetas_columnas)
+            totales_por_fila_pagos[descripcion] = total_fila
         
-        # Incluir deuda anterior en los consumos
-        total_consumos_tarjeta += deuda_anterior_por_tarjeta.get(tarjeta, 0)
+        # Calcular totales por tarjeta para consumos y pagos
+        totales_consumos_por_tarjeta = {}
+        totales_pagos_por_tarjeta = {}
+        total_general_consumos = 0
+        total_general_pagos = 0
         
-        totales_consumos_por_tarjeta[tarjeta] = total_consumos_tarjeta
-        totales_pagos_por_tarjeta[tarjeta] = total_pagos_tarjeta
-        total_general_consumos += total_consumos_tarjeta
-        total_general_pagos += total_pagos_tarjeta
-    
-    # Calcular diferencia (consumos - pagos)
-    diferencia_por_tarjeta = {}
-    diferencia_general = total_general_consumos - total_general_pagos
-    
-    for tarjeta in tarjetas_columnas:
-        diferencia_por_tarjeta[tarjeta] = totales_consumos_por_tarjeta.get(tarjeta, 0) - totales_pagos_por_tarjeta.get(tarjeta, 0)
-    
-    # Agrupar consumos detallados por categoría para la tabla dinámica
-    categorias_detalle = {}
-    for estado in estados_cuenta:
-        tarjeta_key = f"{estado.tipo_tarjeta}-{estado.ultimos_digitos}"
-        for consumo in estado.consumos_detalle:
-            tipo_transaccion = (consumo.tipo_transaccion or '').lower()
-            es_pago = tipo_transaccion in ['pago', 'pagos', 'abono', 'abonos', 'nota de crédito', 'notas de crédito', 'credito', 'creditos']
+        # Calcular deuda anterior por tarjeta primero
+        deuda_anterior_por_tarjeta = {}
+        total_deuda_anterior = 0
+        
+        for estado in estados_cuenta:
+            tarjeta_key = f"{estado.tipo_tarjeta}-{estado.ultimos_digitos}"
+            deuda_anterior = estado.deuda_anterior or 0
             
-            if not es_pago:
-                descripcion = (consumo.descripcion or '').upper()
+            if tarjeta_key not in deuda_anterior_por_tarjeta:
+                deuda_anterior_por_tarjeta[tarjeta_key] = 0
+            
+            deuda_anterior_por_tarjeta[tarjeta_key] += deuda_anterior
+            total_deuda_anterior += deuda_anterior
+        
+        # Calcular totales por tarjeta (incluyendo deuda anterior en consumos)
+        for tarjeta in tarjetas_columnas:
+            total_consumos_tarjeta = 0
+            total_pagos_tarjeta = 0
+            
+            # Sumar consumos por tarjeta
+            for descripcion, montos in consumos_pivot.items():
+                total_consumos_tarjeta += montos.get(tarjeta, 0)
+            
+            # Sumar pagos por tarjeta
+            for descripcion, montos in pagos_pivot.items():
+                total_pagos_tarjeta += montos.get(tarjeta, 0)
+            
+            # Incluir deuda anterior en los consumos
+            total_consumos_tarjeta += deuda_anterior_por_tarjeta.get(tarjeta, 0)
+            
+            totales_consumos_por_tarjeta[tarjeta] = total_consumos_tarjeta
+            totales_pagos_por_tarjeta[tarjeta] = total_pagos_tarjeta
+            total_general_consumos += total_consumos_tarjeta
+            total_general_pagos += total_pagos_tarjeta
+        
+        # Calcular diferencia (consumos - pagos)
+        diferencia_por_tarjeta = {}
+        diferencia_general = total_general_consumos - total_general_pagos
+        
+        for tarjeta in tarjetas_columnas:
+            diferencia_por_tarjeta[tarjeta] = totales_consumos_por_tarjeta.get(tarjeta, 0) - totales_pagos_por_tarjeta.get(tarjeta, 0)
+        
+        # Agrupar consumos detallados por categoría para la tabla dinámica
+        categorias_detalle = {}
+        for estado in estados_cuenta:
+            tarjeta_key = f"{estado.tipo_tarjeta}-{estado.ultimos_digitos}"
+            for consumo in estado.consumos_detalle:
+                tipo_transaccion = (consumo.tipo_transaccion or '').lower()
+                es_pago = tipo_transaccion in ['pago', 'pagos', 'abono', 'abonos', 'nota de crédito', 'notas de crédito', 'credito', 'creditos']
                 
-                # Determinar categoría (misma lógica que arriba)
-                es_interes = tipo_transaccion in ['interes', 'interés']
-                patrones_interes = [
-                    'INTERES', 'INTERÉS', 'INTERESES', 'INTERÉSES',
-                    'INTERES FINANCIAMIENTO', 'INTERES POR MORA',
-                    'INTERES FINANCIERO', 'INTERES DE MORA'
-                ]
-                es_interes_por_descripcion = any(patron in descripcion for patron in patrones_interes)
-                
-                es_cargo_gasto = tipo_transaccion in ['cargo', 'gasto', 'comision', 'comisión', 'fee', 'tarifa']
-                patrones_cargos_gastos = [
-                    'CARGO', 'CARGOS', 'COMISION', 'COMISIÓN', 'COMISIONES', 'COMISIONES',
-                    'FEE', 'TARIFA', 'TARIFAS', 'COSTO', 'COSTOS',
-                    'IVA', 'IMPUESTO', 'RETENCION', 'RETENCIÓN', 'RET IVA',
-                    'CONTRIBUCIÓN', 'CONTRIBUCION', 'SOLCA',
-                    'SALIDA DIVISAS', 'IMPUESTO SALIDA',
-                    'ND IVA', 'NOTA DEBITO', 'NOTA DÉBITO'
-                ]
-                es_cargo_gasto_por_descripcion = any(patron in descripcion for patron in patrones_cargos_gastos)
-                
-                if es_interes or es_interes_por_descripcion:
-                    categoria = 'Intereses'
-                elif es_cargo_gasto or es_cargo_gasto_por_descripcion:
-                    categoria = 'Cargos y Gastos'
-                else:
-                    categoria = consumo.categoria or 'Sin categoría'
-                
-                if categoria not in categorias_detalle:
-                    categorias_detalle[categoria] = []
-                
-                categorias_detalle[categoria].append({
-                    'descripcion': consumo.descripcion or 'Sin descripción',
-                    'fecha': consumo.fecha.strftime('%d/%m/%Y') if consumo.fecha else 'Sin fecha',
-                    'monto': consumo.monto or 0,
-                    'tarjeta': tarjeta_key,
-                    'banco': estado.nombre_banco or 'Sin banco',
-                    'tipo_tarjeta': estado.tipo_tarjeta or 'Sin tipo'
-                })
-    
+                if not es_pago:
+                    descripcion = (consumo.descripcion or '').upper()
+                    
+                    # Determinar categoría (misma lógica que arriba)
+                    es_interes = tipo_transaccion in ['interes', 'interés']
+                    patrones_interes = [
+                        'INTERES', 'INTERÉS', 'INTERESES', 'INTERÉSES',
+                        'INTERES FINANCIAMIENTO', 'INTERES POR MORA',
+                        'INTERES FINANCIERO', 'INTERES DE MORA'
+                    ]
+                    es_interes_por_descripcion = any(patron in descripcion for patron in patrones_interes)
+                    
+                    es_cargo_gasto = tipo_transaccion in ['cargo', 'gasto', 'comision', 'comisión', 'fee', 'tarifa']
+                    patrones_cargos_gastos = [
+                        'CARGO', 'CARGOS', 'COMISION', 'COMISIÓN', 'COMISIONES', 'COMISIONES',
+                        'FEE', 'TARIFA', 'TARIFAS', 'COSTO', 'COSTOS',
+                        'IVA', 'IMPUESTO', 'RETENCION', 'RETENCIÓN', 'RET IVA',
+                        'CONTRIBUCIÓN', 'CONTRIBUCION', 'SOLCA',
+                        'SALIDA DIVISAS', 'IMPUESTO SALIDA',
+                        'ND IVA', 'NOTA DEBITO', 'NOTA DÉBITO'
+                    ]
+                    es_cargo_gasto_por_descripcion = any(patron in descripcion for patron in patrones_cargos_gastos)
+                    
+                    if es_interes or es_interes_por_descripcion:
+                        categoria = 'Intereses'
+                    elif es_cargo_gasto or es_cargo_gasto_por_descripcion:
+                        categoria = 'Cargos y Gastos'
+                    else:
+                        categoria = consumo.categoria or 'Sin categoría'
+                    
+                    if categoria not in categorias_detalle:
+                        categorias_detalle[categoria] = []
+                    
+                    categorias_detalle[categoria].append({
+                        'descripcion': consumo.descripcion or 'Sin descripción',
+                        'fecha': consumo.fecha.strftime('%d/%m/%Y') if consumo.fecha else 'Sin fecha',
+                        'monto': consumo.monto or 0,
+                        'tarjeta': tarjeta_key,
+                        'banco': estado.nombre_banco or 'Sin banco',
+                        'tipo_tarjeta': estado.tipo_tarjeta or 'Sin tipo'
+                    })
+        
         return render_template('control_pagos_tarjetas.html',
                              usuario=usuario_actual,
                              estados_cuenta=estados_cuenta,
@@ -2367,7 +2405,7 @@ def control_pagos_tarjetas():
                          diferencia_por_tarjeta=diferencia_por_tarjeta,
                          diferencia_general=diferencia_general,
                          totales_por_fila_consumos=totales_por_fila_consumos,
-                         totales_por_fila_pagos=totales_por_fila_pagos,
+                             totales_por_fila_pagos=totales_por_fila_pagos,
                              categorias_detalle=categorias_detalle,
                              mes_filtro_actual=mes_filtro,
                              banco_filtro_actual=banco_filtro,
