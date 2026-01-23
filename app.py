@@ -915,6 +915,17 @@ class EstadoCuentaDuplicadoException(Exception):
 
 def guardar_estado_cuenta(usuario_id, datos_analisis, archivo_original=None, extraer_movimientos_detallados=True, sobrescribir=False, estado_cuenta_id_sobrescribir=None):
     try:
+        # Asegurar que la columna fecha_inicio_periodo existe ANTES de hacer cualquier consulta
+        print("DEBUG guardar_estado_cuenta: Verificando columna fecha_inicio_periodo...")
+        ensure_fecha_inicio_periodo_column()
+        print("DEBUG guardar_estado_cuenta: Columna verificada")
+        
+        # Asegurar que la transacción esté limpia
+        try:
+            db.session.rollback()
+        except:
+            pass
+        
         # Calcular porcentaje de utilización si es posible
         porcentaje_utilizacion = None
         if datos_analisis.get('cupo_autorizado') and datos_analisis.get('cupo_utilizado'):
@@ -966,10 +977,26 @@ def guardar_estado_cuenta(usuario_id, datos_analisis, archivo_original=None, ext
                 pass
         
         if codigo_generado and codigo_generado == codigo_archivo and not sobrescribir:
-            estado_existente = EstadosCuenta.query.filter_by(
-                usuario_id=usuario_id,
-                archivo_original=codigo_generado
-            ).first()
+            # Asegurar que la transacción esté limpia antes de consultar
+            try:
+                db.session.rollback()
+            except:
+                pass
+            
+            try:
+                estado_existente = EstadosCuenta.query.filter_by(
+                    usuario_id=usuario_id,
+                    archivo_original=codigo_generado
+                ).first()
+            except Exception as query_error:
+                print(f"ERROR guardar_estado_cuenta en query de duplicados: {str(query_error)}")
+                # Si falla por columna faltante, intentar crearla de nuevo
+                ensure_fecha_inicio_periodo_column()
+                db.session.rollback()
+                estado_existente = EstadosCuenta.query.filter_by(
+                    usuario_id=usuario_id,
+                    archivo_original=codigo_generado
+                ).first()
             
             if estado_existente:
                 # Lanzar excepción con información del estado existente
@@ -2123,14 +2150,14 @@ def control_pagos_tarjetas():
         
         # Aplicar filtros
         if mes_filtro:
-        # Convertir YYYY-MM a fecha de inicio y fin del mes
-        year, month = mes_filtro.split('-')
-        fecha_inicio = datetime(int(year), int(month), 1).date()
-        if int(month) == 12:
-            fecha_fin = datetime(int(year) + 1, 1, 1).date()
-        else:
-            fecha_fin = datetime(int(year), int(month) + 1, 1).date()
-        
+            # Convertir YYYY-MM a fecha de inicio y fin del mes
+            year, month = mes_filtro.split('-')
+            fecha_inicio = datetime(int(year), int(month), 1).date()
+            if int(month) == 12:
+                fecha_fin = datetime(int(year) + 1, 1, 1).date()
+            else:
+                fecha_fin = datetime(int(year), int(month) + 1, 1).date()
+            
             query = query.filter(EstadosCuenta.fecha_corte >= fecha_inicio, EstadosCuenta.fecha_corte < fecha_fin)
         
         if banco_filtro:
@@ -3443,7 +3470,10 @@ with app.app_context():
         print("Base de datos inicializada correctamente")
         
         # Asegurar que la columna fecha_inicio_periodo existe
+        # IMPORTANTE: Ejecutar ANTES de cualquier consulta
+        print("DEBUG: Verificando/creando columna fecha_inicio_periodo al inicio...")
         ensure_fecha_inicio_periodo_column()
+        print("DEBUG: Verificación de columna completada")
         
         # Verificar que la tabla existe
         from sqlalchemy import inspect
