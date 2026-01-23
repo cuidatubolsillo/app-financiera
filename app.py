@@ -1883,6 +1883,14 @@ def api_guardar_estado_cuenta():
     except EstadoCuentaDuplicadoException as e:
         # Estado de cuenta duplicado - retornar información del existente
         estado_existente = e.estado_cuenta_existente
+        # Manejar fecha_inicio_periodo de forma segura (puede no existir en BD antigua)
+        fecha_inicio_periodo_str = None
+        try:
+            if hasattr(estado_existente, 'fecha_inicio_periodo') and estado_existente.fecha_inicio_periodo:
+                fecha_inicio_periodo_str = estado_existente.fecha_inicio_periodo.strftime('%d/%m/%Y')
+        except Exception:
+            pass  # Si no existe la columna, simplemente retornar None
+        
         return jsonify({
             'status': 'duplicate',
             'message': e.mensaje,
@@ -1891,7 +1899,7 @@ def api_guardar_estado_cuenta():
                 'banco': estado_existente.nombre_banco,
                 'tarjeta': estado_existente.tipo_tarjeta,
                 'fecha_corte': estado_existente.fecha_corte.strftime('%d/%m/%Y') if estado_existente.fecha_corte else None,
-                'fecha_inicio_periodo': estado_existente.fecha_inicio_periodo.strftime('%d/%m/%Y') if estado_existente.fecha_inicio_periodo else None,
+                'fecha_inicio_periodo': fecha_inicio_periodo_str,
                 'ultimos_digitos': estado_existente.ultimos_digitos,
                 'fecha_creacion': estado_existente.fecha_creacion.strftime('%d/%m/%Y %H:%M') if estado_existente.fecha_creacion else None
             }
@@ -3198,10 +3206,36 @@ def test_webhook():
         }), 500
 
 # Función para crear la base de datos y agregar datos de ejemplo
+def ensure_fecha_inicio_periodo_column():
+    """Asegurar que la columna fecha_inicio_periodo existe en la tabla estados_cuenta"""
+    try:
+        # Verificar si la columna existe
+        from sqlalchemy import inspect, text
+        inspector = inspect(db.engine)
+        columns = [col['name'] for col in inspector.get_columns('estados_cuenta')]
+        
+        if 'fecha_inicio_periodo' not in columns:
+            print("Columna fecha_inicio_periodo no existe, creándola...")
+            # Agregar la columna
+            db.session.execute(text("ALTER TABLE estados_cuenta ADD COLUMN fecha_inicio_periodo DATE"))
+            db.session.commit()
+            print("✅ Columna fecha_inicio_periodo creada exitosamente")
+        else:
+            print("✅ Columna fecha_inicio_periodo ya existe")
+    except Exception as e:
+        print(f"ADVERTENCIA: Error verificando/creando columna fecha_inicio_periodo: {str(e)}")
+        try:
+            db.session.rollback()
+        except:
+            pass
+
 def init_db():
     with app.app_context():
         # Crear todas las tablas - Forzar actualización de esquema en producción
         db.create_all()
+        
+        # Asegurar que la columna fecha_inicio_periodo existe
+        ensure_fecha_inicio_periodo_column()
         
         # Inicializar bancos y tipos de tarjetas con abreviaciones
         inicializar_bancos_oficiales()
@@ -3271,6 +3305,9 @@ with app.app_context():
         db.create_all()
         print("Base de datos inicializada correctamente")
         
+        # Asegurar que la columna fecha_inicio_periodo existe
+        ensure_fecha_inicio_periodo_column()
+        
         # Verificar que la tabla existe
         from sqlalchemy import inspect
         inspector = inspect(db.engine)
@@ -3287,6 +3324,7 @@ with app.app_context():
         # Intentar crear las tablas de nuevo
         try:
             db.create_all()
+            ensure_fecha_inicio_periodo_column()
             print("Base de datos creada en segundo intento")
         except Exception as e2:
             print(f"Error critico: {e2}")

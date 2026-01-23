@@ -755,6 +755,8 @@
     let selectedFile = null;
     let pageStartTime = Date.now();
     let currentAnalysisData = null; // Para almacenar los datos del análisis actual
+    let isSaving = false; // Bandera para prevenir doble guardado
+    let isSaved = false; // Bandera para indicar si ya se guardó
     
     // Elementos del DOM
     const uploadArea = document.getElementById('uploadArea');
@@ -895,6 +897,8 @@
             resultsContainer.innerHTML = '';
             resultsContainer.classList.remove('active');
             currentAnalysisData = null;
+            isSaving = false; // Resetear bandera de guardado
+            isSaved = false; // Resetear bandera de guardado completado
             
             selectedFile = file;
             fileName.textContent = file.name;
@@ -913,6 +917,8 @@
             resultsContainer.innerHTML = '';
             resultsContainer.classList.remove('active');
             currentAnalysisData = null;
+            isSaving = false; // Resetear bandera de guardado
+            isSaved = false; // Resetear bandera de guardado completado
             
             // Mostrar loading
             loading.classList.add('active');
@@ -1090,9 +1096,12 @@
             // Agregar botón de guardar en la parte inferior
             const saveButtonContainer = document.createElement('div');
             saveButtonContainer.className = 'save-button-container';
+            const buttonText = isSaved ? '✅ Ya Guardado' : '💾 Guardar Estado de Cuenta';
+            const buttonDisabled = isSaved ? 'disabled' : '';
+            const buttonStyle = isSaved ? 'style="opacity: 0.6; cursor: not-allowed;"' : '';
             saveButtonContainer.innerHTML = `
-                <button class="btn-save-large" onclick="mostrarModalGuardar()">
-                    💾 Guardar Estado de Cuenta
+                <button class="btn-save-large" onclick="mostrarModalGuardar()" ${buttonDisabled} ${buttonStyle}>
+                    ${buttonText}
                 </button>
             `;
             resultsContainer.appendChild(saveButtonContainer);
@@ -1118,11 +1127,17 @@
         // ===== FUNCIONES DEL MODAL DE GUARDAR =====
         
         function mostrarModalGuardar() {
+            // Prevenir mostrar el modal si ya se guardó o se está guardando
+            if (isSaved || isSaving) {
+                console.log('Ya se guardó o se está guardando, no mostrar modal');
+                return;
+            }
             document.getElementById('saveModal').style.display = 'block';
         }
         
         function cerrarModalGuardar() {
             document.getElementById('saveModal').style.display = 'none';
+            // NO limpiar currentAnalysisData aquí para permitir reintentos
         }
         
         function mostrarModalExito(mensaje) {
@@ -1141,10 +1156,26 @@
         let estadoCuentaDuplicadoId = null; // Para almacenar el ID del estado duplicado
 
         async function guardarEstadoCuenta() {
-            if (!currentAnalysisData) {
-                showError('No hay datos de análisis para guardar');
+            // Prevenir doble guardado
+            if (isSaving) {
+                console.log('Ya se está guardando, ignorar segundo intento');
                 return;
             }
+            
+            if (isSaved) {
+                console.log('Ya se guardó, no permitir guardado duplicado');
+                cerrarModalGuardar();
+                return;
+            }
+            
+            if (!currentAnalysisData) {
+                showError('No hay datos de análisis para guardar');
+                cerrarModalGuardar();
+                return;
+            }
+            
+            // Marcar que se está guardando
+            isSaving = true;
             
             const btnSave = document.getElementById('btnSave');
             const saveModal = document.getElementById('saveModal');
@@ -1173,6 +1204,10 @@
                 console.log('Resultado del guardado:', result);
                 
                 if (result.status === 'success') {
+                    // Marcar como guardado
+                    isSaved = true;
+                    isSaving = false;
+                    
                     // Cerrar modal de guardar INMEDIATAMENTE
                     if (saveModal) {
                         saveModal.style.display = 'none';
@@ -1186,10 +1221,11 @@
                         saveButtonLarge.textContent = '✅ Ya Guardado';
                         saveButtonLarge.style.opacity = '0.6';
                         saveButtonLarge.style.cursor = 'not-allowed';
+                        saveButtonLarge.onclick = null; // Remover el evento onclick
                     }
                     
-                    // Limpiar datos para evitar guardados duplicados
-                    currentAnalysisData = null;
+                    // NO limpiar currentAnalysisData aquí para mantener los datos visibles
+                    // pero marcar como guardado para prevenir guardados duplicados
                     
                     // Mostrar modal de éxito DESPUÉS de cerrar el modal de guardar
                     setTimeout(() => {
@@ -1216,11 +1252,14 @@
             } catch (error) {
                 console.error('Error guardando estado:', error);
                 showError('Error de conexión al guardar: ' + error.message);
+                // Si hay error, permitir reintento
+                isSaving = false;
             } finally {
-                // Solo restaurar el botón si NO fue exitoso
-                if (btnSave && btnSave.textContent === '💾 Guardando...') {
+                // Solo restaurar el botón si NO fue exitoso y NO está guardado
+                if (!isSaved && btnSave && btnSave.textContent === '💾 Guardando...') {
                     btnSave.disabled = false;
                     btnSave.textContent = '💾 Guardar';
+                    isSaving = false; // Permitir reintento
                 }
             }
         }
@@ -1279,6 +1318,10 @@
                 console.log('Resultado del sobrescritura:', result);
                 
                 if (result.status === 'success') {
+                    // Marcar como guardado
+                    isSaved = true;
+                    isSaving = false;
+                    
                     // Cerrar modal de duplicado INMEDIATAMENTE
                     if (duplicateModal) {
                         duplicateModal.style.display = 'none';
@@ -1292,10 +1335,10 @@
                         saveButtonLarge.textContent = '✅ Ya Guardado';
                         saveButtonLarge.style.opacity = '0.6';
                         saveButtonLarge.style.cursor = 'not-allowed';
+                        saveButtonLarge.onclick = null; // Remover el evento onclick
                     }
                     
-                    // Limpiar datos para evitar guardados duplicados
-                    currentAnalysisData = null;
+                    // NO limpiar currentAnalysisData aquí para mantener los datos visibles
                     estadoCuentaDuplicadoId = null;
                     
                     // Mostrar modal de éxito DESPUÉS de cerrar el modal de duplicado
