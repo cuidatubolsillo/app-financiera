@@ -2074,20 +2074,55 @@ def control_pagos_tarjetas():
     """Control de pagos de tarjetas de crédito con filtros dinámicos"""
     try:
         # Asegurar que la columna existe ANTES de hacer cualquier consulta
-        ensure_fecha_inicio_periodo_column()
+        print("DEBUG control_pagos_tarjetas: Iniciando...")
+        try:
+            ensure_fecha_inicio_periodo_column()
+            print("DEBUG control_pagos_tarjetas: Columna verificada")
+        except Exception as col_error:
+            print(f"ERROR control_pagos_tarjetas verificando columna: {str(col_error)}")
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")
+            # Continuar de todas formas - puede que la columna ya exista
         
-        usuario_actual = Usuario.query.get(session['user_id'])
+        # Asegurar que la transacción esté limpia
+        try:
+            db.session.rollback()
+        except:
+            pass
+        
+        usuario_actual = get_current_user()
+        if not usuario_actual:
+            print("ERROR control_pagos_tarjetas: Usuario no autenticado")
+            flash('Por favor, inicia sesión para acceder a esta página.', 'warning')
+            return redirect(url_for('login'))
+        
+        print(f"DEBUG control_pagos_tarjetas: Usuario ID: {usuario_actual.id}")
         
         # Obtener parámetros de filtro de la URL
         mes_filtro = request.args.get('mes', '')
         banco_filtro = request.args.get('banco', '')
         tarjeta_filtro = request.args.get('tarjeta', '')
         
-        # Construir query base
-        query = EstadosCuenta.query.filter_by(usuario_id=usuario_actual.id)
+        # Construir query base - con manejo de errores robusto
+        try:
+            query = EstadosCuenta.query.filter_by(usuario_id=usuario_actual.id)
+            print(f"DEBUG control_pagos_tarjetas: Query base creada")
+        except Exception as query_error:
+            print(f"ERROR control_pagos_tarjetas creando query: {str(query_error)}")
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")
+            # Intentar crear la columna de nuevo y reintentar
+            try:
+                ensure_fecha_inicio_periodo_column()
+                db.session.rollback()
+                query = EstadosCuenta.query.filter_by(usuario_id=usuario_actual.id)
+                print(f"DEBUG control_pagos_tarjetas: Query creada después de verificar columna")
+            except Exception as retry_error:
+                print(f"ERROR control_pagos_tarjetas en retry: {str(retry_error)}")
+                raise retry_error
         
         # Aplicar filtros
-    if mes_filtro:
+        if mes_filtro:
         # Convertir YYYY-MM a fecha de inicio y fin del mes
         year, month = mes_filtro.split('-')
         fecha_inicio = datetime(int(year), int(month), 1).date()

@@ -1093,18 +1093,33 @@
             createGroupCards(grupo2Fields, '💳 Información de Cupo', 'grupo-2');
             createGroupCards(grupo3Fields, '💰 Totales y Pagos', 'grupo-3');
             
-            // Agregar botón de guardar en la parte inferior
-            const saveButtonContainer = document.createElement('div');
-            saveButtonContainer.className = 'save-button-container';
-            const buttonText = isSaved ? '✅ Ya Guardado' : '💾 Guardar Estado de Cuenta';
-            const buttonDisabled = isSaved ? 'disabled' : '';
-            const buttonStyle = isSaved ? 'style="opacity: 0.6; cursor: not-allowed;"' : '';
-            saveButtonContainer.innerHTML = `
-                <button class="btn-save-large" onclick="mostrarModalGuardar()" ${buttonDisabled} ${buttonStyle}>
-                    ${buttonText}
-                </button>
-            `;
-            resultsContainer.appendChild(saveButtonContainer);
+            // Agregar botón de guardar en la parte inferior SOLO si no está guardado
+            // Verificar si ya existe un botón de guardar y removerlo primero
+            const existingButton = document.querySelector('.save-button-container');
+            if (existingButton) {
+                existingButton.remove();
+            }
+            
+            if (!isSaved) {
+                const saveButtonContainer = document.createElement('div');
+                saveButtonContainer.className = 'save-button-container';
+                saveButtonContainer.innerHTML = `
+                    <button class="btn-save-large" id="btnSaveLarge" onclick="mostrarModalGuardar()">
+                        💾 Guardar Estado de Cuenta
+                    </button>
+                `;
+                resultsContainer.appendChild(saveButtonContainer);
+            } else {
+                // Si ya está guardado, mostrar mensaje en lugar de botón
+                const savedMessage = document.createElement('div');
+                savedMessage.className = 'save-button-container';
+                savedMessage.innerHTML = `
+                    <div style="text-align: center; padding: 20px; background: #d4edda; border-radius: 8px; color: #155724;">
+                        ✅ Estado de cuenta ya guardado en el historial
+                    </div>
+                `;
+                resultsContainer.appendChild(savedMessage);
+            }
         }
         
         function showError(message) {
@@ -1214,14 +1229,14 @@
                     }
                     cerrarModalGuardar(); // Asegurar que se cierre
                     
-                    // Deshabilitar el botón de "Guardar Estado de Cuenta" en la página
-                    const saveButtonLarge = document.querySelector('.btn-save-large');
-                    if (saveButtonLarge) {
-                        saveButtonLarge.disabled = true;
-                        saveButtonLarge.textContent = '✅ Ya Guardado';
-                        saveButtonLarge.style.opacity = '0.6';
-                        saveButtonLarge.style.cursor = 'not-allowed';
-                        saveButtonLarge.onclick = null; // Remover el evento onclick
+                    // Remover completamente el botón de guardar y reemplazarlo con mensaje
+                    const saveButtonContainer = document.querySelector('.save-button-container');
+                    if (saveButtonContainer) {
+                        saveButtonContainer.innerHTML = `
+                            <div style="text-align: center; padding: 20px; background: #d4edda; border-radius: 8px; color: #155724;">
+                                ✅ Estado de cuenta guardado exitosamente en el historial
+                            </div>
+                        `;
                     }
                     
                     // NO limpiar currentAnalysisData aquí para mantener los datos visibles
@@ -1328,14 +1343,14 @@
                     }
                     cerrarModalDuplicado(); // Asegurar que se cierre
                     
-                    // Deshabilitar el botón de "Guardar Estado de Cuenta" en la página
-                    const saveButtonLarge = document.querySelector('.btn-save-large');
-                    if (saveButtonLarge) {
-                        saveButtonLarge.disabled = true;
-                        saveButtonLarge.textContent = '✅ Ya Guardado';
-                        saveButtonLarge.style.opacity = '0.6';
-                        saveButtonLarge.style.cursor = 'not-allowed';
-                        saveButtonLarge.onclick = null; // Remover el evento onclick
+                    // Remover completamente el botón de guardar y reemplazarlo con mensaje
+                    const saveButtonContainer = document.querySelector('.save-button-container');
+                    if (saveButtonContainer) {
+                        saveButtonContainer.innerHTML = `
+                            <div style="text-align: center; padding: 20px; background: #d4edda; border-radius: 8px; color: #155724;">
+                                ✅ Estado de cuenta actualizado exitosamente en el historial
+                            </div>
+                        `;
                     }
                     
                     // NO limpiar currentAnalysisData aquí para mantener los datos visibles
