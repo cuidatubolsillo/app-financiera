@@ -543,6 +543,15 @@ def estandarizar_banco(nombre_banco):
         return None
     
     try:
+        # Asegurar que la columna abreviacion existe ANTES de hacer cualquier consulta
+        ensure_abreviaciones_columns()
+        
+        # Limpiar transacción antes de continuar
+        try:
+            db.session.rollback()
+        except:
+            pass
+        
         print(f"DEBUG estandarizar_banco: Buscando banco '{nombre_banco}'")
         
         # Limpiar el nombre del banco
@@ -676,6 +685,15 @@ def estandarizar_tipo_tarjeta(tipo_tarjeta):
         return None
     
     try:
+        # Asegurar que la columna abreviacion existe ANTES de hacer cualquier consulta
+        ensure_abreviaciones_columns()
+        
+        # Limpiar transacción antes de continuar
+        try:
+            db.session.rollback()
+        except:
+            pass
+        
         # Limpiar el nombre de la tarjeta
         tipo_limpio = tipo_tarjeta.strip().lower()
         
@@ -915,10 +933,12 @@ class EstadoCuentaDuplicadoException(Exception):
 
 def guardar_estado_cuenta(usuario_id, datos_analisis, archivo_original=None, extraer_movimientos_detallados=True, sobrescribir=False, estado_cuenta_id_sobrescribir=None):
     try:
-        # Asegurar que la columna fecha_inicio_periodo existe ANTES de hacer cualquier consulta
-        print("DEBUG guardar_estado_cuenta: Verificando columna fecha_inicio_periodo...")
-        ensure_fecha_inicio_periodo_column()
-        print("DEBUG guardar_estado_cuenta: Columna verificada")
+        # Asegurar que todas las columnas necesarias existen ANTES de hacer cualquier consulta
+        print("DEBUG guardar_estado_cuenta: Verificando columnas necesarias...")
+        ensure_estados_cuenta_columns()
+        ensure_abreviaciones_columns()
+        ensure_consumos_detalle_categoria_503020()
+        print("DEBUG guardar_estado_cuenta: Columnas verificadas")
         
         # Asegurar que la transacción esté limpia
         try:
@@ -1901,6 +1921,19 @@ def api_guardar_estado_cuenta():
     API endpoint para guardar un estado de cuenta analizado con análisis completo
     """
     try:
+        # Asegurar que todas las columnas necesarias existen ANTES de cualquier consulta
+        print("DEBUG api_guardar_estado_cuenta: Verificando columnas necesarias...")
+        ensure_estados_cuenta_columns()
+        ensure_abreviaciones_columns()
+        ensure_consumos_detalle_categoria_503020()
+        print("DEBUG api_guardar_estado_cuenta: Columnas verificadas")
+        
+        # Limpiar transacción antes de continuar
+        try:
+            db.session.rollback()
+        except:
+            pass
+        
         usuario_actual = get_current_user()
         if not usuario_actual:
             return jsonify({'status': 'error', 'message': 'Usuario no autenticado'})
@@ -3533,6 +3566,61 @@ def delete_transaction(transaction_id):
             'message': f'Error eliminando transacción: {str(e)}'
         }), 500
 
+def column_exists(table_name, column_name):
+    """
+    Verifica si una columna existe en una tabla.
+    Funciona tanto con PostgreSQL como con SQLite.
+    """
+    try:
+        # Limpiar transacción antes de verificar
+        try:
+            db.session.rollback()
+        except:
+            pass
+        
+        # Detectar el tipo de base de datos
+        db_url = str(db.engine.url)
+        
+        if 'postgresql' in db_url.lower():
+            # PostgreSQL: usar information_schema
+            query = text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = :table_name 
+                AND column_name = :column_name
+            """)
+            result = db.session.execute(query, {'table_name': table_name, 'column_name': column_name})
+            exists = result.fetchone() is not None
+            try:
+                db.session.rollback()
+            except:
+                pass
+            return exists
+        else:
+            # SQLite: intentar SELECT directo
+            try:
+                query = text(f"SELECT {column_name} FROM {table_name} LIMIT 1")
+                result = db.session.execute(query)
+                result.fetchone()
+                try:
+                    db.session.rollback()
+                except:
+                    pass
+                return True
+            except Exception:
+                try:
+                    db.session.rollback()
+                except:
+                    pass
+                return False
+    except Exception as e:
+        print(f"Error verificando existencia de columna {table_name}.{column_name}: {e}")
+        try:
+            db.session.rollback()
+        except:
+            pass
+        return False
+
 def ensure_avatar_url_column():
     """
     Asegura que la columna avatar_url existe en la tabla usuario.
@@ -3546,17 +3634,10 @@ def ensure_avatar_url_column():
             except:
                 pass
             
-            # Verificar si la columna existe usando SQL directo
-            # Esto funciona tanto en SQLite como en PostgreSQL
-            try:
-                result = db.session.execute(text("SELECT avatar_url FROM usuario LIMIT 1"))
-                result.fetchone()
+            # Verificar si la columna existe
+            if column_exists('usuario', 'avatar_url'):
                 print("Columna avatar_url ya existe.")
-                try:
-                    db.session.rollback()
-                except:
-                    pass
-            except Exception:
+            else:
                 # La columna no existe, crearla
                 print("Columna avatar_url no existe. Creándola...")
                 try:
@@ -3565,8 +3646,14 @@ def ensure_avatar_url_column():
                         db.session.rollback()
                     except:
                         pass
-                    # Para PostgreSQL - usar IF NOT EXISTS
-                    db.session.execute(text("ALTER TABLE usuario ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(200)"))
+                    
+                    # Detectar tipo de base de datos
+                    db_url = str(db.engine.url)
+                    if 'postgresql' in db_url.lower():
+                        db.session.execute(text("ALTER TABLE usuario ADD COLUMN avatar_url VARCHAR(200)"))
+                    else:
+                        db.session.execute(text("ALTER TABLE usuario ADD COLUMN avatar_url TEXT"))
+                    
                     db.session.commit()
                     print("Columna avatar_url creada exitosamente.")
                     try:
@@ -3574,26 +3661,15 @@ def ensure_avatar_url_column():
                     except:
                         pass
                 except Exception as e:
-                    # Si IF NOT EXISTS no funciona, intentar sin él
+                    error_msg = str(e).lower()
+                    if 'already exists' in error_msg or 'duplicate' in error_msg or 'column' in error_msg and 'already' in error_msg:
+                        print("Columna avatar_url ya existe (detectado por error).")
+                    else:
+                        print(f"Error creando columna avatar_url: {e}")
                     try:
                         db.session.rollback()
-                        db.session.execute(text("ALTER TABLE usuario ADD COLUMN avatar_url TEXT"))
-                        db.session.commit()
-                        print("Columna avatar_url creada exitosamente (método alternativo).")
-                        try:
-                            db.session.rollback()
-                        except:
-                            pass
-                    except Exception as e2:
-                        error_msg = str(e2).lower()
-                        if 'already exists' in error_msg or 'duplicate' in error_msg:
-                            print("Columna avatar_url ya existe (detectado por error).")
-                        else:
-                            print(f"Error creando columna avatar_url: {e2}")
-                        try:
-                            db.session.rollback()
-                        except:
-                            pass
+                    except:
+                        pass
     except Exception as e:
         print(f"Error verificando/creando columna avatar_url: {e}")
         try:
@@ -3616,21 +3692,9 @@ def ensure_estados_cuenta_columns():
                 pass
             
             # Verificar y agregar fecha_inicio_periodo
-            try:
-                # Limpiar transacción antes de verificar
-                try:
-                    db.session.rollback()
-                except:
-                    pass
-                result = db.session.execute(text("SELECT fecha_inicio_periodo FROM estados_cuenta LIMIT 1"))
-                result.fetchone()
+            if column_exists('estados_cuenta', 'fecha_inicio_periodo'):
                 print("Columna fecha_inicio_periodo ya existe.")
-                # Limpiar después de verificar
-                try:
-                    db.session.rollback()
-                except:
-                    pass
-            except Exception:
+            else:
                 print("Columna fecha_inicio_periodo no existe. Creándola...")
                 try:
                     # Limpiar transacción antes de crear
@@ -3638,36 +3702,23 @@ def ensure_estados_cuenta_columns():
                         db.session.rollback()
                     except:
                         pass
-                    # Para PostgreSQL - usar IF NOT EXISTS
-                    db.session.execute(text("ALTER TABLE estados_cuenta ADD COLUMN IF NOT EXISTS fecha_inicio_periodo DATE"))
+                    db.session.execute(text("ALTER TABLE estados_cuenta ADD COLUMN fecha_inicio_periodo DATE"))
                     db.session.commit()
                     print("Columna fecha_inicio_periodo creada exitosamente.")
-                    # Limpiar después de crear
                     try:
                         db.session.rollback()
                     except:
                         pass
                 except Exception as e:
-                    # Si IF NOT EXISTS no funciona, intentar sin él
+                    error_msg = str(e).lower()
+                    if 'already exists' in error_msg or 'duplicate' in error_msg or 'column' in error_msg and 'already' in error_msg:
+                        print("Columna fecha_inicio_periodo ya existe (detectado por error).")
+                    else:
+                        print(f"Error creando columna fecha_inicio_periodo: {e}")
                     try:
                         db.session.rollback()
-                        db.session.execute(text("ALTER TABLE estados_cuenta ADD COLUMN fecha_inicio_periodo DATE"))
-                        db.session.commit()
-                        print("Columna fecha_inicio_periodo creada exitosamente (método alternativo).")
-                        try:
-                            db.session.rollback()
-                        except:
-                            pass
-                    except Exception as e2:
-                        error_msg = str(e2).lower()
-                        if 'already exists' in error_msg or 'duplicate' in error_msg:
-                            print("Columna fecha_inicio_periodo ya existe (detectado por error).")
-                        else:
-                            print(f"Error creando columna fecha_inicio_periodo: {e2}")
-                        try:
-                            db.session.rollback()
-                        except:
-                            pass
+                    except:
+                        pass
             
             # Limpiar transacción antes de verificar minimo_a_pagar
             try:
@@ -3676,15 +3727,9 @@ def ensure_estados_cuenta_columns():
                 pass
             
             # Verificar y agregar minimo_a_pagar
-            try:
-                result = db.session.execute(text("SELECT minimo_a_pagar FROM estados_cuenta LIMIT 1"))
-                result.fetchone()
+            if column_exists('estados_cuenta', 'minimo_a_pagar'):
                 print("Columna minimo_a_pagar ya existe.")
-                try:
-                    db.session.rollback()
-                except:
-                    pass
-            except Exception:
+            else:
                 print("Columna minimo_a_pagar no existe. Creándola...")
                 try:
                     # Limpiar transacción antes de crear
@@ -3692,8 +3737,7 @@ def ensure_estados_cuenta_columns():
                         db.session.rollback()
                     except:
                         pass
-                    # Para PostgreSQL - usar IF NOT EXISTS
-                    db.session.execute(text("ALTER TABLE estados_cuenta ADD COLUMN IF NOT EXISTS minimo_a_pagar REAL"))
+                    db.session.execute(text("ALTER TABLE estados_cuenta ADD COLUMN minimo_a_pagar REAL"))
                     db.session.commit()
                     print("Columna minimo_a_pagar creada exitosamente.")
                     try:
@@ -3701,26 +3745,15 @@ def ensure_estados_cuenta_columns():
                     except:
                         pass
                 except Exception as e:
-                    # Si IF NOT EXISTS no funciona, intentar sin él
+                    error_msg = str(e).lower()
+                    if 'already exists' in error_msg or 'duplicate' in error_msg or 'column' in error_msg and 'already' in error_msg:
+                        print("Columna minimo_a_pagar ya existe (detectado por error).")
+                    else:
+                        print(f"Error creando columna minimo_a_pagar: {e}")
                     try:
                         db.session.rollback()
-                        db.session.execute(text("ALTER TABLE estados_cuenta ADD COLUMN minimo_a_pagar REAL"))
-                        db.session.commit()
-                        print("Columna minimo_a_pagar creada exitosamente (método alternativo).")
-                        try:
-                            db.session.rollback()
-                        except:
-                            pass
-                    except Exception as e2:
-                        error_msg = str(e2).lower()
-                        if 'already exists' in error_msg or 'duplicate' in error_msg:
-                            print("Columna minimo_a_pagar ya existe (detectado por error).")
-                        else:
-                            print(f"Error creando columna minimo_a_pagar: {e2}")
-                        try:
-                            db.session.rollback()
-                        except:
-                            pass
+                    except:
+                        pass
     except Exception as e:
         print(f"Error verificando/creando columnas de estados_cuenta: {e}")
         try:
@@ -3743,20 +3776,9 @@ def ensure_abreviaciones_columns():
                 pass
             
             # Verificar y agregar abreviacion en banco_estandarizado
-            try:
-                # Limpiar transacción antes de verificar
-                try:
-                    db.session.rollback()
-                except:
-                    pass
-                result = db.session.execute(text("SELECT abreviacion FROM banco_estandarizado LIMIT 1"))
-                result.fetchone()
+            if column_exists('banco_estandarizado', 'abreviacion'):
                 print("Columna abreviacion ya existe en banco_estandarizado.")
-                try:
-                    db.session.rollback()
-                except:
-                    pass
-            except Exception:
+            else:
                 print("Columna abreviacion no existe en banco_estandarizado. Creándola...")
                 try:
                     # Limpiar transacción antes de crear
@@ -3764,8 +3786,14 @@ def ensure_abreviaciones_columns():
                         db.session.rollback()
                     except:
                         pass
-                    # Para PostgreSQL - usar IF NOT EXISTS
-                    db.session.execute(text("ALTER TABLE banco_estandarizado ADD COLUMN IF NOT EXISTS abreviacion VARCHAR(50)"))
+                    
+                    # Detectar tipo de base de datos
+                    db_url = str(db.engine.url)
+                    if 'postgresql' in db_url.lower():
+                        db.session.execute(text("ALTER TABLE banco_estandarizado ADD COLUMN abreviacion VARCHAR(50)"))
+                    else:
+                        db.session.execute(text("ALTER TABLE banco_estandarizado ADD COLUMN abreviacion TEXT"))
+                    
                     db.session.commit()
                     print("Columna abreviacion creada exitosamente en banco_estandarizado.")
                     try:
@@ -3773,26 +3801,15 @@ def ensure_abreviaciones_columns():
                     except:
                         pass
                 except Exception as e:
-                    # Si IF NOT EXISTS no funciona, intentar sin él
+                    error_msg = str(e).lower()
+                    if 'already exists' in error_msg or 'duplicate' in error_msg or 'column' in error_msg and 'already' in error_msg:
+                        print("Columna abreviacion ya existe en banco_estandarizado (detectado por error).")
+                    else:
+                        print(f"Error creando columna abreviacion en banco_estandarizado: {e}")
                     try:
                         db.session.rollback()
-                        db.session.execute(text("ALTER TABLE banco_estandarizado ADD COLUMN abreviacion TEXT"))
-                        db.session.commit()
-                        print("Columna abreviacion creada exitosamente en banco_estandarizado (método alternativo).")
-                        try:
-                            db.session.rollback()
-                        except:
-                            pass
-                    except Exception as e2:
-                        error_msg = str(e2).lower()
-                        if 'already exists' in error_msg or 'duplicate' in error_msg:
-                            print("Columna abreviacion ya existe en banco_estandarizado (detectado por error).")
-                        else:
-                            print(f"Error creando columna abreviacion en banco_estandarizado: {e2}")
-                        try:
-                            db.session.rollback()
-                        except:
-                            pass
+                    except:
+                        pass
             
             # Limpiar transacción antes de verificar tipo_tarjeta_estandarizado
             try:
@@ -3801,15 +3818,9 @@ def ensure_abreviaciones_columns():
                 pass
             
             # Verificar y agregar abreviacion en tipo_tarjeta_estandarizado
-            try:
-                result = db.session.execute(text("SELECT abreviacion FROM tipo_tarjeta_estandarizado LIMIT 1"))
-                result.fetchone()
+            if column_exists('tipo_tarjeta_estandarizado', 'abreviacion'):
                 print("Columna abreviacion ya existe en tipo_tarjeta_estandarizado.")
-                try:
-                    db.session.rollback()
-                except:
-                    pass
-            except Exception:
+            else:
                 print("Columna abreviacion no existe en tipo_tarjeta_estandarizado. Creándola...")
                 try:
                     # Limpiar transacción antes de crear
@@ -3817,8 +3828,14 @@ def ensure_abreviaciones_columns():
                         db.session.rollback()
                     except:
                         pass
-                    # Para PostgreSQL - usar IF NOT EXISTS
-                    db.session.execute(text("ALTER TABLE tipo_tarjeta_estandarizado ADD COLUMN IF NOT EXISTS abreviacion VARCHAR(50)"))
+                    
+                    # Detectar tipo de base de datos
+                    db_url = str(db.engine.url)
+                    if 'postgresql' in db_url.lower():
+                        db.session.execute(text("ALTER TABLE tipo_tarjeta_estandarizado ADD COLUMN abreviacion VARCHAR(50)"))
+                    else:
+                        db.session.execute(text("ALTER TABLE tipo_tarjeta_estandarizado ADD COLUMN abreviacion TEXT"))
+                    
                     db.session.commit()
                     print("Columna abreviacion creada exitosamente en tipo_tarjeta_estandarizado.")
                     try:
@@ -3826,26 +3843,15 @@ def ensure_abreviaciones_columns():
                     except:
                         pass
                 except Exception as e:
-                    # Si IF NOT EXISTS no funciona, intentar sin él
+                    error_msg = str(e).lower()
+                    if 'already exists' in error_msg or 'duplicate' in error_msg or 'column' in error_msg and 'already' in error_msg:
+                        print("Columna abreviacion ya existe en tipo_tarjeta_estandarizado (detectado por error).")
+                    else:
+                        print(f"Error creando columna abreviacion en tipo_tarjeta_estandarizado: {e}")
                     try:
                         db.session.rollback()
-                        db.session.execute(text("ALTER TABLE tipo_tarjeta_estandarizado ADD COLUMN abreviacion TEXT"))
-                        db.session.commit()
-                        print("Columna abreviacion creada exitosamente en tipo_tarjeta_estandarizado (método alternativo).")
-                        try:
-                            db.session.rollback()
-                        except:
-                            pass
-                    except Exception as e2:
-                        error_msg = str(e2).lower()
-                        if 'already exists' in error_msg or 'duplicate' in error_msg:
-                            print("Columna abreviacion ya existe en tipo_tarjeta_estandarizado (detectado por error).")
-                        else:
-                            print(f"Error creando columna abreviacion en tipo_tarjeta_estandarizado: {e2}")
-                        try:
-                            db.session.rollback()
-                        except:
-                            pass
+                    except:
+                        pass
     except Exception as e:
         print(f"Error verificando/creando columnas de abreviacion: {e}")
         try:
@@ -4160,15 +4166,9 @@ def ensure_consumos_detalle_categoria_503020():
             except:
                 pass
             
-            try:
-                result = db.session.execute(text("SELECT categoria_503020 FROM consumos_detalle LIMIT 1"))
-                result.fetchone()
+            if column_exists('consumos_detalle', 'categoria_503020'):
                 print("Columna categoria_503020 ya existe en consumos_detalle.")
-                try:
-                    db.session.rollback()
-                except:
-                    pass
-            except Exception:
+            else:
                 print("Columna categoria_503020 no existe en consumos_detalle. Creándola...")
                 try:
                     # Limpiar transacción antes de crear
@@ -4176,8 +4176,14 @@ def ensure_consumos_detalle_categoria_503020():
                         db.session.rollback()
                     except:
                         pass
-                    # Para PostgreSQL - usar IF NOT EXISTS
-                    db.session.execute(text("ALTER TABLE consumos_detalle ADD COLUMN IF NOT EXISTS categoria_503020 VARCHAR(20)"))
+                    
+                    # Detectar tipo de base de datos
+                    db_url = str(db.engine.url)
+                    if 'postgresql' in db_url.lower():
+                        db.session.execute(text("ALTER TABLE consumos_detalle ADD COLUMN categoria_503020 VARCHAR(20)"))
+                    else:
+                        db.session.execute(text("ALTER TABLE consumos_detalle ADD COLUMN categoria_503020 TEXT"))
+                    
                     db.session.commit()
                     print("Columna categoria_503020 creada exitosamente.")
                     try:
@@ -4185,26 +4191,15 @@ def ensure_consumos_detalle_categoria_503020():
                     except:
                         pass
                 except Exception as e:
-                    # Si IF NOT EXISTS no funciona, intentar sin él
+                    error_msg = str(e).lower()
+                    if 'already exists' in error_msg or 'duplicate' in error_msg or 'column' in error_msg and 'already' in error_msg:
+                        print("Columna categoria_503020 ya existe en consumos_detalle (detectado por error).")
+                    else:
+                        print(f"Error creando columna categoria_503020: {e}")
                     try:
                         db.session.rollback()
-                        db.session.execute(text("ALTER TABLE consumos_detalle ADD COLUMN categoria_503020 TEXT"))
-                        db.session.commit()
-                        print("Columna categoria_503020 creada exitosamente (método alternativo).")
-                        try:
-                            db.session.rollback()
-                        except:
-                            pass
-                    except Exception as e2:
-                        error_msg = str(e2).lower()
-                        if 'already exists' in error_msg or 'duplicate' in error_msg:
-                            print("Columna categoria_503020 ya existe en consumos_detalle (detectado por error).")
-                        else:
-                            print(f"Error creando columna categoria_503020: {e2}")
-                        try:
-                            db.session.rollback()
-                        except:
-                            pass
+                    except:
+                        pass
     except Exception as e:
         print(f"Error verificando/creando columna categoria_503020: {e}")
         try:
