@@ -123,7 +123,7 @@ class Usuario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=True)  # Opcional para OAuth
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(120), nullable=True)  # Opcional para OAuth
+    password_hash = db.Column(db.String(255), nullable=True)  # Opcional para OAuth (aumentado para soportar hashes scrypt largos)
     nombre = db.Column(db.String(100), nullable=False)
     fecha_registro = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     activo = db.Column(db.Boolean, default=True)
@@ -3356,67 +3356,49 @@ def test_webhook():
 def ensure_fecha_inicio_periodo_column():
     """Asegurar que la columna fecha_inicio_periodo existe en la tabla estados_cuenta"""
     try:
-        # Asegurar que la sesión esté limpia
+        # Limpiar transacción antes de empezar
         try:
             db.session.rollback()
         except:
             pass
         
-        # Verificar si la tabla existe primero
-        from sqlalchemy import inspect, text
-        inspector = inspect(db.engine)
-        tables = inspector.get_table_names()
-        
-        if 'estados_cuenta' not in tables:
-            print("ADVERTENCIA: Tabla estados_cuenta no existe aún, se creará con db.create_all()")
-            return
-        
-        # Verificar si la columna existe
-        try:
-            columns = [col['name'] for col in inspector.get_columns('estados_cuenta')]
-        except Exception as e:
-            print(f"ADVERTENCIA: Error obteniendo columnas de estados_cuenta: {str(e)}")
-            # Intentar crear la columna de todas formas
+        # Usar column_exists() para verificar si la columna existe
+        if column_exists('estados_cuenta', 'fecha_inicio_periodo'):
+            print("Columna fecha_inicio_periodo ya existe.")
+            # Asegurar que la transacción esté limpia
             try:
-                db.session.execute(text("ALTER TABLE estados_cuenta ADD COLUMN IF NOT EXISTS fecha_inicio_periodo DATE"))
-                db.session.commit()
-                print("✅ Columna fecha_inicio_periodo creada (método alternativo)")
-                return
-            except Exception as e2:
-                print(f"ERROR: No se pudo crear columna fecha_inicio_periodo: {str(e2)}")
+                db.session.rollback()
+            except:
+                pass
+        else:
+            print("Columna fecha_inicio_periodo no existe, creándola...")
+            try:
+                # Limpiar transacción antes de crear
                 try:
                     db.session.rollback()
                 except:
                     pass
-                return
-        
-        if 'fecha_inicio_periodo' not in columns:
-            print("Columna fecha_inicio_periodo no existe, creándola...")
-            try:
-                # Intentar con IF NOT EXISTS primero (PostgreSQL 9.5+)
-                db.session.execute(text("ALTER TABLE estados_cuenta ADD COLUMN IF NOT EXISTS fecha_inicio_periodo DATE"))
+                
+                from sqlalchemy import text
+                db.session.execute(text("ALTER TABLE estados_cuenta ADD COLUMN fecha_inicio_periodo DATE"))
                 db.session.commit()
                 print("✅ Columna fecha_inicio_periodo creada exitosamente")
-            except Exception as e:
-                # Si IF NOT EXISTS no funciona, intentar sin él (puede fallar si ya existe)
+                
+                # Limpiar transacción después de crear
                 try:
                     db.session.rollback()
-                    db.session.execute(text("ALTER TABLE estados_cuenta ADD COLUMN fecha_inicio_periodo DATE"))
-                    db.session.commit()
-                    print("✅ Columna fecha_inicio_periodo creada exitosamente (método alternativo)")
-                except Exception as e2:
-                    # Si falla, puede ser que ya exista o hay un problema de permisos
-                    error_msg = str(e2).lower()
-                    if 'already exists' in error_msg or 'duplicate' in error_msg:
-                        print("✅ Columna fecha_inicio_periodo ya existe (detectado por error)")
-                    else:
-                        print(f"ERROR: No se pudo crear columna fecha_inicio_periodo: {str(e2)}")
-                    try:
-                        db.session.rollback()
-                    except:
-                        pass
-        else:
-            print("✅ Columna fecha_inicio_periodo ya existe")
+                except:
+                    pass
+            except Exception as e:
+                error_msg = str(e).lower()
+                if 'already exists' in error_msg or 'duplicate' in error_msg or 'column' in error_msg and 'already' in error_msg:
+                    print("✅ Columna fecha_inicio_periodo ya existe (detectado por error).")
+                else:
+                    print(f"ERROR: No se pudo crear columna fecha_inicio_periodo: {str(e)}")
+                try:
+                    db.session.rollback()
+                except:
+                    pass
     except Exception as e:
         print(f"ADVERTENCIA: Error verificando/creando columna fecha_inicio_periodo: {str(e)}")
         import traceback
@@ -4208,9 +4190,76 @@ def ensure_consumos_detalle_categoria_503020():
             pass
         # No fallar la aplicación si hay error, solo loguear
 
+def ensure_password_hash_size():
+    """
+    Asegura que la columna password_hash tiene el tamaño correcto (255 caracteres).
+    Se ejecuta automáticamente al iniciar la aplicación.
+    """
+    try:
+        with app.app_context():
+            # Limpiar transacción antes de empezar
+            try:
+                db.session.rollback()
+            except:
+                pass
+            
+            # Verificar el tamaño actual de la columna
+            db_url = str(db.engine.url)
+            if 'postgresql' in db_url.lower():
+                # PostgreSQL: verificar el tamaño actual
+                query = text("""
+                    SELECT character_maximum_length 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'usuario' 
+                    AND column_name = 'password_hash'
+                """)
+                result = db.session.execute(query)
+                row = result.fetchone()
+                try:
+                    db.session.rollback()
+                except:
+                    pass
+                
+                if row and row[0] and row[0] < 255:
+                    # Actualizar el tamaño de la columna
+                    print(f"Columna password_hash tiene tamaño {row[0]}, actualizando a 255...")
+                    try:
+                        db.session.rollback()
+                        db.session.execute(text("ALTER TABLE usuario ALTER COLUMN password_hash TYPE VARCHAR(255)"))
+                        db.session.commit()
+                        print("✅ Columna password_hash actualizada a VARCHAR(255)")
+                        try:
+                            db.session.rollback()
+                        except:
+                            pass
+                    except Exception as e:
+                        error_msg = str(e).lower()
+                        if 'already' in error_msg or 'duplicate' in error_msg:
+                            print("Columna password_hash ya tiene el tamaño correcto.")
+                        else:
+                            print(f"Error actualizando password_hash: {e}")
+                        try:
+                            db.session.rollback()
+                        except:
+                            pass
+                elif row and row[0] and row[0] >= 255:
+                    print("Columna password_hash ya tiene el tamaño correcto.")
+                else:
+                    # La columna no existe o no se pudo verificar, pero no es crítico
+                    print("No se pudo verificar el tamaño de password_hash (puede que no exista aún).")
+    except Exception as e:
+        print(f"Error verificando/actualizando password_hash: {e}")
+        try:
+            db.session.rollback()
+        except:
+            pass
+        # No fallar la aplicación si hay error, solo loguear
+
 # Ejecutar al iniciar la aplicación (solo si hay contexto de aplicación)
 try:
     ensure_avatar_url_column()
+    ensure_password_hash_size()
+    ensure_fecha_inicio_periodo_column()
     ensure_estados_cuenta_columns()
     ensure_abreviaciones_columns()
     ensure_consumos_detalle_categoria_503020()
