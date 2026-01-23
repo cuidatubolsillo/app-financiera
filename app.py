@@ -316,7 +316,21 @@ def admin_required(f):
 # Función para obtener usuario actual
 def get_current_user():
     if 'user_id' in session:
-        return Usuario.query.get(session['user_id'])
+        try:
+            # Asegurar que la transacción esté limpia antes de consultar
+            try:
+                db.session.rollback()
+            except:
+                pass
+            return Usuario.query.get(session['user_id'])
+        except Exception as e:
+            print(f"ERROR obteniendo usuario actual: {str(e)}")
+            # Intentar rollback y retornar None
+            try:
+                db.session.rollback()
+            except:
+                pass
+            return None
     return None
 
 # Context processor para hacer el usuario disponible en todos los templates
@@ -363,45 +377,83 @@ def verificar_limite_ia(usuario_id, tipo_uso='analisis_pdf'):
 
 def registrar_uso_ia(usuario_id, tipo_uso='analisis_pdf'):
     """Registrar un uso de IA"""
-    uso = UsoIA(
-        usuario_id=usuario_id,
-        tipo_uso=tipo_uso,
-        fecha=datetime.utcnow().date(),
-        timestamp=datetime.utcnow()
-    )
-    db.session.add(uso)
-    db.session.commit()
-    return uso
+    try:
+        # Asegurar que la transacción esté limpia antes de continuar
+        try:
+            db.session.rollback()
+        except:
+            pass
+        
+        uso = UsoIA(
+            usuario_id=usuario_id,
+            tipo_uso=tipo_uso,
+            fecha=datetime.utcnow().date(),
+            timestamp=datetime.utcnow()
+        )
+        db.session.add(uso)
+        db.session.commit()
+        return uso
+    except Exception as e:
+        print(f"ERROR registrando uso de IA: {str(e)}")
+        try:
+            db.session.rollback()
+        except:
+            pass
+        # Retornar None si falla, pero no fallar la aplicación
+        return None
 
 def get_user_limits(usuario_id):
     """Obtener límites y uso actual del usuario"""
-    usuario = Usuario.query.get(usuario_id)
-    if not usuario:
-        return None
-    
-    # CAMBIO: Usar límite mensual en lugar de diario
-    hoy = datetime.utcnow().date()
-    inicio_mes = hoy.replace(day=1)  # Primer día del mes
-    
-    usos_analisis_pdf_mes = UsoIA.query.filter(
-        UsoIA.usuario_id == usuario_id,
-        UsoIA.fecha >= inicio_mes,
-        UsoIA.fecha <= hoy,
-        UsoIA.tipo_uso == 'analisis_pdf'
-    ).count()
-    
-    # Límite mensual: 50 usos por mes para usuarios normales
-    limite_mensual = 50
-    
-    return {
-        'usuario_id': usuario_id,
-        'is_admin': usuario.is_admin,
-        'daily_ai_limit': limite_mensual,  # Mantener nombre por compatibilidad
-        'usos_analisis_pdf': usos_analisis_pdf_mes,
-        'usos_restantes_analisis_pdf': max(0, limite_mensual - usos_analisis_pdf_mes) if not usuario.is_admin else 999999,
-        'periodo': 'mensual',  # Indicar que es límite mensual
-        'limite_mensual': limite_mensual
-    }
+    try:
+        # Asegurar que la transacción esté limpia antes de continuar
+        try:
+            db.session.rollback()
+        except:
+            pass
+        
+        usuario = Usuario.query.get(usuario_id)
+        if not usuario:
+            return None
+        
+        # CAMBIO: Usar límite mensual en lugar de diario
+        hoy = datetime.utcnow().date()
+        inicio_mes = hoy.replace(day=1)  # Primer día del mes
+        
+        usos_analisis_pdf_mes = UsoIA.query.filter(
+            UsoIA.usuario_id == usuario_id,
+            UsoIA.fecha >= inicio_mes,
+            UsoIA.fecha <= hoy,
+            UsoIA.tipo_uso == 'analisis_pdf'
+        ).count()
+        
+        # Límite mensual: 50 usos por mes para usuarios normales
+        limite_mensual = 50
+        
+        return {
+            'usuario_id': usuario_id,
+            'is_admin': usuario.is_admin,
+            'daily_ai_limit': limite_mensual,  # Mantener nombre por compatibilidad
+            'usos_analisis_pdf': usos_analisis_pdf_mes,
+            'usos_restantes_analisis_pdf': max(0, limite_mensual - usos_analisis_pdf_mes) if not usuario.is_admin else 999999,
+            'periodo': 'mensual',  # Indicar que es límite mensual
+            'limite_mensual': limite_mensual
+        }
+    except Exception as e:
+        print(f"ERROR obteniendo límites de usuario: {str(e)}")
+        try:
+            db.session.rollback()
+        except:
+            pass
+        # Retornar valores por defecto si falla
+        return {
+            'usuario_id': usuario_id,
+            'is_admin': False,
+            'daily_ai_limit': 50,
+            'usos_analisis_pdf': 0,
+            'usos_restantes_analisis_pdf': 50,
+            'periodo': 'mensual',
+            'limite_mensual': 50
+        }
 
 def can_use_feature(usuario_id, feature='analisis_pdf'):
     """Verificar si el usuario puede usar una característica específica"""
@@ -433,17 +485,32 @@ def registrar_metrica_herramienta(usuario_id, herramienta, accion, metadatos=Non
 
 def registrar_metrica_ia(usuario_id, modelo_ia, tipo_operacion, tokens_consumidos, costo_estimado, duracion_segundos):
     """Registrar una métrica detallada de IA"""
-    metrica = MetricasIA(
-        usuario_id=usuario_id,
-        modelo_ia=modelo_ia,
-        tipo_operacion=tipo_operacion,
-        tokens_consumidos=tokens_consumidos,
-        costo_estimado=costo_estimado,
-        duracion_segundos=duracion_segundos
-    )
-    db.session.add(metrica)
-    db.session.commit()
-    return metrica
+    try:
+        # Asegurar que la transacción esté limpia antes de continuar
+        try:
+            db.session.rollback()
+        except:
+            pass
+        
+        metrica = MetricasIA(
+            usuario_id=usuario_id,
+            modelo_ia=modelo_ia,
+            tipo_operacion=tipo_operacion,
+            tokens_consumidos=tokens_consumidos,
+            costo_estimado=costo_estimado,
+            duracion_segundos=duracion_segundos
+        )
+        db.session.add(metrica)
+        db.session.commit()
+        return metrica
+    except Exception as e:
+        print(f"ERROR registrando métrica de IA: {str(e)}")
+        try:
+            db.session.rollback()
+        except:
+            pass
+        # Retornar None si falla, pero no fallar la aplicación
+        return None
 
 def normalizar_nombre_banco(nombre):
     """Normaliza el nombre del banco removiendo sufijos comunes para comparación"""
@@ -502,6 +569,11 @@ def estandarizar_banco(nombre_banco):
             print(f"ADVERTENCIA: Error consultando BancoEstandarizado (coincidencia exacta): {str(e)}")
             import traceback
             print(f"Traceback: {traceback.format_exc()}")
+            # Asegurar rollback si hay error
+            try:
+                db.session.rollback()
+            except:
+                pass
             # Si falla la consulta, continuar con búsqueda parcial
         
         # Buscar coincidencia parcial inteligente usando palabras clave
@@ -556,6 +628,11 @@ def estandarizar_banco(nombre_banco):
             print(f"ADVERTENCIA: Error consultando BancoEstandarizado (coincidencia parcial): {str(e)}")
             import traceback
             print(f"Traceback: {traceback.format_exc()}")
+            # Asegurar rollback si hay error
+            try:
+                db.session.rollback()
+            except:
+                pass
             # Si falla la consulta, retornar el nombre original
             return nombre_banco
         
@@ -586,6 +663,11 @@ def estandarizar_banco(nombre_banco):
         print(f"ERROR en estandarizar_banco: {str(e)}")
         import traceback
         print(f"Traceback: {traceback.format_exc()}")
+        # Asegurar rollback si hay error
+        try:
+            db.session.rollback()
+        except:
+            pass
         return nombre_banco
 
 def estandarizar_tipo_tarjeta(tipo_tarjeta):
@@ -605,6 +687,11 @@ def estandarizar_tipo_tarjeta(tipo_tarjeta):
                 return tipo_existente.abreviacion if tipo_existente.abreviacion else tipo_existente.nombre_estandarizado
         except Exception as e:
             print(f"ADVERTENCIA: Error consultando TipoTarjetaEstandarizado (coincidencia exacta): {str(e)}")
+            # Asegurar rollback si hay error
+            try:
+                db.session.rollback()
+            except:
+                pass
             # Si falla la consulta, retornar el nombre original
             return tipo_tarjeta
         
@@ -664,6 +751,11 @@ def estandarizar_tipo_tarjeta(tipo_tarjeta):
                         
         except Exception as e:
             print(f"ADVERTENCIA: Error consultando TipoTarjetaEstandarizado (coincidencia parcial): {str(e)}")
+            # Asegurar rollback si hay error
+            try:
+                db.session.rollback()
+            except:
+                pass
             # Si falla la consulta, retornar el nombre original
             return tipo_tarjeta
         
@@ -690,6 +782,11 @@ def estandarizar_tipo_tarjeta(tipo_tarjeta):
         print(f"ERROR en estandarizar_tipo_tarjeta: {str(e)}")
         import traceback
         print(f"Traceback: {traceback.format_exc()}")
+        # Asegurar rollback si hay error
+        try:
+            db.session.rollback()
+        except:
+            pass
         return tipo_tarjeta
 
 def inicializar_bancos_oficiales():
@@ -1498,12 +1595,32 @@ def analizar_pdf():
                 print(f"DEBUG - Resultado crudo: {resultado}")
                 
                 # Estandarizar nombres de banco y tipo de tarjeta ANTES de formatear
+                # IMPORTANTE: Envolver en try-except para evitar que errores de BD dejen la transacción en estado fallido
                 if resultado.get('status') == 'success' and 'data' in resultado:
                     datos = resultado['data']
-                    if 'nombre_banco' in datos and datos['nombre_banco']:
-                        datos['nombre_banco'] = estandarizar_banco(datos['nombre_banco']) or datos['nombre_banco']
-                    if 'tipo_tarjeta' in datos and datos['tipo_tarjeta']:
-                        datos['tipo_tarjeta'] = estandarizar_tipo_tarjeta(datos['tipo_tarjeta']) or datos['tipo_tarjeta']
+                    try:
+                        if 'nombre_banco' in datos and datos['nombre_banco']:
+                            datos['nombre_banco'] = estandarizar_banco(datos['nombre_banco']) or datos['nombre_banco']
+                    except Exception as e:
+                        print(f"ERROR estandarizando banco: {str(e)}")
+                        # Asegurar rollback si hay error
+                        try:
+                            db.session.rollback()
+                        except:
+                            pass
+                        # Continuar con el nombre original si falla
+                    
+                    try:
+                        if 'tipo_tarjeta' in datos and datos['tipo_tarjeta']:
+                            datos['tipo_tarjeta'] = estandarizar_tipo_tarjeta(datos['tipo_tarjeta']) or datos['tipo_tarjeta']
+                    except Exception as e:
+                        print(f"ERROR estandarizando tipo tarjeta: {str(e)}")
+                        # Asegurar rollback si hay error
+                        try:
+                            db.session.rollback()
+                        except:
+                            pass
+                        # Continuar con el tipo original si falla
                 
                 # Formatear resultados
                 resultado_formateado = analyzer.formatear_resultados(resultado)
@@ -1513,9 +1630,19 @@ def analizar_pdf():
                 
                 # Registrar el uso de IA solo si fue exitoso
                 if resultado_formateado.get('status') != 'error':
+                    # Asegurar que la transacción esté limpia antes de obtener el usuario
+                    try:
+                        db.session.rollback()  # Limpiar cualquier transacción fallida previa
+                    except:
+                        pass
+                    
                     usuario_actual = get_current_user()
-                    registrar_uso_ia(usuario_actual.id, 'analisis_pdf')
-                    print(f"DEBUG - Uso de IA registrado para usuario {usuario_actual.id}")
+                    # Registrar uso de IA (con manejo de errores)
+                    uso_registrado = registrar_uso_ia(usuario_actual.id, 'analisis_pdf')
+                    if uso_registrado:
+                        print(f"DEBUG - Uso de IA registrado para usuario {usuario_actual.id}")
+                    else:
+                        print(f"ADVERTENCIA - No se pudo registrar uso de IA para usuario {usuario_actual.id}")
                     
                     # ===== REGISTRAR MÉTRICAS DETALLADAS DE IA =====
                     # Obtener información de tokens del resultado crudo
@@ -1537,7 +1664,8 @@ def analizar_pdf():
                     precio_por_token = 0.25 / 1_000_000  # $0.00000025 por token
                     costo_estimado = tokens_estimados * precio_por_token
                     
-                    registrar_metrica_ia(
+                    # Registrar métricas (con manejo de errores)
+                    metrica_registrada = registrar_metrica_ia(
                         usuario_id=usuario_actual.id,
                         modelo_ia='claude-haiku-4-5',
                         tipo_operacion='analisis_pdf',
@@ -1545,10 +1673,22 @@ def analizar_pdf():
                         costo_estimado=costo_estimado,
                         duracion_segundos=2.5  # Tiempo estimado de procesamiento
                     )
-                    print(f"DEBUG - Métricas de IA registradas: {int(tokens_estimados)} tokens, ${costo_estimado:.4f}")
+                    if metrica_registrada:
+                        print(f"DEBUG - Métricas de IA registradas: {int(tokens_estimados)} tokens, ${costo_estimado:.4f}")
+                    else:
+                        print(f"ADVERTENCIA - No se pudieron registrar métricas de IA")
                     
-                    # Actualizar límites en la sesión
-                    session['user_limits'] = get_user_limits(usuario_actual.id)
+                    # Actualizar límites en la sesión (con manejo de errores)
+                    try:
+                        # Asegurar que la transacción esté limpia antes de obtener límites
+                        try:
+                            db.session.rollback()
+                        except:
+                            pass
+                        session['user_limits'] = get_user_limits(usuario_actual.id)
+                    except Exception as e:
+                        print(f"ADVERTENCIA - Error obteniendo límites de usuario: {str(e)}")
+                        # Continuar sin actualizar límites en sesión
                 
                 return jsonify(resultado_formateado)
                 
